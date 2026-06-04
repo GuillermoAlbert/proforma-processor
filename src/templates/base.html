@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Proforma Admin{% endblock %} — Guías de Alicante</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:       #1B3A6B;
+      --navy-light: #2B5499;
+      --navy-pale:  #E8EEF8;
+      --terra:      #C8402A;
+      --terra-pale: #FAF0EE;
+      --gold:       #C0882A;
+      --sand:       #F7F4EF;
+      --sand-dark:  #EDE8E0;
+      --ink:        #1A1714;
+      --stone:      #4A4540;
+      --hairline:   rgba(26,23,20,0.15);
+      --font-head:  'Lora', Georgia, serif;
+      --font-ui:    'Inter', system-ui, Arial, sans-serif;
+      --radius:     8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-ui);
+      background: var(--sand);
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    a { color: var(--navy); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Nav */
+    nav {
+      background: var(--navy);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      height: 52px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
+    .nav-brand {
+      font-family: var(--font-head);
+      font-size: 17px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+    .nav-links {
+      display: flex;
+      gap: 4px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: rgba(255,255,255,0.78);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 5px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-links a:hover,
+    .nav-links a.active {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      text-decoration: none;
+    }
+
+    /* Layout */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* Page header */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    .page-header h1 {
+      font-family: var(--font-head);
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s, background 0.15s;
+      text-decoration: none;
+    }
+    .btn:hover { opacity: 0.88; text-decoration: none; }
+    .btn-primary   { background: var(--navy); color: #fff; }
+    .btn-secondary { background: var(--sand-dark); color: var(--ink); border: 1px solid var(--hairline); }
+    .btn-terra     { background: var(--terra); color: #fff; }
+    .btn-danger    { background: #b91c1c; color: #fff; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+    /* Cards */
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      border: 1px solid var(--hairline);
+      overflow: hidden;
+    }
+
+    /* Tables */
+    .table-wrap { overflow-x: auto; }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.data-table thead th {
+      background: var(--navy-pale);
+      color: var(--navy);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 2px solid var(--navy);
+      white-space: nowrap;
+    }
+    table.data-table tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--hairline);
+      vertical-align: middle;
+    }
+    table.data-table tbody tr:last-child td { border-bottom: none; }
+    table.data-table tbody tr:hover { background: var(--sand); }
+    .td-actions { display: flex; gap: 6px; }
+
+    /* Forms */
+    .form-card { max-width: 640px; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 20px;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--stone);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 8px 10px;
+      border: 1px solid var(--hairline);
+      border-radius: 6px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--ink);
+      background: #fff;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--navy-light);
+      box-shadow: 0 0 0 2px var(--navy-pale);
+    }
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--hairline);
+      background: var(--sand);
+    }
+
+    /* Flash messages */
+    .flash-list { list-style: none; margin-bottom: 20px; }
+    .flash-msg {
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .flash-success { background: #D1FAE5; color: #065F46; border: 1px solid #6EE7B7; }
+    .flash-error   { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .badge-borrador   { background: #E5E7EB; color: #374151; }
+    .badge-enviada    { background: var(--navy-pale); color: var(--navy); }
+    .badge-confirmada { background: #D1FAE5; color: #065F46; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">Guías de Alicante</span>
+  <ul class="nav-links">
+    <li><a href="{{ url_for('proformas_lista') }}" {% if request.endpoint and 'proforma' in request.endpoint %}class="active"{% endif %}>Proformas</a></li>
+    <li><a href="{{ url_for('clientes_lista') }}" {% if request.endpoint and 'cliente' in request.endpoint %}class="active"{% endif %}>Clientes</a></li>
+    <li><a href="{{ url_for('articulos_lista') }}" {% if request.endpoint and 'articulo' in request.endpoint %}class="active"{% endif %}>Artículos</a></li>
+    <li><a href="{{ url_for('guias_lista') }}" {% if request.endpoint and 'guia' in request.endpoint %}class="active"{% endif %}>Guías</a></li>
+    <li><a href="{{ url_for('config_index') }}" {% if request.endpoint and 'config' in request.endpoint %}class="active"{% endif %}>Configuración</a></li>
+  </ul>
+</nav>
+
+<div class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flash-list">
+        {% for category, message in messages %}
+          <li class="flash-msg flash-{{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

@@ -58,23 +58,44 @@ pct exec 104 -- bash -c "cd /mnt/empresa/proforma-admin && pip install -r src/re
 |---|---|---|
 | Web | Flask | Mismo patrón que `factura-processor` |
 | Plantillas | Jinja2 | HTML de proforma → datos inyectados |
-| PDF | WeasyPrint | Librería Python pura, sin binarios externos |
+| PDF | WeasyPrint | Librería Python pura. Plantilla: `DOCS_ETL_PROFORMAS/plantilla-proforma.html`. Contexto Jinja2: `proforma`, `cliente`, `empresa`, `proforma.lineas` (cada una: `descripcion`, `cantidad`, `precio`, `porcentaje_iva`, `importe`). Serie: `PRO-YYYY-NNNN`. **Sin variable `guia` — los guías no van al PDF.** |
 | BD | SQLite (WAL) | `proformas.db` en el NAS, no en el rootfs del CT |
 | Excel | openpyxl | Patrón con backup + reintentos del processor |
 | Auth | HTTP Basic | `admin_helpers.py` del processor reutilizable |
 
-## Qué reutilizar de `/opt/factura-processor/`
+## Estructura de `src/` (Fases 1–2 implementadas)
 
-```bash
-pct exec 104 -- ls /opt/factura-processor/
-```
+| Archivo | Qué hace |
+|---|---|
+| `app.py` | Flask app + rutas (CRUD clientes/artículos/guías, proformas, PDF, **confirmar→Excel**) |
+| `db.py` | Context manager SQLite WAL, schema DDL, `siguiente_numero_proforma()` |
+| `pdf.py` | Generación PDF con WeasyPrint + Jinja2. Datos empresa hardcodeados aquí. |
+| `excel.py` | **Fase 2.** Registro en `facturas-emitidas.xlsx`: backup + lock + reintentos + cola. `registrar_proforma()`, `drain_pending()`, `contar_pendientes()`. |
+| `admin_helpers.py` | Decorator `@require_auth` HTTP Basic Auth |
+| `requirements.txt` | flask, weasyprint, openpyxl |
+| `INSTALL.md` | Comandos `pct exec 104` para instalar en CT-104 |
+| `templates/base.html` | Layout nav + CSS brand kit completo |
+| `templates/clientes/` | lista.html + form.html |
+| `templates/articulos/` | lista.html + form.html |
+| `templates/guias/lista.html` | CRUD inline |
+| `templates/proformas/lista.html` | Listado con enlace a PDF + botón Confirmar |
+| `templates/proformas/nueva.html` | Form con líneas dinámicas (JS vanilla) + totales en tiempo real |
+| `templates/proformas/detalle.html` | Vista + descarga PDF + Confirmar y registrar en Excel |
+| `templates/config/index.html` | Reiniciar servicio + reintentar pendientes de Excel |
 
-- `admin_helpers.py` — autenticación Basic y helpers del panel
-- `admin_ui.py` — CSS y barra de navegación (mismo look)
-- `db.py` — patrón context manager SQLite WAL (fix WAL truncado aplicado)
-- `pipeline.py` (sección Excel) — backup previo + reintentos + cola si el Excel está abierto
+**Datos de empresa** (NIF, IBAN): editar directamente en `src/pdf.py` líneas 11–22.
 
-Copiar y adaptar, no importar directamente (proyectos independientes).
+**Variables de entorno del servicio** (en el unit systemd):
+- `DB_PATH` — default `/mnt/empresa/proformas.db`
+- `PDF_DIR` — default `/mnt/empresa/proformas-pdf`
+- `TEMPLATE_DIR` — default `/mnt/empresa/proforma-admin/DOCS_ETL_PROFORMAS`
+- `ADMIN_USER` / `ADMIN_PASS` — credenciales Basic Auth
+- `EXCEL_PATH` — default `/mnt/empresa/facturas-emitidas.xlsx` (Excel Hacienda, Fase 2)
+- `EXCEL_BACKUP_DIR` — default `/mnt/empresa/backups-proformas` (copias con rotación 30 días)
+- `EXCEL_PENDING_FILE` — default `/mnt/empresa/proforma-admin-pending-excel.json` (cola si el Excel está abierto)
+- `EXCEL_LOCK_FILE` — default `/mnt/empresa/.proforma-excel.lock`
+
+Todas las de Excel tienen default, así que el servicio funciona sin declararlas.
 
 ## DOCS_ETL_PROFORMAS — assets que el usuario sube
 
@@ -83,12 +104,13 @@ Ruta dentro del CT: `/mnt/empresa/proforma-admin/DOCS_ETL_PROFORMAS/`
 
 Aquí el usuario deja los ficheros de referencia para el diseño y la implementación:
 
-| Fichero esperado | Para qué |
-|---|---|
-| `plantilla-proforma.html` | Plantilla HTML de la proforma (diseño final con huecos Jinja2) |
-| `brand-kit.*` | Colores, tipografías, instrucciones de diseño |
-| `factusol-importacion.pdf` | Documentación técnica de importación de tu versión de Factusol |
-| `ejemplo-proforma.*` | PDF o imagen de referencia visual |
+| Fichero | Estado | Para qué |
+|---|---|---|
+| `plantilla-proforma.html` | ✅ listo | Jinja2 → WeasyPrint. Variables: `proforma.*`, `cliente.*`, `empresa.*`, `proforma.lineas`. **`guia` eliminado del contexto PDF — los guías no aparecen en el PDF.** Ver sección "PDF" abajo. |
+| `brand-kit-documentos.md` | ✅ listo | Colores, tipografías e instrucciones de diseño (Design System v1.0) |
+| `plantilla-documento.html` | ✅ listo | Plantilla base de documentos (tarifas, resúmenes) — mismos patrones CSS que la proforma |
+| `logotipo-guiasdealicante.svg` | ✅ listo | Logo vectorial (paths terracota + navy; renderizar en blanco sobre fondos oscuros) |
+| `factusol-importacion.pdf` | ⏳ pendiente | Documentación técnica de importación de tu versión de Factusol (necesaria para Fase 3) |
 
 ## Modelo de datos (tablas SQLite)
 
@@ -97,7 +119,8 @@ Ver propuesta completa para el DDL detallado. Resumen:
 - `clientes` — agencias/clientes reutilizables (NIF, dirección, código Factusol)
 - `articulos` — catálogo de servicios con precio e IVA por defecto
 - `guias` — nombres de guías (columna "Guía" del Excel de Hacienda)
-- `proformas` — cabecera: cliente, guía, totales, estado, ruta PDF
+- `proforma_guias` — tabla puente muchos-a-muchos: una proforma puede tener varios guías. **Los guías solo van al Excel (col 16, todos concatenados con coma), nunca al PDF.**
+- `proformas` — cabecera: cliente, totales, estado, ruta PDF. **No tiene `guia_id` — la relación es a través de `proforma_guias`.**
 - `proforma_lineas` — líneas de cada proforma
 - `series` — contador de numeración por serie y año
 
@@ -110,9 +133,23 @@ Ver propuesta completa para el DDL detallado. Resumen:
 5. **RAM CT-104**: 1 GB (subido desde 512 MB el 2026-06-04). Si hay problemas de memoria en el host, este CT es el primero en bajar.
 6. **Rollback**: `systemctl stop proforma-admin && systemctl disable proforma-admin`. El processor queda intacto.
 
-## Plan de implementación por fases
+## Estado de implementación por fases
 
-- **Fase 1** — BD + catálogo (clientes, servicios, guías) + crear proforma + generar PDF con WeasyPrint
-- **Fase 2** — Registro en Excel Hacienda (patrón robusto del processor)
-- **Fase 3** — Export fichero importación Factusol (necesita doc técnica de tu versión)
-- **Fase 4** — Estados (borrador→enviada→confirmada), filtros, pulido
+| Fase | Estado | Contenido |
+|---|---|---|
+| **Fase 1** | ✅ **implementada** (2026-06-04) | BD + catálogo (clientes, artículos, guías) + crear proforma + generar PDF con WeasyPrint |
+| **Fase 2** | ✅ **implementada** (2026-06-05) | Registro automático en Excel Hacienda (`facturas-emitidas.xlsx`) al confirmar una proforma (botón «Confirmar y registrar en Excel»). Patrón robusto: backup + reintentos + cola si el Excel está abierto. Detalle: [`DOCS_ETL_PROFORMAS/fase2-excel-hacienda.md`](./DOCS_ETL_PROFORMAS/fase2-excel-hacienda.md). |
+| **Fase 3** | ⏳ bloqueada | Export fichero importación Factusol. **Requiere** subir `factusol-importacion.pdf` a `DOCS_ETL_PROFORMAS/`. Campo `exportada_factusol` ya existe en el schema. |
+| **Fase 4** | ⏳ pendiente | Flujo de estados (borrador→enviada→confirmada), filtros por estado/cliente/fecha, pulido UI |
+
+### Fase 2 — detalle de columnas Excel que rellena la app
+
+Al confirmar una proforma la app escribe automáticamente: Nº Proforma (col 3), NIF/CIF (4), Trimestre (5), Agencia (6), Provincia (7), Base (8), IVA (9), Total (10), Total+suplidos (12), Comentarios (14), Guía (16).
+
+- **Guía (col 16)**: todos los guías asignados a la proforma, concatenados con `, ` (coma + espacio). Si no hay ninguno, la celda queda vacía. Los guías **no aparecen en el PDF** en ningún caso.
+- **Fórmulas vs valores**: `Total` y `Total+suplidos` se escriben como fórmulas (`=H+I`, `=J+K`). El `IVA` es fórmula (`=H*tipo`) si la proforma tiene un único tipo de IVA, y valor `iva_total` si mezcla tipos.
+- **Suplidos (col 11)**: la app la rellena con `proforma.suplidos` cuando es > 0 (desviación documentada de la propuesta, que la marcaba «manual»), para que la fórmula de la col 12 cuadre. Si es 0, se deja en blanco.
+
+Columnas que se rellenan a mano después: Fecha Factura (2), Cobrado (13), Nº Factura Factusol (15), y Suplidos (11) cuando se añaden gastos a posteriori.
+
+> **Nota:** la migración multi-guía (`proforma_guias`, eliminación de `proformas.guia_id`) ya está hecha en el schema de la Fase 1 (`db.py: _migrate_to_multi_guia`), no es un pendiente de la Fase 2.

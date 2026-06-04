@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuesta — Pipeline de facturas proforma (Guías de Alicante)</title>
+<style>
+  :root{
+    --azul:#1f3b66; --azul2:#2f5da3; --gris:#f4f6fa; --borde:#d9e0ec;
+    --verde:#1e7a46; --verde-bg:#e7f5ec; --amber:#9a6b00; --amber-bg:#fff4d6;
+    --rojo:#9a1f1f; --rojo-bg:#fbe9e9; --txt:#1c2430; --mut:#5c6678;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--txt); margin:0; background:#fff; line-height:1.55; font-size:16px}
+  .wrap{max-width:980px; margin:0 auto; padding:0 22px 80px}
+  header{background:linear-gradient(135deg,var(--azul),var(--azul2)); color:#fff;
+    padding:38px 22px; margin-bottom:8px}
+  header .wrap{padding-bottom:0}
+  header h1{margin:0 0 6px; font-size:30px}
+  header p{margin:0; opacity:.92; font-size:17px}
+  .tag{display:inline-block; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35);
+    color:#fff; border-radius:999px; padding:3px 12px; font-size:13px; margin-top:14px}
+  h2{color:var(--azul); border-bottom:2px solid var(--borde); padding-bottom:8px; margin-top:46px; font-size:23px}
+  h3{color:var(--azul2); margin-top:28px; font-size:18px}
+  code{background:var(--gris); border:1px solid var(--borde); border-radius:5px; padding:1px 6px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13.5px}
+  pre{background:#0f1c30; color:#dce6f5; border-radius:10px; padding:16px 18px; overflow:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5}
+  pre .c{color:#7f93b3}
+  .grid{display:grid; gap:16px}
+  @media(min-width:680px){.grid.cols2{grid-template-columns:1fr 1fr}}
+  .card{border:1px solid var(--borde); border-radius:12px; padding:18px 20px; background:#fff}
+  .card h3{margin-top:0}
+  .pill{display:inline-block; font-size:12px; font-weight:600; padding:2px 9px; border-radius:999px; margin-right:6px}
+  .pill.hace{background:var(--verde-bg); color:var(--verde)}
+  .pill.no{background:var(--rojo-bg); color:var(--rojo)}
+  .pill.fact{background:#e8eefb; color:var(--azul2)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14.5px}
+  th,td{border:1px solid var(--borde); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--gris); color:var(--azul)}
+  .note{border-left:4px solid var(--azul2); background:var(--gris); padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0}
+  .warn{border-left:4px solid var(--amber); background:var(--amber-bg); padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0}
+  .ok{border-left:4px solid var(--verde); background:var(--verde-bg); padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0}
+  ul{margin:10px 0}
+  li{margin:5px 0}
+  .toc{background:var(--gris); border:1px solid var(--borde); border-radius:12px; padding:16px 22px; margin-top:24px}
+  .toc ol{margin:6px 0 0; padding-left:20px}
+  .toc a{color:var(--azul2); text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .muted{color:var(--mut); font-size:14px}
+  .badge-fase{display:inline-block; background:var(--azul); color:#fff; border-radius:6px; padding:1px 9px; font-size:13px; font-weight:700; margin-right:8px}
+  footer{margin-top:60px; padding-top:20px; border-top:1px solid var(--borde); color:var(--mut); font-size:13.5px}
+  .flow{font-family:ui-monospace,monospace; font-size:13px; white-space:pre; background:#0f1c30; color:#dce6f5;
+    border-radius:10px; padding:18px; overflow:auto; line-height:1.45}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Pipeline de facturas proforma</h1>
+    <p>Propuesta de arquitectura — Guías de Alicante · generación de proformas, registro para Hacienda y enlace con Factusol</p>
+    <span class="tag">Documento de propuesta · v1 · 2026-06-01 · pendiente de implementar</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="note">
+    <strong>Qué es este documento.</strong> Una propuesta de diseño, <strong>no</strong> código implementado.
+    Recoge la idea y la arquitectura sugerida para que la revises con calma. Cuando des el visto bueno,
+    se implementa por fases. Todas las decisiones marcadas abajo ya las hemos acordado.
+  </div>
+
+  <div class="toc">
+    <strong>Índice</strong>
+    <ol>
+      <li><a href="#resumen">Resumen ejecutivo</a></li>
+      <li><a href="#decisiones">Decisiones acordadas</a></li>
+      <li><a href="#flujo">Flujo de trabajo</a></li>
+      <li><a href="#arquitectura">Arquitectura técnica</a></li>
+      <li><a href="#pantallas">Pantallas del panel</a></li>
+      <li><a href="#reutiliza">Qué reutilizamos del factura-processor</a></li>
+      <li><a href="#factusol">Integración con Factusol</a></li>
+      <li><a href="#estabilidad">Impacto en el host y estabilidad</a></li>
+      <li><a href="#fases">Plan de implementación por fases</a></li>
+      <li><a href="#aportas">Lo que necesito de ti</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <h2 id="resumen">1. Resumen ejecutivo</h2>
+  <p>
+    Hoy el <strong>factura-processor</strong> (CT 104) hace el camino de <em>entrada</em>: lee las facturas que recibes
+    y etiquetas en Gmail, las interpreta con IA y las vuelca a Excel/PDF/base de datos. Lo que pides ahora es el camino
+    de <em>salida</em>: una herramienta para <strong>generar tus proformas</strong> cuando pasas un presupuesto y te
+    confirman el servicio, con un panel web parecido, que te ahorre tiempo y mantenga ordenado el papeleo.
+  </p>
+  <div class="grid cols2">
+    <div class="card">
+      <h3>Qué hará la herramienta</h3>
+      <p><span class="pill hace">SÍ</span></p>
+      <ul>
+        <li>Guardar <strong>clientes</strong> y un <strong>catálogo de servicios</strong> con precios reutilizables.</li>
+        <li>Crear una <strong>proforma</strong> en segundos eligiendo cliente + líneas de servicio.</li>
+        <li>Generar el <strong>PDF de la proforma</strong> con tu plantilla HTML.</li>
+        <li>Registrar cada operación en el <strong>Excel definitivo para Hacienda</strong>.</li>
+        <li>Preparar un <strong>fichero de importación para Factusol</strong> en una carpeta del NAS.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Qué NO hará (a propósito)</h3>
+      <p><span class="pill no">NO</span></p>
+      <ul>
+        <li>No emite la <strong>factura legal/electrónica</strong>. Una proforma <em>no</em> es un documento fiscal.</li>
+        <li>No sustituye a <strong>Factusol</strong>: la factura oficial (y el cumplimiento <strong>Verifactu</strong>)
+            se sigue emitiendo desde Factusol en tu PC.</li>
+        <li>No toca tu PC ni se conecta directamente a la base de datos de Factusol.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="ok">
+    <strong>Filosofía:</strong> la app se encarga de lo repetitivo y tedioso (datos, proforma, Excel, preparar la importación);
+    Factusol se queda con lo que la ley exige que haga un programa certificado (la factura electrónica). Cada pieza hace lo que mejor sabe.
+  </div>
+
+  <!-- 2 -->
+  <h2 id="decisiones">2. Decisiones acordadas</h2>
+  <table>
+    <tr><th>Tema</th><th>Decisión</th><th>Por qué</th></tr>
+    <tr>
+      <td><strong>Dónde se aloja</strong></td>
+      <td>Reusar el <strong>CT 104</strong> en un puerto nuevo (p.ej. <code>5114</code>), subiendo su RAM a ~1 GB.</td>
+      <td>La app es ligera (rellenar formulario → PDF). Evita crear otro contenedor en un host con la RAM ajustada. Poca contención con el cron horario del processor.</td>
+    </tr>
+    <tr>
+      <td><strong>Documentos que genera</strong></td>
+      <td>Solo la <strong>proforma</strong> (PDF). La factura legal la emite Factusol.</td>
+      <td>Más simple y sin riesgo legal. Evita descuadres entre dos sistemas que emitan facturas.</td>
+    </tr>
+    <tr>
+      <td><strong>Enlace con Factusol</strong></td>
+      <td><strong>Fichero de importación</strong> en carpeta del NAS (Samba); tú lo importas en tu PC.</td>
+      <td>Factusol vive en tu PC. Es el método soportado oficialmente por DELSOL, robusto y sin tocar tu equipo.</td>
+    </tr>
+    <tr>
+      <td><strong>Entrada de datos</strong></td>
+      <td><strong>Formulario web + catálogo</strong> de clientes y servicios guardados.</td>
+      <td>El ahorro de tiempo real viene de no re-teclear; reutilizas clientes y precios.</td>
+    </tr>
+  </table>
+
+  <!-- 3 -->
+  <h2 id="flujo">3. Flujo de trabajo</h2>
+  <p>Así sería el día a día, desde que pasas el presupuesto hasta la factura oficial:</p>
+  <div class="flow">
+ PRESUPUESTO          CONFIRMACIÓN            LA APP (CT 104)                       TU PC
+ ───────────          ────────────            ───────────────                      ─────
+                                          ┌─────────────────────────┐
+ Pasas precio  ─────►  El cliente    ───► │ 1. Nueva proforma        │
+ al cliente            confirma           │    (cliente + servicios) │
+                                          │ 2. Genera PDF proforma   │──► PDF a cliente / NAS
+                                          │ 3. Apunta en Excel       │──► Excel Hacienda (NAS)
+                                          │    "definitivo Hacienda" │
+                                          │ 4. Prepara fichero       │──► carpeta factusol-import
+                                          │    de importación        │        (NAS / Samba)
+                                          └─────────────────────────┘                │
+                                                                                      ▼
+                                                                          ┌────────────────────────┐
+                                                                          │ Abres Factusol e        │
+                                                                          │ IMPORTAS el fichero     │
+                                                                          │ → emites la FACTURA     │
+                                                                          │   ELECTRÓNICA (Verifactu)│
+                                                                          └────────────────────────┘
+  </div>
+  <p class="muted">
+    Estados de cada proforma dentro del panel: <code>borrador</code> → <code>enviada</code> → <code>confirmada</code>.
+    Los pasos 3 y 4 se disparan al marcar la proforma como <code>confirmada</code> (o con un botón "Exportar").
+  </p>
+
+  <!-- 4 -->
+  <h2 id="arquitectura">4. Arquitectura técnica</h2>
+  <div class="grid cols2">
+    <div class="card">
+      <h3>Servicio web</h3>
+      <ul>
+        <li><strong>Flask</strong> nuevo en CT 104, servicio systemd <code>proforma-admin</code>.</li>
+        <li>Puerto <strong>5114</strong>, accesible solo por <strong>Tailscale</strong> + <strong>HTTP Basic Auth</strong>.</li>
+        <li>Mismo estilo visual y de navegación que el panel actual (reutiliza CSS/auth).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Base de datos</h3>
+      <ul>
+        <li><strong>SQLite (modo WAL)</strong> propia en el NAS: <code>/mnt/empresa/proformas.db</code>.</li>
+        <li>Independiente de la del processor (no se mezclan datos ni se pisan).</li>
+        <li>Backup diario verificado (mismo patrón que <code>backup_db.sh</code>).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Generación del PDF</h3>
+      <ul>
+        <li>Tu <strong>plantilla HTML</strong> → motor de plantillas <strong>Jinja2</strong> (rellena los datos).</li>
+        <li>HTML → PDF con <strong>WeasyPrint</strong> (recomendado, pura librería Python; alternativa: wkhtmltopdf).</li>
+        <li>Numeración automática con <strong>serie</strong> (p.ej. <code>PRO-2026-0001</code>).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Excel para Hacienda</h3>
+      <ul>
+        <li><strong>openpyxl</strong>, reutilizando el patrón robusto del processor:</li>
+        <li>copia de seguridad antes de escribir, reintentos si el Excel está abierto, y cola de pendientes si sigue bloqueado.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Modelo de datos (tablas)</h3>
+  <p class="muted">Ajustado a las columnas de tu Excel de facturas emitidas (ver mapa en la sección siguiente).</p>
+  <pre><span class="c">-- clientes/agencias reutilizables  (columna "Agencia" del Excel)</span>
+clientes(id, nombre_agencia, nif_cif, direccion, cp, poblacion, provincia, email, telefono, codigo_factusol)
+
+<span class="c">-- catálogo de servicios con precio</span>
+articulos(id, codigo, descripcion, precio, porcentaje_iva, familia)
+
+<span class="c">-- guías que realizan el servicio  (columna "Guía": Alisa, ...)</span>
+guias(id, nombre)
+
+<span class="c">-- cabecera: la proforma que luego se convierte en factura</span>
+proformas(id, numero_proforma, fecha, cliente_id, guia_id, estado,
+          base, iva_total, suplidos, total, total_suplidos,
+          comentarios, ruta_pdf,
+          numero_factura, trimestre, cobrado,        <span class="c">-- se rellenan al facturar/cobrar</span>
+          exportada_excel, exportada_factusol)
+
+<span class="c">-- líneas de cada proforma</span>
+proforma_lineas(id, proforma_id, articulo_id, descripcion, cantidad, precio,
+                porcentaje_iva, importe)
+
+<span class="c">-- contador para la numeración de proformas</span>
+series(serie, anio, ultimo_numero)</pre>
+
+  <h3>Excel para Hacienda — tus columnas reales</h3>
+  <p>Mapa de cada columna de tu Excel actual y de dónde saldría el dato. Lo que pone <strong>auto/fórmula</strong> deja de teclearse:</p>
+  <table>
+    <tr><th>Columna del Excel</th><th>Origen</th><th>Notas</th></tr>
+    <tr><td><strong>Índice</strong></td><td><span class="pill fact">auto</span></td><td>Correlativo de fila.</td></tr>
+    <tr><td><strong>Fecha Factura</strong></td><td>manual / Factusol</td><td>Fecha de emisión de la factura.</td></tr>
+    <tr><td><strong>Nº Factura</strong></td><td><span class="pill no">Factusol ⚠️</span></td><td>Número legal. Ver decisión abierta más abajo.</td></tr>
+    <tr><td><strong>NIF/CIF</strong></td><td>ficha del cliente</td><td>El de la agencia. Se reutiliza.</td></tr>
+    <tr><td><strong>Tr</strong> (trimestre)</td><td><span class="pill fact">auto</span></td><td>Derivado de la fecha.</td></tr>
+    <tr><td><strong>Agencia</strong></td><td>ficha del cliente</td><td>Es el cliente.</td></tr>
+    <tr><td><strong>Provincia</strong></td><td>ficha del cliente</td><td>Se reutiliza.</td></tr>
+    <tr><td><strong>Base</strong></td><td><span class="pill fact">calculado</span></td><td>Suma de las líneas de la proforma.</td></tr>
+    <tr><td><strong>IVA</strong></td><td><span class="pill fact">fórmula</span></td><td>Base × % IVA.</td></tr>
+    <tr><td><strong>Total</strong></td><td><span class="pill fact">fórmula</span></td><td>Base + IVA.</td></tr>
+    <tr><td><strong>Suplidos</strong></td><td>manual</td><td>Por operación (p.ej. entradas, transporte).</td></tr>
+    <tr><td><strong>Total + suplidos</strong></td><td><span class="pill fact">fórmula</span></td><td>Total + Suplidos.</td></tr>
+    <tr><td><strong>Cobrado</strong></td><td>manual</td><td>Fecha de cobro (vacío hasta que cobras).</td></tr>
+    <tr><td><strong>Comentarios</strong></td><td>proforma / manual</td><td>Descripción del servicio (grupo y fechas).</td></tr>
+    <tr><td><strong>Proforma</strong></td><td><span class="pill hace">la app ★</span></td><td>Número de proforma generado por la app. <strong>Es el enlace natural entre la app y este Excel.</strong></td></tr>
+    <tr><td><strong>Guía</strong></td><td>catálogo de guías</td><td>Quién realiza el servicio.</td></tr>
+  </table>
+  <div class="ok">
+    <strong>Encaja muy bien.</strong> La columna <em>Proforma</em> que ya rellenas a mano es precisamente lo que produce esta herramienta;
+    al confirmar una proforma, la app escribe la fila entera (índice, agencia, NIF, base, IVA, total, comentarios, guía, nº de proforma)
+    y solo quedan por completar a mano <em>Nº Factura</em> y <em>Cobrado</em>.
+  </div>
+  <div class="warn">
+    <strong>Decisión abierta — numeración del Nº Factura.</strong> La factura legal la emite Factusol, así que su número debe ser el de Factusol
+    para no duplicar series. Dos opciones: (a) la app deja <em>Nº Factura</em> vacío y lo rellenas (un clic) tras emitir en Factusol; o
+    (b) si tu numeración es predecible, la app la propone y tú confirmas. Lo cerramos al implementar la Fase 2.
+  </div>
+
+  <!-- 5 -->
+  <h2 id="pantallas">5. Pantallas del panel</h2>
+  <table>
+    <tr><th>Pantalla</th><th>Qué permite</th></tr>
+    <tr><td><strong>Clientes</strong></td><td>Alta/edición de clientes; se reutilizan en cada proforma. Campo opcional <em>código Factusol</em> para casar con tu ficha en Factusol.</td></tr>
+    <tr><td><strong>Catálogo de servicios</strong></td><td>Lista de servicios habituales con precio, % IVA y % IRPF por defecto.</td></tr>
+    <tr><td><strong>Nueva proforma</strong></td><td>Eliges cliente, añades líneas desde el catálogo (o libres), y los totales (base, IVA, IRPF, total) se calculan solos.</td></tr>
+    <tr><td><strong>Listado de proformas</strong></td><td>Filtros por estado/cliente/fecha. Cambio de estado borrador→enviada→confirmada.</td></tr>
+    <tr><td><strong>Exportar</strong></td><td>Botones: descargar PDF, registrar en Excel Hacienda, generar fichero Factusol.</td></tr>
+    <tr><td><strong>Configuración</strong></td><td>Serie/numeración, datos de tu empresa, rutas, credenciales del panel.</td></tr>
+  </table>
+
+  <!-- 6 -->
+  <h2 id="reutiliza">6. Qué reutilizamos del factura-processor</h2>
+  <p>No partimos de cero: el CT 104 ya tiene piezas probadas en producción que encajan aquí.</p>
+  <table>
+    <tr><th>Pieza existente</th><th>Para qué la reaprovechamos</th></tr>
+    <tr><td><code>admin_helpers.py</code></td><td>Autenticación HTTP Basic y helpers comunes del panel.</td></tr>
+    <tr><td><code>admin_ui.py</code></td><td>CSS y barra de navegación → mismo aspecto que el panel actual.</td></tr>
+    <tr><td>Patrón de <code>db.py</code></td><td>Capa SQLite en modo WAL, índices y acceso seguro.</td></tr>
+    <tr><td>Escritura Excel de <code>pipeline.py</code></td><td>Backup previo + reintentos + cola de pendientes si el Excel está abierto.</td></tr>
+    <tr><td>Plantilla systemd + <code>backup_db.sh</code></td><td>Servicio que arranca solo y backup diario verificado.</td></tr>
+  </table>
+
+  <!-- 7 -->
+  <h2 id="factusol">7. Integración con Factusol</h2>
+  <p>
+    Factusol (de Software DELSOL) importa datos desde ficheros <strong>Excel (.xls/.xlsx)</strong> u <strong>OpenOffice Calc (.ods)</strong>
+    a través del menú <em>Utilidades → Importaciones → Ficheros .XLSX/.XLS</em>. Cada tipo de dato tiene su propio fichero y estructura
+    de columnas. La app generará esos ficheros y los dejará en una carpeta del NAS que ves desde tu PC por Samba
+    (<code>/mnt/empresa/factusol-import/</code>).
+  </p>
+  <h3>Reglas del formato (oficiales de DELSOL)</h3>
+  <ul>
+    <li>Un registro por fila, un campo por columna; <strong>sin filas vacías</strong> entre registros.</li>
+    <li>Las columnas <strong>A y B son obligatorias</strong> (sirven de índice, p.ej. código y nombre/descripción).</li>
+    <li>Campos numéricos: solo números, coma decimal y signo; <strong>2 decimales</strong> como máximo.</li>
+    <li>Ficheros típicos por tipo de dato: <code>clientes</code>, <code>artículos</code>, y documentos (pedidos/albaranes/facturas).</li>
+  </ul>
+  <div class="warn">
+    <strong>Importante sobre las columnas exactas.</strong> El mapa exacto de columnas cambia según versión y configuración.
+    La fuente fiable es tu propio Factusol: <em>Utilidades → Importaciones → Ficheros .XLSX</em> → enlace
+    <em>"Descargar documentación técnica sobre la importación"</em>. En la fase de Factusol usaremos <strong>ese</strong> documento de tu instalación
+    para fijar columnas y longitudes — así no dependemos de suposiciones.
+  </div>
+  <h3>Qué exportaremos</h3>
+  <ul>
+    <li><strong>Clientes</strong> nuevos (para que existan en Factusol antes de facturar).</li>
+    <li><strong>Artículos/servicios</strong> del catálogo (opcional, una sola vez o cuando cambien).</li>
+    <li>El <strong>documento</strong> de la operación confirmada, para que en Factusol solo tengas que revisar y emitir la factura electrónica.</li>
+  </ul>
+  <div class="note">
+    <strong>¿Por qué no emitir la factura electrónica desde la app?</strong> Con la normativa <strong>Verifactu</strong> la factura debe salir
+    de un programa que cumpla requisitos de inalterabilidad y registro. Factusol ya lo hace y está certificado. Replicarlo sería
+    mucho trabajo y un riesgo legal innecesario. Dejamos esa última milla a Factusol.
+  </div>
+
+  <!-- 8 -->
+  <h2 id="estabilidad">8. Impacto en el host y estabilidad</h2>
+  <ul>
+    <li><strong>RAM:</strong> el CT 104 está hoy en 512 MB. Subir a ~1 GB para alojar el segundo servicio con holgura. El host está ajustado de RAM, así que se vigilará tras el cambio.</li>
+    <li><strong>Aislamiento:</strong> servicio y base de datos separados del processor; el cron horario de facturas recibidas no se toca.</li>
+    <li><strong>Rollback sencillo:</strong> si algo va mal, se para/deshabilita <code>proforma-admin</code> y se devuelve la RAM del CT a 512 MB. El factura-processor sigue intacto.</li>
+    <li><strong>Documentación:</strong> al implementar se registrará en <code>auditoria-cambios.md</code> y se añadirá el puerto 5114 a <code>red-ips.md</code>.</li>
+  </ul>
+
+  <!-- 9 -->
+  <h2 id="fases">9. Plan de implementación por fases</h2>
+  <div class="grid">
+    <div class="card"><span class="badge-fase">Fase 1</span><strong>Catálogo + proforma + PDF</strong>
+      <p class="muted">Clientes, servicios, crear proforma con cálculo de totales y generar el PDF con tu plantilla. Ya útil por sí sola.</p></div>
+    <div class="card"><span class="badge-fase">Fase 2</span><strong>Excel para Hacienda</strong>
+      <p class="muted">Registro automático de cada operación en el Excel definitivo, con el patrón robusto del processor.</p></div>
+    <div class="card"><span class="badge-fase">Fase 3</span><strong>Export a Factusol</strong>
+      <p class="muted">Generar los ficheros de importación en la carpeta del NAS, según la documentación técnica de tu Factusol.</p></div>
+    <div class="card"><span class="badge-fase">Fase 4</span><strong>Estados y pulido</strong>
+      <p class="muted">Flujo borrador→enviada→confirmada, filtros, numeración por serie y pequeños automatismos.</p></div>
+  </div>
+
+  <!-- 10 -->
+  <h2 id="aportas">10. Lo que necesito de ti (cuando implementemos)</h2>
+  <ul>
+    <li>La <strong>plantilla HTML</strong> de la proforma (con los huecos a rellenar: cliente, líneas, totales…).</li>
+    <li>La <strong>documentación técnica de importación</strong> de tu Factusol (el botón "Descargar documentación técnica"), para fijar las columnas exactas.</li>
+    <li>Cómo quieres la <strong>numeración/serie</strong> de proformas (formato y si reinicia cada año) y cómo casa con la numeración de <strong>Nº Factura</strong> de Factusol (decisión abierta de la sección 4).</li>
+    <li>La lista de <strong>guías</strong> habituales (columna "Guía") para precargar el catálogo.</li>
+    <li>Datos fijos de tu empresa para el pie de la proforma (razón social, NIF, dirección, IBAN, etc.).</li>
+  </ul>
+
+  <footer>
+    Propuesta generada el 2026-06-01 · Guías de Alicante · documento para revisión, sin cambios aplicados al servidor.<br>
+    Fuentes Factusol: <a href="https://ayudafactusol.sdelsol.com/docs/f1777-cual-es-la-estructura-para-importar-de-excel-a-factusol">F1777 — estructura de importación Excel</a> ·
+    <a href="https://ayudafactusol.sdelsol.com/docs/f2725-como-hacer-una-importacion-en-excel-calc-del-fichero-de-clientes">F2725 — importar clientes</a> ·
+    <a href="https://ayudafactusol.sdelsol.com/docs/f257-como-hacer-una-importacion-en-excel-calc-del-fichero-de-articulos">F257 — importar artículos</a>.
+  </footer>
+
+</div>
+</body>
+</html>

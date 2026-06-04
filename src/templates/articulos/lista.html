@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Artículos{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Artículos</h1>
+  <a href="{{ url_for('articulos_nuevo') }}" class="btn btn-primary">+ Nuevo artículo</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Descripción</th>
+          <th style="text-align:right;">Precio</th>
+          <th style="text-align:right;">IVA %</th>
+          <th>Familia</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in articulos %}
+        <tr>
+          <td>{{ a.codigo or '—' }}</td>
+          <td>{{ a.descripcion }}</td>
+          <td style="text-align:right;">{{ "%.2f"|format(a.precio) }} €</td>
+          <td style="text-align:right;">{{ a.porcentaje_iva }}%</td>
+          <td>{{ a.familia or '—' }}</td>
+          <td class="td-actions">
+            <a href="{{ url_for('articulos_editar', id=a.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align:center; color:#888; padding:24px;">
+            No hay artículos. <a href="{{ url_for('articulos_nuevo') }}">Crea el primero.</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

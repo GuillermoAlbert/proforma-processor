@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Factura Proforma {{ proforma.numero_proforma }} — Guías de Alicante</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:        #1B3A6B;
+    --navy-light:  #2B5499;
+    --navy-pale:   #E8EEF8;
+    --terra:       #C8402A;
+    --terra-pale:  #FAF0EE;
+    --gold:        #C0882A;
+    --gold-light:  #E8B946;
+    --sand:        #F7F4EF;
+    --sand-dark:   #EDE8E0;
+    --ink:         #1A1714;
+    --stone-dark:  #4A4540;
+    --success:     #1A6B3A;
+    --success-bg:  #EAF5EF;
+    --hairline:    rgba(26, 23, 20, 0.15);
+    --font-head:   'Lora', Georgia, serif;
+    --font-ui:     'Inter', system-ui, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--sand);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 11pt;
+    line-height: 1.7;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page {
+    width: 210mm;
+    margin: 0 auto;
+    padding: 14mm 16mm 6mm;
+    background: var(--sand);
+  }
+
+  @page {
+    size: A4;
+    margin: 0 0 14mm 0;
+
+    @bottom-left {
+      content: element(footer);
+      vertical-align: top;
+      margin: 0 16mm;
+      width: calc(210mm - 32mm);
+    }
+  }
+
+  @media print {
+    body { background: var(--sand); }
+    .page { margin: 0; box-shadow: none; }
+  }
+
+  /* ── Cabecera ───────────────────────────────────────────── */
+  .doc-header {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 0.5pt solid var(--hairline);
+    border-top: 3px solid var(--terra);
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .header-logo {
+    height: 48px;
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  .header-company-name {
+    font-family: var(--font-head);
+    font-size: 17pt;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-tagline {
+    font-family: var(--font-ui);
+    font-size: 8pt;
+    color: var(--stone-dark);
+    margin-top: 3px;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-doc {
+    text-align: right;
+    flex-shrink: 0;
+    padding-left: 20px;
+    border-left: 0.5pt solid var(--hairline);
+  }
+
+  .badge-tipo {
+    display: inline-block;
+    background: var(--terra);
+    color: #fff;
+    font-family: var(--font-ui);
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 11px;
+    border-radius: 4px;
+    margin-bottom: 7px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .doc-number {
+    display: block;
+    font-family: var(--font-head);
+    font-size: 20pt;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+
+  .doc-date {
+    display: block;
+    font-family: var(--font-ui);
+    font-size: 9.5pt;
+    color: var(--stone-dark);
+    margin-top: 4px;
+  }
+
+  .estado-badge {
+    display: inline-block;
+    font-family: var(--font-ui);
+    font-size: 8pt;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    margin-top: 7px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .estado-borrador   { background: var(--sand-dark); color: var(--stone-dark); }
+  .estado-enviada    { background: var(--navy-pale); color: var(--navy); }
+  .estado-confirmada { background: var(--success-bg); color: var(--success); }
+
+  /* ── Separador de sección ───────────────────────────────── */
+  .section-label {
+    font-family: var(--font-ui);
+    font-size: 8pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--stone-dark);
+    padding-bottom: 6px;
+    border-bottom: 0.5pt solid var(--hairline);
+    margin-bottom: 12px;
+  }
+
+  /* ── Emisor / Cliente (dos columnas con flexbox) ─────────── */
+  .billing-wrap {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .billing-col {
+    flex: 1 1 0;
+    font-family: var(--font-ui);
+    font-size: 9.5pt;
+    line-height: 1.65;
+  }
+
+  .party-label {
+    font-size: 8pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--stone-dark);
+    margin-bottom: 8px;
+    padding-bottom: 5px;
+    border-bottom: 0.5pt solid var(--hairline);
+  }
+
+  .party-name {
+    font-family: var(--font-head);
+    font-size: 12.5pt;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1.25;
+    margin-bottom: 7px;
+  }
+
+  .detail-row {
+    display: flex;
+    gap: 5px;
+    margin: 1px 0;
+  }
+
+  .detail-key {
+    color: var(--stone-dark);
+    font-size: 9pt;
+    min-width: 46px;
+    flex-shrink: 0;
+  }
+
+  .detail-val {
+    font-size: 9pt;
+    color: var(--ink);
+  }
+
+  /* Caja cliente con filete azul (caja estructural del brand kit) */
+  .billing-client-box {
+    border-left: 4px solid var(--navy);
+    background: var(--navy-pale);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 16px 14px 16px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── Tabla de líneas ────────────────────────────────────── */
+  table.rates {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0;
+    font-size: 9.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  table.rates thead th {
+    background: var(--navy);
+    color: #fff;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 9pt;
+    letter-spacing: 0.02em;
+  }
+
+  table.rates thead th.r { text-align: right; }
+  table.rates thead th.c { text-align: center; }
+
+  table.rates tbody td {
+    padding: 9px 12px;
+    border-bottom: 0.5pt solid var(--hairline);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  table.rates tbody tr:nth-child(even) {
+    background: var(--sand-dark);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  table.rates tbody tr:last-child td { border-bottom: none; }
+
+  td.r { text-align: right; }
+  td.c { text-align: center; }
+  td.muted { color: var(--stone-dark); }
+  td.price { text-align: right; font-weight: 600; color: var(--terra); white-space: nowrap; }
+
+  /* ── Totales ────────────────────────────────────────────── */
+  .totals-area {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+    margin-bottom: 24px;
+  }
+
+  .totals-box {
+    min-width: 252px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 0.5pt solid var(--hairline);
+  }
+
+  .totals-box table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .totals-box table td {
+    padding: 8px 15px;
+    font-size: 10pt;
+    border-bottom: 0.5pt solid var(--hairline);
+  }
+
+  .totals-box table tr:last-child td { border-bottom: none; }
+
+  .totals-box .t-label { text-align: left; color: var(--stone-dark); }
+  .totals-box .t-val   { text-align: right; font-weight: 600; color: var(--ink); white-space: nowrap; }
+
+  .totals-box .row-total td {
+    background: var(--navy);
+    color: #fff;
+    padding: 11px 15px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .totals-box .row-total .t-label {
+    font-family: var(--font-head);
+    font-size: 12pt;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+  }
+
+  .totals-box .row-total .t-val {
+    font-family: var(--font-head);
+    font-size: 14pt;
+    font-weight: 600;
+    color: var(--gold-light);
+  }
+
+  /* ── Bloque destacado (filete dorado = intro/comentarios) ── */
+  .highlight {
+    border-left: 4px solid var(--gold);
+    padding: 10px 0 10px 16px;
+    margin-bottom: 20px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .hl-label {
+    font-family: var(--font-ui);
+    font-size: 8pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gold);
+    margin-bottom: 5px;
+  }
+
+  .hl-content {
+    font-family: var(--font-ui);
+    font-size: 10.5pt;
+    color: var(--ink);
+    line-height: 1.65;
+  }
+
+  /* ── Caja de pago (estilo CTA del brand kit) ────────────── */
+  .payment-box {
+    background: var(--navy);
+    color: #fff;
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .payment-col {
+    flex: 1 1 0;
+  }
+
+  .payment-col + .payment-col {
+    border-left: 0.5pt solid rgba(255,255,255,0.2);
+    padding-left: 24px;
+    margin-left: 24px;
+  }
+
+  .pago-label {
+    font-family: var(--font-ui);
+    font-size: 7.5pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 4px;
+  }
+
+  .pago-value {
+    font-family: var(--font-ui);
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.35;
+  }
+
+  .pago-note {
+    font-family: var(--font-ui);
+    font-size: 8.5pt;
+    color: rgba(255,255,255,0.65);
+    margin-top: 5px;
+  }
+
+  /* ── Aviso legal ────────────────────────────────────────── */
+  .legal {
+    font-family: var(--font-ui);
+    font-size: 7.5pt;
+    color: var(--stone-dark);
+    text-align: center;
+    line-height: 1.55;
+    padding: 9px 8px;
+    border-top: 0.5pt solid var(--hairline);
+    border-bottom: 0.5pt solid var(--hairline);
+    margin-bottom: 18px;
+  }
+
+  .legal strong {
+    font-weight: 600;
+    color: var(--terra);
+  }
+
+  /* ── Pie ────────────────────────────────────────────────── */
+  /* position:running removes this from normal flow; WeasyPrint places it
+     in the @bottom-left margin box on every page via @page above */
+  .doc-footer {
+    position: running(footer);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 0.5pt solid var(--hairline);
+    font-family: var(--font-ui);
+    font-size: 8.5pt;
+    color: var(--stone-dark);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .footer-mid {
+    font-size: 8pt;
+    color: var(--stone-dark);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══════════════════════════════════════════════════════
+       CABECERA
+       ══════════════════════════════════════════════════════ -->
+  <header class="doc-header">
+
+    <div class="header-brand">
+      <svg class="header-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 609 609" role="img" aria-label="Guías de Alicante">
+        <g transform="translate(0 609) scale(.1 -.1)" stroke="none">
+          <path fill="#C8402A" d="M330 2974 l0 -2589 409 2 c442 2 601 13 849 59 434 80 742 237 817
+            417 19 46 19 127 0 173 -21 52 -129 159 -210 209 -65 41 -186 101 -536 268
+            -288 137 -412 247 -426 379 -8 80 21 140 110 225 114 110 285 200 566 297
+            314 109 946 264 1581 388 91 17 167 33 169 34 2 2 -37 53 -85 114 -49 61
+            -113 141 -142 178 -48 61 -82 86 -350 263 -163 108 -314 210 -336 225 -36
+            27 -46 48 -172 364 -129 326 -134 335 -166 347 -18 7 -121 35 -228 63 -107
+            28 -276 73 -375 100 -99 27 -199 54 -222 60 -24 6 -47 19 -52 28 -5 10 -25
+            70 -44 133 -19 63 -54 173 -77 244 -24 72 -61 189 -83 262 l-40 132 -96 21
+            c-53 12 -181 41 -286 65 -341 78 -499 114 -537 120 l-38 7 0 -2588z"/>
+          <path fill="#1B3A6B" d="M3581 5475 c-98 -28 -267 -135 -244 -155 4 -4 33 -16 63 -25 98 -32
+            254 -110 396 -199 76 -48 148 -97 159 -108 l20 -20 -27 6 c-130 30 -299 31
+            -408 1 -136 -36 -287 -148 -349 -259 -42 -74 -81 -212 -66 -235 3 -5 47 6
+            98 24 50 18 154 47 230 64 143 33 419 82 425 76 2 -1 -36 -29 -85 -60 -251
+            -163 -373 -403 -334 -655 12 -73 52 -180 68 -180 4 1 30 31 57 67 74 100
+            342 412 531 618 l55 60 0 -55 c0 -72 -37 -1009 -50 -1260 -22 -424 -60 -581
+            -155 -640 -25 -16 -108 -35 -307 -70 -605 -108 -936 -194 -1146 -296 -194
+            -94 -229 -186 -110 -289 92 -79 256 -146 823 -334 297 -98 596 -202 664 -231
+            335 -143 559 -293 687 -463 111 -147 141 -284 99 -449 l-7 -28 571 0 571 0
+            0 1160 0 1159 -62 -5 c-35 -3 -211 -16 -393 -29 -181 -14 -426 -35 -543 -47
+            -239 -25 -245 -24 -289 40 -26 40 -39 100 -53 247 -16 181 -45 792 -65 1405
+            l-6 175 77 -80 c142 -149 484 -554 539 -639 l19 -28 23 46 c108 213 51 497
+            -138 685 -43 42 -110 97 -148 121 -39 25 -71 48 -71 51 0 9 225 -27 373 -60
+            75 -16 189 -47 254 -69 65 -22 120 -38 122 -37 1 2 -2 35 -9 74 -50 299
+            -338 483 -692 443 -57 -7 -114 -15 -128 -18 -22 -6 -23 -5 -10 9 64 66 386
+            245 554 308 l89 33 -44 39 c-179 155 -432 167 -646 31 -71 -45 -197 -174
+            -238 -243 -16 -28 -33 -51 -37 -51 -4 0 -31 35 -59 78 -93 138 -212 236
+            -347 284 -75 28 -225 34 -301 13z"/>
+        </g>
+      </svg>
+      <div>
+        <div class="header-company-name">{{ empresa.nombre | default('Guías de Alicante') }}</div>
+        <div class="header-tagline">Guías oficiales de la Comunidad Valenciana desde 1992</div>
+      </div>
+    </div>
+
+    <div class="header-doc">
+      <div class="badge-tipo">Factura Proforma</div>
+      <span class="doc-number">{{ proforma.numero_proforma }}</span>
+      <span class="doc-date">{{ proforma.fecha }}</span>
+      <div>
+        {% if proforma.estado == 'borrador' %}
+          <span class="estado-badge estado-borrador">Borrador</span>
+        {% elif proforma.estado == 'enviada' %}
+          <span class="estado-badge estado-enviada">Enviada</span>
+        {% elif proforma.estado == 'confirmada' %}
+          <span class="estado-badge estado-confirmada">✓ Confirmada</span>
+        {% endif %}
+      </div>
+    </div>
+
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════
+       PARTES: EMISOR / CLIENTE
+       ══════════════════════════════════════════════════════ -->
+  <div class="billing-wrap">
+
+    <!-- Emisor -->
+    <div class="billing-col">
+      <div class="party-label">Emisor</div>
+      <div class="party-name">{{ empresa.nombre | default('Guías de Alicante') }}</div>
+      <div class="detail-row">
+        <span class="detail-key">NIF</span>
+        <span class="detail-val">{{ empresa.nif | default('[NIF empresa]') }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key">Dirección</span>
+        <span class="detail-val">{{ empresa.direccion | default('[Dirección empresa]') }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key"></span>
+        <span class="detail-val">{{ empresa.cp | default('') }} {{ empresa.poblacion | default('Alicante') }}{% if empresa.provincia %} ({{ empresa.provincia }}){% endif %}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key">Email</span>
+        <span class="detail-val">{{ empresa.email | default('info@guiasdealicante.es') }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key">Tel.</span>
+        <span class="detail-val">{{ empresa.telefono | default('+34 661 639 964') }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key">Web</span>
+        <span class="detail-val">{{ empresa.web | default('guiasdealicante.es') }}</span>
+      </div>
+    </div>
+
+    <!-- Cliente (caja con filete izquierdo azul marino) -->
+    <div class="billing-col">
+      <div class="billing-client-box">
+        <div class="party-label">Facturar a</div>
+        <div class="party-name">{{ cliente.nombre_agencia }}</div>
+        <div class="detail-row">
+          <span class="detail-key">NIF/CIF</span>
+          <span class="detail-val">{{ cliente.nif_cif }}</span>
+        </div>
+        {% if cliente.direccion %}
+        <div class="detail-row">
+          <span class="detail-key">Dirección</span>
+          <span class="detail-val">{{ cliente.direccion }}</span>
+        </div>
+        {% endif %}
+        <div class="detail-row">
+          <span class="detail-key"></span>
+          <span class="detail-val">{{ cliente.cp }} {{ cliente.poblacion }}{% if cliente.provincia %} ({{ cliente.provincia }}){% endif %}</span>
+        </div>
+        {% if cliente.email %}
+        <div class="detail-row">
+          <span class="detail-key">Email</span>
+          <span class="detail-val">{{ cliente.email }}</span>
+        </div>
+        {% endif %}
+        {% if cliente.telefono %}
+        <div class="detail-row">
+          <span class="detail-key">Tel.</span>
+          <span class="detail-val">{{ cliente.telefono }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       LÍNEAS DE SERVICIO
+       ══════════════════════════════════════════════════════ -->
+  <div class="section-label">Servicios</div>
+  <table class="rates">
+    <thead>
+      <tr>
+        <th style="width:28px; text-align:center;">#</th>
+        <th>Descripción</th>
+        <th class="c" style="width:52px;">Cant.</th>
+        <th class="r" style="width:92px;">Precio unit.</th>
+        <th class="c" style="width:52px;">IVA</th>
+        <th class="r" style="width:92px;">Importe</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for linea in proforma.lineas %}
+      <tr>
+        <td class="c muted" style="font-size:8.5pt;">{{ loop.index }}</td>
+        <td>{{ linea.descripcion }}</td>
+        <td class="c">{{ linea.cantidad }}</td>
+        <td class="r muted">{{ "%.2f"|format(linea.precio) }} €</td>
+        <td class="c muted">{{ linea.porcentaje_iva }}%</td>
+        <td class="price">{{ "%.2f"|format(linea.importe) }} €</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- ══════════════════════════════════════════════════════
+       TOTALES
+       ══════════════════════════════════════════════════════ -->
+  <div class="totals-area">
+    <div class="totals-box">
+      <table>
+        <tr>
+          <td class="t-label">Base imponible</td>
+          <td class="t-val">{{ "%.2f"|format(proforma.base) }} €</td>
+        </tr>
+        <tr>
+          <td class="t-label">IVA</td>
+          <td class="t-val">{{ "%.2f"|format(proforma.iva_total) }} €</td>
+        </tr>
+        <tr>
+          <td class="t-label">Suplidos</td>
+          <td class="t-val">{{ "%.2f"|format(proforma.suplidos) }} €</td>
+        </tr>
+        <tr class="row-total">
+          <td class="t-label">Total</td>
+          <td class="t-val">{{ "%.2f"|format(proforma.total_suplidos) }} €</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       DESCRIPCIÓN DEL SERVICIO (filete dorado)
+       ══════════════════════════════════════════════════════ -->
+  {% if proforma.comentarios %}
+  <div class="highlight">
+    <div class="hl-label">Descripción del servicio</div>
+    <div class="hl-content">{{ proforma.comentarios }}</div>
+  </div>
+  {% endif %}
+
+  <!-- ══════════════════════════════════════════════════════
+       DATOS DE PAGO
+       ══════════════════════════════════════════════════════ -->
+  <div class="payment-box">
+    <div class="payment-col">
+      <div class="pago-label">Cuenta bancaria (IBAN)</div>
+      <div class="pago-value">{{ empresa.iban | default('ES[XX XXXX XXXX XXXX XXXX XXXX]') }}</div>
+      <div class="pago-note">{{ empresa.banco | default('[Entidad bancaria]') }}</div>
+    </div>
+    <div class="payment-col">
+      <div class="pago-label">Condiciones de pago</div>
+      <div class="pago-value">{{ empresa.condiciones_pago | default('30 días desde fecha de factura') }}</div>
+      <div class="pago-note">Referencia: {{ proforma.numero_proforma }}</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       AVISO LEGAL
+       ══════════════════════════════════════════════════════ -->
+  <div class="legal">
+    Este documento es una <strong>FACTURA PROFORMA</strong> y <strong>no tiene validez fiscal</strong>.
+    No sustituye a la factura oficial. La factura legal (Verifactu) se emitirá desde Factusol una vez confirmado el servicio.
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       PIE
+       ══════════════════════════════════════════════════════ -->
+  <footer class="doc-footer">
+    <span>Guías oficiales de la Comunidad Valenciana desde 1992</span>
+    <span class="footer-mid">{{ proforma.numero_proforma }} &middot; {{ proforma.fecha }}</span>
+    <span>{{ empresa.email | default('info@guiasdealicante.es') }} &middot; {{ empresa.telefono | default('+34 661 639 964') }}</span>
+  </footer>
+
+</div>
+</body>
+</html>

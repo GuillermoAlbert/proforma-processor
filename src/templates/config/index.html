@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Configuración{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Configuración</h1>
+</div>
+
+<div class="card" style="max-width:420px; padding:28px 24px; margin-bottom:20px;">
+  <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 12px;">Excel de Hacienda</h2>
+  <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
+    {% if pendientes_excel %}
+    Hay <strong>{{ pendientes_excel }}</strong> proforma(s) pendiente(s) de registrar (el Excel estaba abierto al confirmarlas). Ciérralo y reintenta.
+    {% else %}
+    No hay proformas pendientes de registrar en el Excel.
+    {% endif %}
+  </p>
+  <form method="POST" action="{{ url_for('config_reintentar_excel') }}">
+    <button type="submit" class="btn btn-primary">Reintentar pendientes de Excel</button>
+  </form>
+</div>
+
+<div class="card" style="max-width:420px; padding:28px 24px;">
+  <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
+    Reinicia el servidor de la aplicación. La página se recargará sola cuando esté lista.
+  </p>
+  <button id="reboot-btn" class="btn btn-danger" onclick="doReboot()">Reiniciar servicio</button>
+  <p id="reboot-status" style="display:none; margin-top:16px; font-size:13px; color:var(--stone);"></p>
+</div>
+
+<script>
+function doReboot() {
+  const btn = document.getElementById('reboot-btn');
+  const status = document.getElementById('reboot-status');
+  btn.disabled = true;
+  btn.textContent = 'Reiniciando…';
+  status.style.display = 'block';
+  status.textContent = 'Esperando a que el servidor se reinicie…';
+
+  fetch('{{ url_for("config_reboot") }}', { method: 'POST', redirect: 'manual' })
+    .catch(() => {})
+    .finally(() => poll());
+
+  function poll() {
+    fetch(window.location.href, { cache: 'no-store' })
+      .then(r => { if (r.ok) { status.textContent = '¡Listo! Recargando…'; window.location.reload(); } else { throw new Error(); } })
+      .catch(() => setTimeout(poll, 1000));
+  }
+}
+</script>
+{% endblock %}

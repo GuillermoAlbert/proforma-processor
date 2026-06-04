@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plantilla de documento — GuiasdeAlicante</title>
+<!--
+  Plantilla imprimible coherente con el Design System de GuiasdeAlicante.
+  Uso: abrir en el navegador → Imprimir → Guardar como PDF (tamaño A4).
+  Contiene dos secciones de ejemplo: TARIFAS y RESUMEN DE TOUR.
+  Duplica/elimina lo que no necesites. Colores y fuentes = guía de estilo.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:        #1B3A6B;
+    --navy-light:  #2B5499;
+    --navy-pale:   #E8EEF8;
+    --terra:       #C8402A;
+    --terra-pale:  #FAF0EE;
+    --gold:        #C0882A;
+    --gold-light:  #E8B946;
+    --sand:        #F7F4EF;
+    --sand-dark:   #EDE8E0;
+    --ink:         #1A1714;
+    --stone-dark:  #4A4540;
+    --success:     #1A6B3A;
+    --success-bg:  #EAF5EF;
+    --hairline:    rgba(26, 46, 26, 0.15);
+    --font-head:   'Lora', Georgia, serif;
+    --font-ui:     'Inter', system-ui, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--sand);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 11pt;
+    line-height: 1.7;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 18mm 16mm;
+    background: var(--sand);
+  }
+  .page + .page { margin-top: 8mm; }
+
+  /* ── Cabecera tipo "hero" ───────────────────────────── */
+  .doc-header {
+    background: linear-gradient(135deg, #0D2340 0%, #1B3A6B 45%, #2A5A9E 75%, #4A7ABF 100%);
+    color: #fff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+  }
+  .eyebrow {
+    font-size: 10pt;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.75);
+    margin-bottom: 8px;
+  }
+  .doc-header h1 {
+    font-family: var(--font-head);
+    font-size: 30pt;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+  .doc-header h1 em {
+    font-style: italic;
+    font-weight: 600;
+    color: var(--gold-light);
+  }
+  .doc-header .subtitle {
+    margin-top: 8px;
+    font-size: 11pt;
+    color: rgba(255, 255, 255, 0.82);
+    font-weight: 400;
+  }
+
+  /* ── Títulos de sección ─────────────────────────────── */
+  h2.section {
+    font-family: var(--font-head);
+    font-size: 20pt;
+    font-weight: 600;
+    color: var(--navy);
+    margin: 28px 0 14px;
+    line-height: 1.3;
+  }
+  h3.subsection {
+    font-family: var(--font-ui);
+    font-size: 13pt;
+    font-weight: 600;
+    color: var(--navy-light);
+    margin: 18px 0 8px;
+  }
+
+  /* ── Bloque destacado / intro (filete dorado) ───────── */
+  .highlight {
+    border-left: 4px solid var(--gold);
+    padding: 4px 0 4px 16px;
+    margin: 16px 0 24px;
+    color: var(--stone-dark);
+  }
+
+  /* ── Tabla de tarifas ───────────────────────────────── */
+  table.rates {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 8px;
+    font-size: 10.5pt;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  table.rates thead th {
+    background: var(--navy);
+    color: #fff;
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 10pt;
+    letter-spacing: 0.02em;
+  }
+  table.rates thead th:last-child,
+  table.rates td.price { text-align: right; }
+  table.rates tbody td {
+    padding: 11px 14px;
+    border-bottom: 0.5pt solid var(--hairline);
+  }
+  table.rates tbody tr:nth-child(even) { background: var(--sand-dark); }
+  table.rates tbody tr:last-child td { border-bottom: none; }
+  td.price { font-weight: 600; color: var(--terra); white-space: nowrap; }
+  .included { color: var(--success); font-weight: 600; }
+
+  /* ── Sellos / badges ────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    font-size: 9pt;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+  .badge-navy    { background: var(--navy-pale);    color: var(--navy); }
+  .badge-terra   { background: var(--terra-pale);   color: var(--terra); }
+  .badge-trust   { background: var(--success-bg);   color: var(--success); }
+
+  /* ── Lista de "qué incluye" ─────────────────────────── */
+  ul.feature-list { list-style: none; margin: 12px 0; }
+  ul.feature-list li {
+    padding: 6px 0 6px 24px;
+    position: relative;
+    border-bottom: 0.5pt solid var(--hairline);
+  }
+  ul.feature-list li:last-child { border-bottom: none; }
+  ul.feature-list li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--success);
+    font-weight: 600;
+  }
+
+  /* ── Ficha de tour (meta) ───────────────────────────── */
+  .tour-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border: 0.5pt solid var(--hairline);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 16px 0 24px;
+  }
+  .tour-meta .item {
+    flex: 1 1 25%;
+    padding: 12px 16px;
+    border-right: 0.5pt solid var(--hairline);
+  }
+  .tour-meta .item:last-child { border-right: none; }
+  .tour-meta .label {
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--stone-dark);
+  }
+  .tour-meta .value {
+    font-size: 11pt;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* ── Caja CTA / cierre ──────────────────────────────── */
+  .cta-box {
+    background: var(--navy);
+    color: #fff;
+    border-radius: 12px;
+    padding: 24px 28px;
+    text-align: center;
+    margin: 28px 0;
+  }
+  .cta-box h3 {
+    font-family: var(--font-head);
+    font-size: 17pt;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .cta-box p { font-size: 10.5pt; color: rgba(255, 255, 255, 0.8); }
+  .cta-box .contact {
+    margin-top: 14px;
+    font-weight: 600;
+    color: #fff;
+    font-size: 11pt;
+  }
+
+  /* ── Pie ────────────────────────────────────────────── */
+  .doc-footer {
+    margin-top: 36px;
+    padding-top: 12px;
+    border-top: 0.5pt solid var(--hairline);
+    font-size: 9pt;
+    color: var(--stone-dark);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  p { margin-bottom: 10px; }
+
+  /* ── Ajustes de impresión / PDF ─────────────────────── */
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: var(--sand); }
+    .page { margin: 0; box-shadow: none; page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    .cta-box, .doc-header, table.rates thead th,
+    table.rates tbody tr:nth-child(even) {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════
+     PÁGINA 1 — EJEMPLO: TARIFAS
+     ════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <header class="doc-header">
+    <div class="eyebrow">Tarifas · Temporada 2026</div>
+    <h1>Visitas guiadas en la Costa Blanca</h1>
+    <p class="subtitle">Guías oficiales · Sin intermediarios · Grupos privados</p>
+  </header>
+
+  <div class="highlight">
+    Precios por grupo (no por persona) salvo indicación. Incluyen guía
+    oficial titulado de la Comunidad Valenciana. Consúltanos para
+    cruceros, colegios y grupos de más de 30 personas.
+  </div>
+
+  <h2 class="section">Visitas guiadas a pie</h2>
+  <table class="rates">
+    <thead>
+      <tr>
+        <th>Destino</th>
+        <th>Duración</th>
+        <th>Idiomas</th>
+        <th>Precio</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Alicante centro histórico</td>
+        <td>2 h</td>
+        <td>ES · EN · FR</td>
+        <td class="price">150 €</td>
+      </tr>
+      <tr>
+        <td>Castillo de Santa Bárbara <span class="badge badge-terra">Más reservado</span></td>
+        <td>2,5 h</td>
+        <td>ES · EN</td>
+        <td class="price">180 €</td>
+      </tr>
+      <tr>
+        <td>Guadalest y valle</td>
+        <td>3 h</td>
+        <td>ES · EN · FR</td>
+        <td class="price">210 €</td>
+      </tr>
+      <tr>
+        <td>Altea casco antiguo</td>
+        <td>2 h</td>
+        <td>ES · EN</td>
+        <td class="price">150 €</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">El precio incluye</h3>
+  <ul class="feature-list">
+    <li>Guía oficial titulado durante todo el recorrido</li>
+    <li>Itinerario personalizable según el grupo</li>
+    <li>Coordinación previa por WhatsApp o email</li>
+  </ul>
+
+  <p style="font-size:9.5pt;color:var(--stone-dark);margin-top:16px">
+    No incluye: entradas a monumentos, transporte ni dietas. IVA incluido.
+    Tarifas sujetas a disponibilidad.
+  </p>
+
+  <div class="doc-footer">
+    <span>Guías oficiales de la Comunidad Valenciana desde 1992</span>
+    <span>info@guiasdealicante.es · +34 661 639 964</span>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     PÁGINA 2 — EJEMPLO: RESUMEN DE TOUR
+     ════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <header class="doc-header">
+    <div class="eyebrow">Resumen de visita</div>
+    <h1><em>Guadalest</em> y su valle</h1>
+    <p class="subtitle">Pueblo medieval colgado sobre el embalse · Provincia de Alicante</p>
+  </header>
+
+  <div class="tour-meta">
+    <div class="item">
+      <div class="label">Duración</div>
+      <div class="value">3 horas</div>
+    </div>
+    <div class="item">
+      <div class="label">Grupo</div>
+      <div class="value">Hasta 25 pax</div>
+    </div>
+    <div class="item">
+      <div class="label">Idiomas</div>
+      <div class="value">ES · EN · FR</div>
+    </div>
+    <div class="item">
+      <div class="label">Punto de salida</div>
+      <div class="value">Plaza del pueblo</div>
+    </div>
+  </div>
+
+  <div class="highlight">
+    Una de las visitas más fotografiadas de la provincia: castillo de San
+    José, casco antiguo amurallado y miradores sobre el embalse turquesa.
+    Recorrido cómodo, apto para todos los públicos.
+  </div>
+
+  <h2 class="section">Qué veremos</h2>
+  <p>
+    Recorreremos el acceso por el túnel excavado en la roca, la plaza de
+    San Gregorio, la Casa Orduña y el campanario, terminando en los
+    miradores sobre el valle. El guía contextualiza la historia morisca
+    y cristiana del enclave.
+  </p>
+
+  <h3 class="subsection">Incluye</h3>
+  <ul class="feature-list">
+    <li>Guía oficial titulado de la Comunidad Valenciana</li>
+    <li>Recorrido completo por el casco histórico</li>
+    <li>Recomendaciones de miradores y fotografía</li>
+  </ul>
+
+  <p><span class="badge badge-trust">★ 4,9 · +300 reseñas Google</span>
+     &nbsp; <span class="badge badge-navy">30 años de experiencia</span></p>
+
+  <div class="cta-box">
+    <h3>¿Reservamos tu visita a Guadalest?</h3>
+    <p>Guía oficial. Sin intermediarios. Respuesta el mismo día.</p>
+    <div class="contact">info@guiasdealicante.es · +34 661 639 964</div>
+  </div>
+
+  <div class="doc-footer">
+    <span>Guías oficiales de la Comunidad Valenciana desde 1992</span>
+    <span>guiasdealicante.es</span>
+  </div>
+
+</div>
+
+</body>
+</html>

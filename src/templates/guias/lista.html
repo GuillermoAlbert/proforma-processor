@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Guías{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Guías</h1>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 340px; gap:24px; align-items:start;">
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in guias %}
+          <tr>
+            <td>
+              <form method="post" action="{{ url_for('guias_editar', id=g.id) }}"
+                    style="display:flex; gap:8px; align-items:center;">
+                <input type="text" name="nombre" value="{{ g.nombre }}"
+                       style="flex:1; padding:5px 8px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+                <button type="submit" class="btn btn-secondary btn-sm">Guardar</button>
+              </form>
+            </td>
+            <td class="td-actions">
+              <form method="post" action="{{ url_for('guias_eliminar', id=g.id) }}"
+                    onsubmit="return confirm('¿Eliminar la guía {{ g.nombre }}?')">
+                <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="2" style="text-align:center; color:#888; padding:24px;">No hay guías registradas.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="padding:20px;">
+    <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin-bottom:16px;">Nueva guía</h2>
+    <form method="post" action="{{ url_for('guias_nuevo') }}">
+      <div class="form-group" style="margin-bottom:12px;">
+        <label for="nombre">Nombre</label>
+        <input type="text" id="nombre" name="nombre" required placeholder="Nombre de la guía">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Añadir guía</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
