@@ -205,6 +205,52 @@
     .flash-success { background: #D1FAE5; color: #065F46; border: 1px solid #6EE7B7; }
     .flash-error   { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
 
+    /* Sort links */
+    .sort-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--navy);
+      text-decoration: none;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .sort-link:hover { text-decoration: none; opacity: 0.75; }
+    .sort-arrow { font-size: 10px; }
+    .sort-idle { opacity: 0.3; }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-top: 1px solid var(--hairline);
+      font-size: 13px;
+      color: var(--stone);
+    }
+    .pagination-pages { display: flex; gap: 4px; align-items: center; }
+    .page-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      height: 30px;
+      padding: 0 8px;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--hairline);
+      background: #fff;
+      transition: background 0.12s;
+    }
+    .page-link:hover { background: var(--sand); text-decoration: none; }
+    .page-link.current { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .page-link.disabled { opacity: 0.35; pointer-events: none; }
+    .page-ellipsis { padding: 0 4px; color: var(--stone); }
+
     /* Badges */
     .badge {
       display: inline-block;

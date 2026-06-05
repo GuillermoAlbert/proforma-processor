@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import sort_th, pagination_bar %}
 {% block title %}Clientes{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -11,9 +12,9 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th>Agencia</th>
+          {{ sort_th('agencia',   'Agencia',    sort, direction, 'clientes_lista') }}
           <th>NIF/CIF</th>
-          <th>Población</th>
+          {{ sort_th('poblacion', 'Población',  sort, direction, 'clientes_lista') }}
           <th>Email</th>
           <th>Teléfono</th>
           <th>Acciones</th>
@@ -41,5 +42,6 @@
       </tbody>
     </table>
   </div>
+  {{ pagination_bar(page, total_pages, total, sort, direction, 'clientes_lista', 'cliente') }}
 </div>
 {% endblock %}

@@ -24,9 +24,31 @@ def inject_empresa():
 @app.route('/clientes')
 @require_auth
 def clientes_lista():
+    sort = request.args.get('sort', 'agencia')
+    direction = request.args.get('dir', 'asc')
+    try:
+        page = max(1, int(request.args.get('page', 1) or 1))
+    except ValueError:
+        page = 1
+    per_page = 30
+
+    sort_map = {'agencia': 'nombre_agencia', 'poblacion': 'poblacion'}
+    sort_col = sort_map.get(sort, 'nombre_agencia')
+    sort_dir = 'ASC' if direction == 'asc' else 'DESC'
+
     with get_db() as conn:
-        clientes = conn.execute("SELECT * FROM clientes ORDER BY nombre_agencia").fetchall()
-    return render_template('clientes/lista.html', clientes=clientes)
+        total = conn.execute("SELECT COUNT(*) FROM clientes").fetchone()[0]
+        clientes = conn.execute(
+            f"SELECT * FROM clientes ORDER BY {sort_col} {sort_dir} LIMIT ? OFFSET ?",
+            (per_page, (page - 1) * per_page)
+        ).fetchall()
+
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    return render_template(
+        'clientes/lista.html',
+        clientes=clientes,
+        page=page, total_pages=total_pages, sort=sort, direction=direction, total=total,
+    )
 
 
 @app.route('/clientes/nuevo', methods=['GET', 'POST'])
@@ -91,9 +113,36 @@ def clientes_editar(id):
 @app.route('/articulos')
 @require_auth
 def articulos_lista():
+    sort = request.args.get('sort', 'descripcion')
+    direction = request.args.get('dir', 'asc')
+    try:
+        page = max(1, int(request.args.get('page', 1) or 1))
+    except ValueError:
+        page = 1
+    per_page = 30
+
+    sort_map = {
+        'codigo':      'codigo',
+        'descripcion': 'descripcion',
+        'precio':      'precio',
+        'iva':         'porcentaje_iva',
+    }
+    sort_col = sort_map.get(sort, 'descripcion')
+    sort_dir = 'ASC' if direction == 'asc' else 'DESC'
+
     with get_db() as conn:
-        articulos = conn.execute("SELECT * FROM articulos ORDER BY descripcion").fetchall()
-    return render_template('articulos/lista.html', articulos=articulos)
+        total = conn.execute("SELECT COUNT(*) FROM articulos").fetchone()[0]
+        articulos = conn.execute(
+            f"SELECT * FROM articulos ORDER BY {sort_col} {sort_dir} LIMIT ? OFFSET ?",
+            (per_page, (page - 1) * per_page)
+        ).fetchall()
+
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    return render_template(
+        'articulos/lista.html',
+        articulos=articulos,
+        page=page, total_pages=total_pages, sort=sort, direction=direction, total=total,
+    )
 
 
 @app.route('/articulos/nuevo', methods=['GET', 'POST'])
