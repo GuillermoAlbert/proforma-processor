@@ -4,6 +4,11 @@
 <script>
 const ARTICULOS = {{ articulos_json | safe }};
 </script>
+<style>
+  .drag-handle { cursor: grab; color: #ccc; transition: color 0.15s; user-select: none; }
+  .drag-handle:hover { color: #888; }
+  .linea-row.dragging { opacity: 0.35; background: var(--navy-pale); }
+</style>
 
 <div class="page-header">
   <div style="display:flex; align-items:center; gap:10px;">
@@ -78,6 +83,7 @@ const ARTICULOS = {{ articulos_json | safe }};
     <table class="data-table" id="tabla-lineas">
       <thead>
         <tr>
+          <th style="width:24px;"></th>
           <th style="width:28px;">#</th>
           <th style="width:120px; text-align:center;">Fecha <span style="font-weight:400; color:var(--stone);">(opcional)</span></th>
           <th style="width:200px;">Artículo del catálogo</th>
@@ -94,6 +100,7 @@ const ARTICULOS = {{ articulos_json | safe }};
         {# Filas pre-cargadas desde la BD #}
         {% for l in lineas %}
         <tr class="linea-row">
+          <td class="drag-handle" title="Arrastrar para reordenar" style="text-align:center; font-size:15px; padding:0 4px; width:24px;">⠿</td>
           <td class="linea-num" style="color:#888; text-align:center; font-size:12px;">{{ loop.index }}</td>
           <td><input type="date" name="linea_fecha[]" class="inp-fecha"
                      value="{{ l.fecha or '' }}"
@@ -118,11 +125,11 @@ const ARTICULOS = {{ articulos_json | safe }};
           <td><input type="text" name="linea_descripcion[]" class="inp-desc" required
                      value="{{ l.descripcion }}"
                      style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_cantidad[]" class="inp-cant" value="{{ l.cantidad }}" min="0" step="0.01"
+          <td><input type="number" name="linea_cantidad[]" class="inp-cant" value="{{ '%g' % l.cantidad }}" min="0" step="0.01"
                      style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_precio[]" class="inp-precio" value="{{ l.precio }}" min="0" step="0.01"
+          <td><input type="number" name="linea_precio[]" class="inp-precio" value="{{ '%g' % l.precio }}" min="0" step="0.01"
                      style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_iva[]" class="inp-iva" value="{{ l.porcentaje_iva }}" min="0" step="0.1"
+          <td><input type="number" name="linea_iva[]" class="inp-iva" value="{{ '%g' % l.porcentaje_iva }}" min="0" step="0.1"
                      style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
           <td class="inp-importe" style="text-align:right; font-weight:600; font-size:13px; white-space:nowrap;">{{ "%.2f"|format(l.importe) }} €</td>
           <td style="text-align:center;">
@@ -134,6 +141,7 @@ const ARTICULOS = {{ articulos_json | safe }};
 
         {# Fila vacía oculta usada como plantilla para "Añadir línea" #}
         <tr class="linea-row-tpl" style="display:none;">
+          <td class="drag-handle" title="Arrastrar para reordenar" style="text-align:center; font-size:15px; padding:0 4px; width:24px;">⠿</td>
           <td class="linea-num" style="color:#888; text-align:center; font-size:12px;"></td>
           <td><input type="date" name="linea_fecha[]" class="inp-fecha"
                      style="width:100%; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
@@ -152,7 +160,7 @@ const ARTICULOS = {{ articulos_json | safe }};
             </div>
             <input type="hidden" name="linea_articulo_id[]" class="inp-art-id" value="">
           </td>
-          <td><input type="text" name="linea_descripcion[]" class="inp-desc" required
+          <td><input type="text" name="linea_descripcion[]" class="inp-desc"
                      style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
           <td><input type="number" name="linea_cantidad[]" class="inp-cant" value="1" min="0" step="0.01"
                      style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
@@ -180,9 +188,49 @@ const ARTICULOS = {{ articulos_json | safe }};
       <textarea id="comentarios" name="comentarios" rows="4"
                 style="resize:vertical;">{{ proforma.comentarios or '' }}</textarea>
     </div>
-    <div class="form-group" style="max-width:200px;">
-      <label for="suplidos">Suplidos (€)</label>
-      <input type="number" id="suplidos" name="suplidos" value="{{ proforma.suplidos }}" min="0" step="0.01">
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <label style="font-size:12px; font-weight:600; color:var(--stone); text-transform:uppercase; letter-spacing:0.05em;">Suplidos</label>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-add-suplido">+ Añadir</button>
+      </div>
+      <div class="card" style="overflow:hidden;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <tbody id="suplidos-body">
+            {% for s in suplidos_items %}
+            <tr class="suplido-row">
+              <td style="padding:5px 8px;">
+                <input type="text" name="suplido_desc[]" class="inp-sup-desc" value="{{ s.desc }}" placeholder="Concepto"
+                       style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+              </td>
+              <td style="padding:5px 4px; width:110px;">
+                <input type="number" name="suplido_importe[]" class="inp-sup-importe"
+                       value="{{ '%g' % s.importe }}" min="0" step="0.01"
+                       style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+              </td>
+              <td style="width:28px; text-align:center; padding:5px 2px;">
+                <button type="button" class="btn-del-suplido" title="Eliminar"
+                        style="background:none; border:none; cursor:pointer; color:#b91c1c; font-size:15px; padding:2px 5px;">✕</button>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr class="suplido-row-tpl" style="display:none;">
+              <td style="padding:5px 8px;">
+                <input type="text" name="suplido_desc[]" class="inp-sup-desc" placeholder="Concepto"
+                       style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+              </td>
+              <td style="padding:5px 4px; width:110px;">
+                <input type="number" name="suplido_importe[]" class="inp-sup-importe"
+                       value="0" min="0" step="0.01"
+                       style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+              </td>
+              <td style="width:28px; text-align:center; padding:5px 2px;">
+                <button type="button" class="btn-del-suplido" title="Eliminar"
+                        style="background:none; border:none; cursor:pointer; color:#b91c1c; font-size:15px; padding:2px 5px;">✕</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -276,7 +324,8 @@ const ARTICULOS = {{ articulos_json | safe }};
       base     += cant * precio;
       ivaTotal += cant * precio * iva / 100;
     });
-    const suplidos = parseFloat(document.getElementById('suplidos').value) || 0;
+    let suplidos = 0;
+    document.querySelectorAll('.inp-sup-importe').forEach(inp => { suplidos += parseFloat(inp.value) || 0; });
     document.getElementById('tot-base').textContent     = fmtEur(base);
     document.getElementById('tot-iva').textContent      = fmtEur(ivaTotal);
     document.getElementById('tot-suplidos').textContent = fmtEur(suplidos);
@@ -305,6 +354,10 @@ const ARTICULOS = {{ articulos_json | safe }};
       }
     });
     row.querySelector('.btn-nuevo-articulo').addEventListener('click', () => openModalArticulo(row));
+
+    const handle = row.querySelector('.drag-handle');
+    handle.addEventListener('mousedown', () => { row.draggable = true; });
+    handle.addEventListener('mouseup',   () => { row.draggable = false; });
   }
 
   function renumberRows() {
@@ -332,11 +385,53 @@ const ARTICULOS = {{ articulos_json | safe }};
   }
 
   document.getElementById('btn-add-line').addEventListener('click', cloneRow);
-  document.getElementById('suplidos').addEventListener('input', recalcTotals);
 
   // Bind all pre-filled rows and calculate initial totals
   document.querySelectorAll('.linea-row').forEach(bindRow);
   recalcTotals();
+
+  // ── Suplidos ──────────────────────────────────────────────────────────────
+  function bindSuplido(row) {
+    row.querySelector('.inp-sup-importe').addEventListener('input', recalcTotals);
+    row.querySelector('.btn-del-suplido').addEventListener('click', () => { row.remove(); recalcTotals(); });
+  }
+  document.querySelectorAll('.suplido-row').forEach(bindSuplido);
+  document.getElementById('btn-add-suplido').addEventListener('click', () => {
+    const tpl = document.querySelector('.suplido-row-tpl');
+    const clone = tpl.cloneNode(true);
+    clone.className = 'suplido-row';
+    clone.style.display = '';
+    clone.querySelector('.inp-sup-desc').value    = '';
+    clone.querySelector('.inp-sup-importe').value = '0';
+    document.getElementById('suplidos-body').appendChild(clone);
+    bindSuplido(clone);
+    clone.querySelector('.inp-sup-desc').focus();
+  });
+
+  // ── Drag-to-reorder ───────────────────────────────────────────────────────
+  const tbody = document.getElementById('lineas-body');
+  let dragSrc = null;
+
+  tbody.addEventListener('dragstart', e => {
+    dragSrc = e.target.closest('.linea-row');
+    if (!dragSrc) return;
+    dragSrc.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  tbody.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.linea-row');
+    if (!target || target === dragSrc) return;
+    const rect = target.getBoundingClientRect();
+    const ref = e.clientY < rect.top + rect.height / 2 ? target : target.nextSibling;
+    if (dragSrc.nextSibling !== ref) { tbody.insertBefore(dragSrc, ref); renumberRows(); }
+  });
+
+  tbody.addEventListener('dragend', () => {
+    if (dragSrc) { dragSrc.classList.remove('dragging'); dragSrc.draggable = false; dragSrc = null; }
+  });
 
   // ── Modal artículo ────────────────────────────────────────────────────────
   let activeRow = null;

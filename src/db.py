@@ -156,12 +156,20 @@ def _migrate_lineas_fecha(conn):
         conn.execute("ALTER TABLE proforma_lineas ADD COLUMN fecha TEXT")
 
 
+def _migrate_add_suplidos_detalle(conn):
+    """Añade proformas.suplidos_detalle (JSON de ítems) si no existe. Idempotente."""
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(proformas)").fetchall()]
+    if 'suplidos_detalle' not in cols:
+        conn.execute("ALTER TABLE proformas ADD COLUMN suplidos_detalle TEXT")
+
+
 def init_db():
     with get_db() as conn:
         conn.executescript(SCHEMA)
         _migrate_to_multi_guia(conn)
         _migrate_add_cuenta_id(conn)
         _migrate_lineas_fecha(conn)
+        _migrate_add_suplidos_detalle(conn)
 
 
 _EMPRESA_DEFAULTS = {
@@ -178,6 +186,7 @@ _EMPRESA_DEFAULTS = {
     'banco': 'Entidad bancaria',
     'condiciones_pago': '30 días desde fecha de factura',
     'tagline': 'Guías oficiales de la Comunidad Valenciana desde 1992',
+    'mostrar_direccion': '1',
 }
 
 

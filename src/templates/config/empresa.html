@@ -10,14 +10,17 @@
 <div class="card form-card" style="max-width:680px;">
   <form method="POST" action="{{ url_for('config_empresa') }}">
 
-    <div style="padding:20px 20px 4px; border-bottom:1px solid var(--hairline);">
+    <div style="padding:20px 20px 12px; border-bottom:1px solid var(--hairline);">
       <p style="font-size:13px; color:var(--stone);">
-        Estos datos aparecen en la cabecera, bloque de emisor y pie de todos los PDFs generados a partir de ahora.
+        Estos datos aparecen en los PDFs generados a partir de ahora.
         Dejar un campo vacío revierte al valor por defecto.
       </p>
     </div>
 
     <div class="form-grid">
+
+      {# ── Identificación ─────────────────────────────────────── #}
+      <div class="full" style="padding:12px 0 2px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">Identificación</div>
 
       <div class="form-group full">
         <label>Nombre de la empresa</label>
@@ -30,29 +33,12 @@
       </div>
 
       <div class="form-group">
-        <label>Teléfono</label>
-        <input type="text" name="telefono" value="{{ empresa.telefono }}" placeholder="+34 661 639 964">
+        <label>Sitio web</label>
+        <input type="text" name="web" value="{{ empresa.web }}" placeholder="empresa.es">
       </div>
 
-      <div class="form-group full">
-        <label>Dirección</label>
-        <input type="text" name="direccion" value="{{ empresa.direccion }}" placeholder="Calle Ejemplo, 1">
-      </div>
-
-      <div class="form-group" style="flex:0 0 100px;">
-        <label>C.P.</label>
-        <input type="text" name="cp" value="{{ empresa.cp }}" placeholder="03001">
-      </div>
-
-      <div class="form-group">
-        <label>Población</label>
-        <input type="text" name="poblacion" value="{{ empresa.poblacion }}" placeholder="Alicante">
-      </div>
-
-      <div class="form-group">
-        <label>Provincia</label>
-        <input type="text" name="provincia" value="{{ empresa.provincia }}" placeholder="Alicante">
-      </div>
+      {# ── Contacto ────────────────────────────────────────────── #}
+      <div class="full" style="padding:16px 0 2px; border-top:1px solid var(--hairline); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">Contacto</div>
 
       <div class="form-group">
         <label>Email</label>
@@ -60,9 +46,41 @@
       </div>
 
       <div class="form-group">
-        <label>Sitio web</label>
-        <input type="text" name="web" value="{{ empresa.web }}" placeholder="empresa.es">
+        <label>Teléfono</label>
+        <input type="text" name="telefono" value="{{ empresa.telefono }}" placeholder="+34 661 639 964">
       </div>
+
+      {# ── Dirección ───────────────────────────────────────────── #}
+      <div class="full" style="padding:16px 0 4px; border-top:1px solid var(--hairline); display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">Dirección</span>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:400; color:var(--ink);">
+          <input type="checkbox" name="mostrar_direccion" value="1"
+                 {% if empresa.mostrar_direccion != '0' %}checked{% endif %}
+                 style="width:15px; height:15px; cursor:pointer; accent-color:var(--navy);">
+          Mostrar en el PDF
+        </label>
+      </div>
+
+      <div class="form-group full">
+        <label>Dirección</label>
+        <input type="text" name="direccion" value="{{ empresa.direccion }}" placeholder="Calle Ejemplo, 1">
+      </div>
+
+      <div class="form-group">
+        <label>C.P. y Población</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" name="cp" value="{{ empresa.cp }}" placeholder="03001" style="width:80px; flex-shrink:0;">
+          <input type="text" name="poblacion" value="{{ empresa.poblacion }}" placeholder="Alicante" style="flex:1;">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Provincia</label>
+        <input type="text" name="provincia" value="{{ empresa.provincia }}" placeholder="Alicante">
+      </div>
+
+      {# ── Cobro ───────────────────────────────────────────────── #}
+      <div class="full" style="padding:16px 0 2px; border-top:1px solid var(--hairline); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">Cobro</div>
 
       <div class="form-group full">
         <label>Condiciones de pago</label>
@@ -70,8 +88,11 @@
                placeholder="30 días desde fecha de factura">
       </div>
 
+      {# ── PDF ─────────────────────────────────────────────────── #}
+      <div class="full" style="padding:16px 0 2px; border-top:1px solid var(--hairline); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">PDF</div>
+
       <div class="form-group full">
-        <label>Tagline (aparece en cabecera y pie del PDF)</label>
+        <label>Frase del pie y cabecera del PDF</label>
         <input type="text" name="tagline" value="{{ empresa.tagline }}"
                placeholder="Guías oficiales de la Comunidad Valenciana desde 1992">
       </div>

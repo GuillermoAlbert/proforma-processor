@@ -1,3 +1,4 @@
+import json
 import os
 import jinja2
 import weasyprint
@@ -34,6 +35,17 @@ def generar_pdf(proforma_id):
 
     proforma_dict = dict(proforma)
     proforma_dict['lineas'] = [dict(l) for l in lineas]
+
+    raw = proforma_dict.get('suplidos_detalle')
+    if raw:
+        try:
+            proforma_dict['suplidos_items'] = json.loads(raw)
+        except (ValueError, TypeError):
+            proforma_dict['suplidos_items'] = []
+    elif proforma_dict.get('suplidos', 0):
+        proforma_dict['suplidos_items'] = [{'desc': '', 'importe': proforma_dict['suplidos']}]
+    else:
+        proforma_dict['suplidos_items'] = []
     cliente_dict = dict(cliente) if cliente else {}
 
     # La cuenta seleccionada (si la hay) define el IBAN/entidad/titular del bloque

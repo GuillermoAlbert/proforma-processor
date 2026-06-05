@@ -105,9 +105,6 @@
     color: var(--navy);
     line-height: 1.2;
     letter-spacing: -0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .header-tagline {
@@ -448,7 +445,7 @@
     position: running(footer);
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     padding-top: 8px;
     border-top: 0.5pt solid var(--hairline);
@@ -542,6 +539,7 @@
         <span class="detail-key">NIF</span>
         <span class="detail-val">{{ empresa.nif | default('[NIF empresa]') }}</span>
       </div>
+      {% if empresa.mostrar_direccion != '0' %}
       <div class="detail-row">
         <span class="detail-key">Dirección</span>
         <span class="detail-val">{{ empresa.direccion | default('[Dirección empresa]') }}</span>
@@ -550,6 +548,7 @@
         <span class="detail-key"></span>
         <span class="detail-val">{{ empresa.cp | default('') }} {{ empresa.poblacion | default('Alicante') }}{% if empresa.provincia %} ({{ empresa.provincia }}){% endif %}</span>
       </div>
+      {% endif %}
       <div class="detail-row">
         <span class="detail-key">Email</span>
         <span class="detail-val">{{ empresa.email | default('info@guiasdealicante.es') }}</span>
@@ -649,10 +648,22 @@
           <td class="t-label">IVA</td>
           <td class="t-val">{{ "%.2f"|format(proforma.iva_total) }} €</td>
         </tr>
+        {% if proforma.suplidos_items %}
+        <tr style="-webkit-print-color-adjust:exact; print-color-adjust:exact;">
+          <td colspan="2" style="padding:6px 15px 3px; font-size:8pt; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:var(--stone-dark); background:var(--sand); border-top:1pt solid var(--hairline);">Suplidos</td>
+        </tr>
+          {% for s in proforma.suplidos_items %}
+          <tr>
+            <td class="t-label" style="padding-left:22px;">{{ s.desc if s.desc else '—' }}</td>
+            <td class="t-val">{{ "%.2f"|format(s.importe) }} €</td>
+          </tr>
+          {% endfor %}
+        {% elif proforma.suplidos > 0 %}
         <tr>
           <td class="t-label">Suplidos</td>
           <td class="t-val">{{ "%.2f"|format(proforma.suplidos) }} €</td>
         </tr>
+        {% endif %}
         <tr class="row-total">
           <td class="t-label">Total</td>
           <td class="t-val">{{ "%.2f"|format(proforma.total_suplidos) }} €</td>
@@ -699,9 +710,9 @@
        PIE
        ══════════════════════════════════════════════════════ -->
   <footer class="doc-footer">
-    <span>{{ empresa.tagline }}</span>
+    <span style="word-break:normal; overflow-wrap:break-word; hyphens:none;">{{ empresa.tagline }}</span>
     <span class="footer-mid">{{ proforma.numero_proforma }} &middot; {{ proforma.fecha }}</span>
-    <span style="text-align:right;">{{ empresa.email | default('info@guiasdealicante.es') }}<br>{{ empresa.telefono | default('+34 661 639 964') }}</span>
+    <span style="text-align:right; white-space:nowrap;">{{ empresa.email | default('info@guiasdealicante.es') }} &middot; {{ empresa.telefono | default('+34 661 639 964') }}</span>
   </footer>
 
 </div>

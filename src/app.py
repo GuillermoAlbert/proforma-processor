@@ -354,6 +354,19 @@ def _parse_lineas(form):
     return lineas
 
 
+def _parse_suplidos(form):
+    """Extrae los ítems de suplidos del formulario. Devuelve (total_float, json_str_or_None)."""
+    descs    = form.getlist('suplido_desc[]')
+    importes = form.getlist('suplido_importe[]')
+    items, total = [], 0.0
+    for d, i in zip(descs, importes):
+        imp = float(i or 0)
+        if d.strip() or imp:
+            items.append({'desc': d.strip(), 'importe': round(imp, 2)})
+            total += imp
+    return round(total, 2), (json.dumps(items, ensure_ascii=False) if items else None)
+
+
 def _calcular_totales(lineas, suplidos):
     base      = sum(l['cantidad'] * l['precio'] for l in lineas)
     iva_total = sum(l['cantidad'] * l['precio'] * l['porcentaje_iva'] / 100 for l in lineas)
@@ -455,7 +468,7 @@ def proformas_nueva():
         cliente_id = request.form.get('cliente_id') or None
         cuenta_id  = request.form.get('cuenta_id') or None
         guia_ids   = [int(g) for g in request.form.getlist('guia_ids[]') if g]
-        suplidos   = float(request.form.get('suplidos', 0) or 0)
+        suplidos, suplidos_detalle = _parse_suplidos(request.form)
         comentarios = request.form.get('comentarios', '').strip()
 
         lineas = _parse_lineas(request.form)
@@ -471,10 +484,10 @@ def proformas_nueva():
             conn.execute(
                 """INSERT INTO proformas
                    (numero_proforma, fecha, cliente_id, cuenta_id, estado, base, iva_total,
-                    suplidos, total, total_suplidos, comentarios, trimestre)
-                   VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?)""",
+                    suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre)
+                   VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (numero, fecha_str, cliente_id, cuenta_id, base, iva_total,
-                 suplidos, total, total_suplidos, comentarios, trimestre)
+                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre)
             )
             proforma_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             _insertar_guias(conn, proforma_id, guia_ids)
@@ -528,6 +541,17 @@ def proformas_detalle(id):
         lineas = conn.execute(
             "SELECT * FROM proforma_lineas WHERE proforma_id = ? ORDER BY id", (id,)
         ).fetchall()
+    raw = proforma['suplidos_detalle']
+    if raw:
+        try:
+            suplidos_items = json.loads(raw)
+        except (ValueError, TypeError):
+            suplidos_items = []
+    elif proforma['suplidos']:
+        suplidos_items = [{'desc': '', 'importe': proforma['suplidos']}]
+    else:
+        suplidos_items = []
+
     return render_template(
         'proformas/detalle.html',
         proforma=proforma,
@@ -535,6 +559,7 @@ def proformas_detalle(id):
         cuenta=cuenta,
         guias=guias,
         lineas=lineas,
+        suplidos_items=suplidos_items,
     )
 
 
@@ -552,7 +577,7 @@ def proformas_editar(id):
         cliente_id  = request.form.get('cliente_id') or None
         cuenta_id   = request.form.get('cuenta_id') or None
         guia_ids    = [int(g) for g in request.form.getlist('guia_ids[]') if g]
-        suplidos    = float(request.form.get('suplidos', 0) or 0)
+        suplidos, suplidos_detalle = _parse_suplidos(request.form)
         comentarios = request.form.get('comentarios', '').strip()
 
         lineas = _parse_lineas(request.form)
@@ -568,10 +593,10 @@ def proformas_editar(id):
             ).fetchone()['ruta_pdf']
             conn.execute(
                 """UPDATE proformas SET fecha=?, cliente_id=?, cuenta_id=?, base=?, iva_total=?,
-                   suplidos=?, total=?, total_suplidos=?, comentarios=?, trimestre=?, ruta_pdf=NULL
-                   WHERE id=?""",
+                   suplidos=?, suplidos_detalle=?, total=?, total_suplidos=?, comentarios=?,
+                   trimestre=?, ruta_pdf=NULL WHERE id=?""",
                 (fecha_str, cliente_id, cuenta_id, base, iva_total,
-                 suplidos, total, total_suplidos, comentarios, trimestre, id)
+                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre, id)
             )
             conn.execute("DELETE FROM proforma_lineas WHERE proforma_id=?", (id,))
             _insertar_lineas(conn, id, lineas)
@@ -585,7 +610,7 @@ def proformas_editar(id):
                 pass
 
         flash('Proforma actualizada correctamente.', 'success')
-        return redirect(url_for('proformas_detalle', id=id))
+        return redirect(url_for('proformas_lista'))
 
     with get_db() as conn:
         ctx = _form_context(conn)
@@ -598,6 +623,17 @@ def proformas_editar(id):
             ).fetchall()
         )
 
+    raw = proforma['suplidos_detalle']
+    if raw:
+        try:
+            suplidos_items = json.loads(raw)
+        except (ValueError, TypeError):
+            suplidos_items = []
+    elif proforma['suplidos']:
+        suplidos_items = [{'desc': '', 'importe': proforma['suplidos']}]
+    else:
+        suplidos_items = []
+
     articulos_json = json.dumps([
         {'id': a['id'], 'codigo': a['codigo'], 'descripcion': a['descripcion'],
          'precio': a['precio'], 'porcentaje_iva': a['porcentaje_iva']}
@@ -607,6 +643,7 @@ def proformas_editar(id):
         'proformas/editar.html',
         proforma=proforma,
         lineas=lineas,
+        suplidos_items=suplidos_items,
         **ctx,
         articulos_json=articulos_json,
         guia_ids_actuales=guia_ids_actuales,
@@ -764,6 +801,7 @@ def config_empresa():
             'web': request.form.get('web', '').strip(),
             'condiciones_pago': request.form.get('condiciones_pago', '').strip(),
             'tagline': request.form.get('tagline', '').strip(),
+            'mostrar_direccion': '1' if request.form.get('mostrar_direccion') else '0',
         }
         set_empresa_config(fields)
         _purgar_cache_pdf()

@@ -131,9 +131,32 @@ const ARTICULOS = {{ articulos_json | safe }};
       <textarea id="comentarios" name="comentarios" rows="4"
                 style="resize:vertical;"></textarea>
     </div>
-    <div class="form-group" style="max-width:200px;">
-      <label for="suplidos">Suplidos (€)</label>
-      <input type="number" id="suplidos" name="suplidos" value="0" min="0" step="0.01">
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <label style="font-size:12px; font-weight:600; color:var(--stone); text-transform:uppercase; letter-spacing:0.05em;">Suplidos</label>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-add-suplido">+ Añadir</button>
+      </div>
+      <div class="card" style="overflow:hidden;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <tbody id="suplidos-body">
+            <tr class="suplido-row-tpl" style="display:none;">
+              <td style="padding:5px 8px;">
+                <input type="text" name="suplido_desc[]" class="inp-sup-desc" placeholder="Concepto"
+                       style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+              </td>
+              <td style="padding:5px 4px; width:110px;">
+                <input type="number" name="suplido_importe[]" class="inp-sup-importe"
+                       value="0" min="0" step="0.01"
+                       style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+              </td>
+              <td style="width:28px; text-align:center; padding:5px 2px;">
+                <button type="button" class="btn-del-suplido" title="Eliminar"
+                        style="background:none; border:none; cursor:pointer; color:#b91c1c; font-size:15px; padding:2px 5px;">✕</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -250,7 +273,8 @@ const ARTICULOS = {{ articulos_json | safe }};
       base += cant * precio;
       ivaTotal += cant * precio * iva / 100;
     });
-    const suplidos = parseFloat(document.getElementById('suplidos').value) || 0;
+    let suplidos = 0;
+    document.querySelectorAll('.inp-sup-importe').forEach(inp => { suplidos += parseFloat(inp.value) || 0; });
     const total = base + ivaTotal + suplidos;
     document.getElementById('tot-base').textContent = fmtEur(base);
     document.getElementById('tot-iva').textContent = fmtEur(ivaTotal);
@@ -317,9 +341,25 @@ const ARTICULOS = {{ articulos_json | safe }};
   }
 
   document.getElementById('btn-add-line').addEventListener('click', cloneRow);
-  document.getElementById('suplidos').addEventListener('input', recalcTotals);
   bindRow(document.querySelector('.linea-row'));
   recalcTotals();
+
+  // ── Suplidos ──────────────────────────────────────────────────────────────
+  function bindSuplido(row) {
+    row.querySelector('.inp-sup-importe').addEventListener('input', recalcTotals);
+    row.querySelector('.btn-del-suplido').addEventListener('click', () => { row.remove(); recalcTotals(); });
+  }
+  document.getElementById('btn-add-suplido').addEventListener('click', () => {
+    const tpl = document.querySelector('.suplido-row-tpl');
+    const clone = tpl.cloneNode(true);
+    clone.className = 'suplido-row';
+    clone.style.display = '';
+    clone.querySelector('.inp-sup-desc').value    = '';
+    clone.querySelector('.inp-sup-importe').value = '0';
+    document.getElementById('suplidos-body').appendChild(clone);
+    bindSuplido(clone);
+    clone.querySelector('.inp-sup-desc').focus();
+  });
 
   // ── Modal artículo ────────────────────────────────────────────────────────
 
