@@ -277,6 +277,70 @@ def cuentas_eliminar(id):
     return redirect(url_for('cuentas_lista'))
 
 
+# ── Proformas — helpers ──────────────────────────────────────────────────────
+
+def _parse_lineas(form):
+    """Extrae las líneas de servicio del formulario y calcula importes."""
+    descripciones = form.getlist('linea_descripcion[]')
+    cantidades    = form.getlist('linea_cantidad[]')
+    precios       = form.getlist('linea_precio[]')
+    ivas          = form.getlist('linea_iva[]')
+    articulo_ids  = form.getlist('linea_articulo_id[]')
+    fechas        = form.getlist('linea_fecha[]')
+    lineas = []
+    for i, desc in enumerate(descripciones):
+        desc = desc.strip()
+        if not desc:
+            continue
+        cantidad  = float(cantidades[i] or 1)
+        precio    = float(precios[i] or 0)
+        iva       = float(ivas[i] or 21)
+        art_id    = articulo_ids[i] if i < len(articulo_ids) and articulo_ids[i] else None
+        fecha     = fechas[i].strip() if i < len(fechas) and fechas[i].strip() else None
+        lineas.append({
+            'descripcion': desc, 'cantidad': cantidad, 'precio': precio,
+            'porcentaje_iva': iva, 'importe': cantidad * precio * (1 + iva / 100),
+            'articulo_id': art_id, 'fecha': fecha,
+        })
+    return lineas
+
+
+def _calcular_totales(lineas, suplidos):
+    base      = sum(l['cantidad'] * l['precio'] for l in lineas)
+    iva_total = sum(l['cantidad'] * l['precio'] * l['porcentaje_iva'] / 100 for l in lineas)
+    total     = base + iva_total
+    return base, iva_total, total, total + suplidos
+
+
+def _insertar_lineas(conn, proforma_id, lineas):
+    for l in lineas:
+        conn.execute(
+            """INSERT INTO proforma_lineas
+               (proforma_id, articulo_id, descripcion, cantidad, precio, porcentaje_iva, importe, fecha)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (proforma_id, l['articulo_id'], l['descripcion'],
+             l['cantidad'], l['precio'], l['porcentaje_iva'], l['importe'], l['fecha'])
+        )
+
+
+def _insertar_guias(conn, proforma_id, guia_ids):
+    for gid in guia_ids:
+        conn.execute(
+            "INSERT OR IGNORE INTO proforma_guias (proforma_id, guia_id) VALUES (?, ?)",
+            (proforma_id, gid)
+        )
+
+
+def _form_context(conn):
+    """Carga las listas necesarias para los formularios de proforma."""
+    return {
+        'clientes':  conn.execute("SELECT * FROM clientes ORDER BY nombre_agencia").fetchall(),
+        'guias':     conn.execute("SELECT * FROM guias ORDER BY nombre").fetchall(),
+        'articulos': conn.execute("SELECT * FROM articulos ORDER BY descripcion").fetchall(),
+        'cuentas':   conn.execute("SELECT * FROM cuentas ORDER BY predeterminada DESC, nombre").fetchall(),
+    }
+
+
 # ── Proformas ────────────────────────────────────────────────────────────────
 
 @app.route('/')
@@ -306,62 +370,24 @@ def proformas_lista():
 @require_auth
 def proformas_nueva():
     with get_db() as conn:
-        clientes = conn.execute("SELECT * FROM clientes ORDER BY nombre_agencia").fetchall()
-        guias = conn.execute("SELECT * FROM guias ORDER BY nombre").fetchall()
-        articulos = conn.execute("SELECT * FROM articulos ORDER BY descripcion").fetchall()
-        cuentas = conn.execute(
-            "SELECT * FROM cuentas ORDER BY predeterminada DESC, nombre"
-        ).fetchall()
+        ctx = _form_context(conn)
 
     if request.method == 'POST':
-        fecha_str = request.form.get('fecha', str(date.today()))
+        fecha_str  = request.form.get('fecha', str(date.today()))
         cliente_id = request.form.get('cliente_id') or None
-        cuenta_id = request.form.get('cuenta_id') or None
-        guia_ids = [int(g) for g in request.form.getlist('guia_ids[]') if g]
-        suplidos = float(request.form.get('suplidos', 0) or 0)
+        cuenta_id  = request.form.get('cuenta_id') or None
+        guia_ids   = [int(g) for g in request.form.getlist('guia_ids[]') if g]
+        suplidos   = float(request.form.get('suplidos', 0) or 0)
         comentarios = request.form.get('comentarios', '').strip()
 
-        descripciones = request.form.getlist('linea_descripcion[]')
-        cantidades = request.form.getlist('linea_cantidad[]')
-        precios = request.form.getlist('linea_precio[]')
-        ivas = request.form.getlist('linea_iva[]')
-        articulo_ids = request.form.getlist('linea_articulo_id[]')
-        fechas = request.form.getlist('linea_fecha[]')
-
-        lineas = []
-        for i in range(len(descripciones)):
-            desc = descripciones[i].strip()
-            if not desc:
-                continue
-            cantidad = float(cantidades[i] or 1)
-            precio = float(precios[i] or 0)
-            iva = float(ivas[i] or 21)
-            art_id = articulo_ids[i] if i < len(articulo_ids) and articulo_ids[i] else None
-            fecha = fechas[i].strip() if i < len(fechas) and fechas[i].strip() else None
-            importe = cantidad * precio * (1 + iva / 100)
-            lineas.append({
-                'descripcion': desc,
-                'cantidad': cantidad,
-                'precio': precio,
-                'porcentaje_iva': iva,
-                'importe': importe,
-                'articulo_id': art_id,
-                'fecha': fecha,
-            })
-
-        base = sum(l['cantidad'] * l['precio'] for l in lineas)
-        iva_total = sum(l['cantidad'] * l['precio'] * l['porcentaje_iva'] / 100 for l in lineas)
-        total = base + iva_total
-        total_suplidos = total + suplidos
-
+        lineas = _parse_lineas(request.form)
+        base, iva_total, total, total_suplidos = _calcular_totales(lineas, suplidos)
         try:
-            mes = int(fecha_str.split('-')[1])
+            trimestre = (int(fecha_str.split('-')[1]) - 1) // 3 + 1
         except (IndexError, ValueError):
-            mes = 1
-        trimestre = (mes - 1) // 3 + 1
-
-        anio_actual = int(fecha_str.split('-')[0]) if fecha_str else date.today().year
-        numero = siguiente_numero_proforma(serie='PRO', anio=anio_actual)
+            trimestre = 1
+        anio = int(fecha_str.split('-')[0]) if fecha_str else date.today().year
+        numero = siguiente_numero_proforma(serie='PRO', anio=anio)
 
         with get_db() as conn:
             conn.execute(
@@ -373,43 +399,24 @@ def proformas_nueva():
                  suplidos, total, total_suplidos, comentarios, trimestre)
             )
             proforma_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-            for gid in guia_ids:
-                conn.execute(
-                    "INSERT OR IGNORE INTO proforma_guias (proforma_id, guia_id) VALUES (?, ?)",
-                    (proforma_id, gid)
-                )
-            for l in lineas:
-                conn.execute(
-                    """INSERT INTO proforma_lineas
-                       (proforma_id, articulo_id, descripcion, cantidad, precio, porcentaje_iva, importe, fecha)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (proforma_id, l['articulo_id'], l['descripcion'],
-                     l['cantidad'], l['precio'], l['porcentaje_iva'], l['importe'], l['fecha'])
-                )
+            _insertar_guias(conn, proforma_id, guia_ids)
+            _insertar_lineas(conn, proforma_id, lineas)
 
         flash(f'Proforma {numero} creada correctamente.', 'success')
         return redirect(url_for('proformas_detalle', id=proforma_id))
 
     articulos_json = json.dumps([
-        {
-            'id': a['id'],
-            'codigo': a['codigo'],
-            'descripcion': a['descripcion'],
-            'precio': a['precio'],
-            'porcentaje_iva': a['porcentaje_iva'],
-        }
-        for a in articulos
+        {'id': a['id'], 'codigo': a['codigo'], 'descripcion': a['descripcion'],
+         'precio': a['precio'], 'porcentaje_iva': a['porcentaje_iva']}
+        for a in ctx['articulos']
     ])
     cuenta_predeterminada_id = next(
-        (c['id'] for c in cuentas if c['predeterminada']), None
+        (c['id'] for c in ctx['cuentas'] if c['predeterminada']), None
     )
     return render_template(
         'proformas/nueva.html',
-        clientes=clientes,
-        guias=guias,
-        articulos=articulos,
+        **ctx,
         articulos_json=articulos_json,
-        cuentas=cuentas,
         cuenta_predeterminada_id=cuenta_predeterminada_id,
         hoy=str(date.today()),
     )
@@ -450,6 +457,81 @@ def proformas_detalle(id):
         cuenta=cuenta,
         guias=guias,
         lineas=lineas,
+    )
+
+
+@app.route('/proformas/<int:id>/editar', methods=['GET', 'POST'])
+@require_auth
+def proformas_editar(id):
+    with get_db() as conn:
+        proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
+        if proforma is None:
+            flash('Proforma no encontrada.', 'error')
+            return redirect(url_for('proformas_lista'))
+
+    if request.method == 'POST':
+        fecha_str   = request.form.get('fecha', str(date.today()))
+        cliente_id  = request.form.get('cliente_id') or None
+        cuenta_id   = request.form.get('cuenta_id') or None
+        guia_ids    = [int(g) for g in request.form.getlist('guia_ids[]') if g]
+        suplidos    = float(request.form.get('suplidos', 0) or 0)
+        comentarios = request.form.get('comentarios', '').strip()
+
+        lineas = _parse_lineas(request.form)
+        base, iva_total, total, total_suplidos = _calcular_totales(lineas, suplidos)
+        try:
+            trimestre = (int(fecha_str.split('-')[1]) - 1) // 3 + 1
+        except (IndexError, ValueError):
+            trimestre = 1
+
+        with get_db() as conn:
+            ruta_pdf = conn.execute(
+                "SELECT ruta_pdf FROM proformas WHERE id=?", (id,)
+            ).fetchone()['ruta_pdf']
+            conn.execute(
+                """UPDATE proformas SET fecha=?, cliente_id=?, cuenta_id=?, base=?, iva_total=?,
+                   suplidos=?, total=?, total_suplidos=?, comentarios=?, trimestre=?, ruta_pdf=NULL
+                   WHERE id=?""",
+                (fecha_str, cliente_id, cuenta_id, base, iva_total,
+                 suplidos, total, total_suplidos, comentarios, trimestre, id)
+            )
+            conn.execute("DELETE FROM proforma_lineas WHERE proforma_id=?", (id,))
+            _insertar_lineas(conn, id, lineas)
+            conn.execute("DELETE FROM proforma_guias WHERE proforma_id=?", (id,))
+            _insertar_guias(conn, id, guia_ids)
+
+        if ruta_pdf and os.path.exists(ruta_pdf):
+            try:
+                os.remove(ruta_pdf)
+            except OSError:
+                pass
+
+        flash('Proforma actualizada correctamente.', 'success')
+        return redirect(url_for('proformas_detalle', id=id))
+
+    with get_db() as conn:
+        ctx = _form_context(conn)
+        lineas = conn.execute(
+            "SELECT * FROM proforma_lineas WHERE proforma_id=? ORDER BY id", (id,)
+        ).fetchall()
+        guia_ids_actuales = set(
+            r['guia_id'] for r in conn.execute(
+                "SELECT guia_id FROM proforma_guias WHERE proforma_id=?", (id,)
+            ).fetchall()
+        )
+
+    articulos_json = json.dumps([
+        {'id': a['id'], 'codigo': a['codigo'], 'descripcion': a['descripcion'],
+         'precio': a['precio'], 'porcentaje_iva': a['porcentaje_iva']}
+        for a in ctx['articulos']
+    ])
+    return render_template(
+        'proformas/editar.html',
+        proforma=proforma,
+        lineas=lineas,
+        **ctx,
+        articulos_json=articulos_json,
+        guia_ids_actuales=guia_ids_actuales,
     )
 
 

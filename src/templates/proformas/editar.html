@@ -1,0 +1,422 @@
+{% extends 'base.html' %}
+{% block title %}Editar {{ proforma.numero_proforma }}{% endblock %}
+{% block content %}
+<script>
+const ARTICULOS = {{ articulos_json | safe }};
+</script>
+
+<div class="page-header">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <h1>Editar {{ proforma.numero_proforma }}</h1>
+    <span class="badge badge-{{ proforma.estado }}">{{ proforma.estado|capitalize }}</span>
+  </div>
+  <a href="{{ url_for('proformas_detalle', id=proforma.id) }}" class="btn btn-secondary">Cancelar</a>
+</div>
+
+<form method="post" id="form-proforma">
+<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
+
+  <div class="form-group">
+    <label for="cliente_id">Cliente *</label>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <select id="cliente_id" name="cliente_id" required style="flex:1; min-width:0;">
+        <option value="">— Seleccionar cliente —</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {% if c.id == proforma.cliente_id %}selected{% endif %}>{{ c.nombre_agencia }}</option>
+        {% endfor %}
+      </select>
+      <button type="button" id="btn-nuevo-cliente" class="btn btn-secondary btn-sm"
+              title="Crear nuevo cliente" style="flex-shrink:0; white-space:nowrap;">+ Nuevo</button>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Guías <span style="font-weight:400; color:var(--stone);">(solo Excel)</span></label>
+    <div style="border:1px solid #ddd; border-radius:6px; padding:6px 10px; max-height:110px; overflow-y:auto; background:#fff;">
+      {% if guias %}
+        {% for g in guias %}
+        <label style="display:flex; align-items:center; gap:8px; padding:3px 0; font-size:13px; font-weight:400; cursor:pointer;">
+          <input type="checkbox" name="guia_ids[]" value="{{ g.id }}"
+                 {% if g.id in guia_ids_actuales %}checked{% endif %}
+                 style="cursor:pointer; flex-shrink:0;">
+          {{ g.nombre }}
+        </label>
+        {% endfor %}
+      {% else %}
+        <span style="color:#888; font-size:12px;">Sin guías. <a href="{{ url_for('guias_lista') }}">Crear guías</a></span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="form-group">
+      <label for="fecha">Fecha</label>
+      <input type="date" id="fecha" name="fecha" value="{{ proforma.fecha }}" required>
+    </div>
+    <div class="form-group">
+      <label for="cuenta_id">Cuenta de cobro</label>
+      <select id="cuenta_id" name="cuenta_id">
+        <option value="">— Sin cuenta (valores por defecto) —</option>
+        {% for c in cuentas %}
+        <option value="{{ c.id }}" {% if c.id == proforma.cuenta_id %}selected{% endif %}>
+          {{ c.nombre }}{% if c.iban %} — {{ c.iban }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tabla de líneas -->
+<div class="card" style="margin-bottom:20px;">
+  <div style="padding:14px 16px; border-bottom:1px solid var(--hairline); display:flex; justify-content:space-between; align-items:center;">
+    <strong style="font-size:14px; color:var(--navy);">Líneas de servicio</strong>
+    <button type="button" class="btn btn-secondary btn-sm" id="btn-add-line">+ Añadir línea</button>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table" id="tabla-lineas">
+      <thead>
+        <tr>
+          <th style="width:28px;">#</th>
+          <th style="width:120px; text-align:center;">Fecha <span style="font-weight:400; color:var(--stone);">(opcional)</span></th>
+          <th style="width:200px;">Artículo del catálogo</th>
+          <th>Descripción</th>
+          <th style="width:70px; text-align:center;">Cant.</th>
+          <th style="width:110px; text-align:right;">Precio unit.</th>
+          <th style="width:70px; text-align:center;">IVA %</th>
+          <th style="width:110px; text-align:right;">Importe</th>
+          <th style="width:36px;"></th>
+        </tr>
+      </thead>
+      <tbody id="lineas-body">
+
+        {# Filas pre-cargadas desde la BD #}
+        {% for l in lineas %}
+        <tr class="linea-row">
+          <td class="linea-num" style="color:#888; text-align:center; font-size:12px;">{{ loop.index }}</td>
+          <td><input type="date" name="linea_fecha[]" class="inp-fecha"
+                     value="{{ l.fecha or '' }}"
+                     style="width:100%; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td>
+            <div style="display:flex; gap:3px; align-items:center;">
+              <select class="sel-articulo" style="flex:1; min-width:0; font-size:12px; padding:4px 6px; border:1px solid #ddd; border-radius:4px;">
+                <option value="">— Catálogo —</option>
+                {% for a in articulos %}
+                <option value="{{ a.id }}"
+                        data-desc="{{ a.descripcion }}" data-precio="{{ a.precio }}" data-iva="{{ a.porcentaje_iva }}"
+                        {% if a.id == l.articulo_id %}selected{% endif %}>
+                  {{ a.descripcion }}
+                </option>
+                {% endfor %}
+              </select>
+              <button type="button" class="btn-nuevo-articulo" title="Crear nuevo artículo"
+                      style="flex-shrink:0; padding:3px 8px; font-size:14px; font-weight:700; border:1px solid #ddd; border-radius:4px; background:#fff; cursor:pointer; color:var(--navy); line-height:1.3;">+</button>
+            </div>
+            <input type="hidden" name="linea_articulo_id[]" class="inp-art-id" value="{{ l.articulo_id or '' }}">
+          </td>
+          <td><input type="text" name="linea_descripcion[]" class="inp-desc" required
+                     value="{{ l.descripcion }}"
+                     style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td><input type="number" name="linea_cantidad[]" class="inp-cant" value="{{ l.cantidad }}" min="0" step="0.01"
+                     style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td><input type="number" name="linea_precio[]" class="inp-precio" value="{{ l.precio }}" min="0" step="0.01"
+                     style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td><input type="number" name="linea_iva[]" class="inp-iva" value="{{ l.porcentaje_iva }}" min="0" step="0.1"
+                     style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td class="inp-importe" style="text-align:right; font-weight:600; font-size:13px; white-space:nowrap;">{{ "%.2f"|format(l.importe) }} €</td>
+          <td style="text-align:center;">
+            <button type="button" class="btn-del-line" title="Eliminar"
+                    style="background:none; border:none; cursor:pointer; color:#b91c1c; font-size:16px; padding:2px 6px;">✕</button>
+          </td>
+        </tr>
+        {% endfor %}
+
+        {# Fila vacía oculta usada como plantilla para "Añadir línea" #}
+        <tr class="linea-row-tpl" style="display:none;">
+          <td class="linea-num" style="color:#888; text-align:center; font-size:12px;"></td>
+          <td><input type="date" name="linea_fecha[]" class="inp-fecha"
+                     style="width:100%; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td>
+            <div style="display:flex; gap:3px; align-items:center;">
+              <select class="sel-articulo" style="flex:1; min-width:0; font-size:12px; padding:4px 6px; border:1px solid #ddd; border-radius:4px;">
+                <option value="">— Catálogo —</option>
+                {% for a in articulos %}
+                <option value="{{ a.id }}" data-desc="{{ a.descripcion }}" data-precio="{{ a.precio }}" data-iva="{{ a.porcentaje_iva }}">
+                  {{ a.descripcion }}
+                </option>
+                {% endfor %}
+              </select>
+              <button type="button" class="btn-nuevo-articulo" title="Crear nuevo artículo"
+                      style="flex-shrink:0; padding:3px 8px; font-size:14px; font-weight:700; border:1px solid #ddd; border-radius:4px; background:#fff; cursor:pointer; color:var(--navy); line-height:1.3;">+</button>
+            </div>
+            <input type="hidden" name="linea_articulo_id[]" class="inp-art-id" value="">
+          </td>
+          <td><input type="text" name="linea_descripcion[]" class="inp-desc" required
+                     style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td><input type="number" name="linea_cantidad[]" class="inp-cant" value="1" min="0" step="0.01"
+                     style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td><input type="number" name="linea_precio[]" class="inp-precio" value="0" min="0" step="0.01"
+                     style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td><input type="number" name="linea_iva[]" class="inp-iva" value="21" min="0" step="0.1"
+                     style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
+          <td class="inp-importe" style="text-align:right; font-weight:600; font-size:13px; white-space:nowrap;">0.00 €</td>
+          <td style="text-align:center;">
+            <button type="button" class="btn-del-line" title="Eliminar"
+                    style="background:none; border:none; cursor:pointer; color:#b91c1c; font-size:16px; padding:2px 6px;">✕</button>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 280px; gap:20px; align-items:start;">
+
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="form-group">
+      <label for="comentarios">Comentarios / Descripción del servicio</label>
+      <textarea id="comentarios" name="comentarios" rows="4"
+                style="resize:vertical;">{{ proforma.comentarios or '' }}</textarea>
+    </div>
+    <div class="form-group" style="max-width:200px;">
+      <label for="suplidos">Suplidos (€)</label>
+      <input type="number" id="suplidos" name="suplidos" value="{{ proforma.suplidos }}" min="0" step="0.01">
+    </div>
+  </div>
+
+  <!-- Totales -->
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr>
+        <td style="padding:10px 14px; color:var(--stone); border-bottom:1px solid var(--hairline);">Base imponible</td>
+        <td id="tot-base" style="padding:10px 14px; text-align:right; font-weight:600; border-bottom:1px solid var(--hairline);">0.00 €</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px; color:var(--stone); border-bottom:1px solid var(--hairline);">IVA</td>
+        <td id="tot-iva" style="padding:10px 14px; text-align:right; font-weight:600; border-bottom:1px solid var(--hairline);">0.00 €</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px; color:var(--stone); border-bottom:1px solid var(--hairline);">Suplidos</td>
+        <td id="tot-suplidos" style="padding:10px 14px; text-align:right; font-weight:600; border-bottom:1px solid var(--hairline);">0.00 €</td>
+      </tr>
+      <tr style="background:var(--navy);">
+        <td style="padding:12px 14px; color:rgba(255,255,255,0.85); font-weight:600; font-family:var(--font-head); font-size:14px;">Total</td>
+        <td id="tot-total" style="padding:12px 14px; text-align:right; font-weight:700; color:#E8B946; font-size:16px; font-family:var(--font-head);">0.00 €</td>
+      </tr>
+    </table>
+    <div style="padding:14px;">
+      <button type="submit" class="btn btn-primary" style="width:100%;">Guardar cambios</button>
+    </div>
+  </div>
+
+</div>
+</form>
+
+<!-- ── Modal: Nuevo artículo ─────────────────────────────────────────────── -->
+<div id="modal-articulo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:10px; padding:24px; width:360px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+      <strong style="font-size:15px; color:var(--navy);">Nuevo artículo</strong>
+      <button type="button" id="close-modal-articulo" style="background:none; border:none; cursor:pointer; font-size:22px; color:#888; line-height:1; padding:0 4px;">×</button>
+    </div>
+    <div id="modal-art-error" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:12px; padding:8px 10px; background:#fef2f2; border-radius:4px;"></div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="form-group" style="margin:0;"><label>Descripción *</label><input type="text" id="art-descripcion" style="width:100%;"></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="form-group" style="margin:0;"><label>Precio (€)</label><input type="number" id="art-precio" value="0" min="0" step="0.01" style="width:100%;"></div>
+        <div class="form-group" style="margin:0;"><label>IVA %</label><input type="number" id="art-iva" value="21" min="0" step="0.1" style="width:100%;"></div>
+      </div>
+      <button type="button" id="btn-guardar-articulo" class="btn btn-primary" style="width:100%; margin-top:4px;">Crear artículo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Nuevo cliente ──────────────────────────────────────────────── -->
+<div id="modal-cliente" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:10px; padding:24px; width:380px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+      <strong style="font-size:15px; color:var(--navy);">Nuevo cliente</strong>
+      <button type="button" id="close-modal-cliente" style="background:none; border:none; cursor:pointer; font-size:22px; color:#888; line-height:1; padding:0 4px;">×</button>
+    </div>
+    <div id="modal-cli-error" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:12px; padding:8px 10px; background:#fef2f2; border-radius:4px;"></div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="form-group" style="margin:0;"><label>Nombre / Agencia *</label><input type="text" id="cli-nombre" style="width:100%;"></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="form-group" style="margin:0;"><label>NIF/CIF</label><input type="text" id="cli-nif" style="width:100%;"></div>
+        <div class="form-group" style="margin:0;"><label>Teléfono</label><input type="text" id="cli-tel" style="width:100%;"></div>
+      </div>
+      <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="cli-email" style="width:100%;"></div>
+      <button type="button" id="btn-guardar-cliente" class="btn btn-primary" style="width:100%; margin-top:4px;">Crear cliente</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const artMap = {};
+  ARTICULOS.forEach(a => { artMap[a.id] = a; });
+
+  function fmtEur(n) { return n.toFixed(2) + ' €'; }
+
+  function calcRow(row) {
+    const cant   = parseFloat(row.querySelector('.inp-cant').value) || 0;
+    const precio = parseFloat(row.querySelector('.inp-precio').value) || 0;
+    const iva    = parseFloat(row.querySelector('.inp-iva').value) || 0;
+    row.querySelector('.inp-importe').textContent = fmtEur(cant * precio * (1 + iva / 100));
+  }
+
+  function recalcTotals() {
+    let base = 0, ivaTotal = 0;
+    document.querySelectorAll('.linea-row').forEach(row => {
+      const cant   = parseFloat(row.querySelector('.inp-cant').value) || 0;
+      const precio = parseFloat(row.querySelector('.inp-precio').value) || 0;
+      const iva    = parseFloat(row.querySelector('.inp-iva').value) || 0;
+      base     += cant * precio;
+      ivaTotal += cant * precio * iva / 100;
+    });
+    const suplidos = parseFloat(document.getElementById('suplidos').value) || 0;
+    document.getElementById('tot-base').textContent     = fmtEur(base);
+    document.getElementById('tot-iva').textContent      = fmtEur(ivaTotal);
+    document.getElementById('tot-suplidos').textContent = fmtEur(suplidos);
+    document.getElementById('tot-total').textContent    = fmtEur(base + ivaTotal + suplidos);
+  }
+
+  function bindRow(row) {
+    row.querySelector('.sel-articulo').addEventListener('change', function() {
+      const art = artMap[this.value];
+      if (art) {
+        row.querySelector('.inp-art-id').value  = art.id;
+        row.querySelector('.inp-desc').value    = art.descripcion;
+        row.querySelector('.inp-precio').value  = art.precio;
+        row.querySelector('.inp-iva').value     = art.porcentaje_iva;
+      } else {
+        row.querySelector('.inp-art-id').value = '';
+      }
+      calcRow(row); recalcTotals();
+    });
+    ['inp-cant', 'inp-precio', 'inp-iva'].forEach(cls => {
+      row.querySelector('.' + cls).addEventListener('input', () => { calcRow(row); recalcTotals(); });
+    });
+    row.querySelector('.btn-del-line').addEventListener('click', function() {
+      if (document.querySelectorAll('.linea-row').length > 1) {
+        row.remove(); renumberRows(); recalcTotals();
+      }
+    });
+    row.querySelector('.btn-nuevo-articulo').addEventListener('click', () => openModalArticulo(row));
+  }
+
+  function renumberRows() {
+    document.querySelectorAll('.linea-row').forEach((row, i) => {
+      row.querySelector('.linea-num').textContent = i + 1;
+    });
+  }
+
+  function cloneRow() {
+    const tpl   = document.querySelector('.linea-row-tpl');
+    const clone = tpl.cloneNode(true);
+    clone.className = 'linea-row';
+    clone.style.display = '';
+    clone.querySelector('.inp-fecha').value   = '';
+    clone.querySelector('.sel-articulo').value = '';
+    clone.querySelector('.inp-art-id').value  = '';
+    clone.querySelector('.inp-desc').value    = '';
+    clone.querySelector('.inp-cant').value    = '1';
+    clone.querySelector('.inp-precio').value  = '0';
+    clone.querySelector('.inp-iva').value     = '21';
+    clone.querySelector('.inp-importe').textContent = '0.00 €';
+    document.getElementById('lineas-body').appendChild(clone);
+    renumberRows();
+    bindRow(clone);
+  }
+
+  document.getElementById('btn-add-line').addEventListener('click', cloneRow);
+  document.getElementById('suplidos').addEventListener('input', recalcTotals);
+
+  // Bind all pre-filled rows and calculate initial totals
+  document.querySelectorAll('.linea-row').forEach(bindRow);
+  recalcTotals();
+
+  // ── Modal artículo ────────────────────────────────────────────────────────
+  let activeRow = null;
+  function openModalArticulo(row) {
+    activeRow = row;
+    document.getElementById('art-descripcion').value = '';
+    document.getElementById('art-precio').value = '0';
+    document.getElementById('art-iva').value = '21';
+    document.getElementById('modal-art-error').style.display = 'none';
+    document.getElementById('modal-articulo').style.display = 'flex';
+    setTimeout(() => document.getElementById('art-descripcion').focus(), 50);
+  }
+  document.getElementById('close-modal-articulo').addEventListener('click', () => {
+    document.getElementById('modal-articulo').style.display = 'none';
+  });
+  document.getElementById('modal-articulo').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+  });
+  document.getElementById('btn-guardar-articulo').addEventListener('click', async function() {
+    const errEl = document.getElementById('modal-art-error');
+    errEl.style.display = 'none';
+    const descripcion = document.getElementById('art-descripcion').value.trim();
+    if (!descripcion) { errEl.textContent = 'La descripción es obligatoria.'; errEl.style.display = 'block'; return; }
+    const precio = parseFloat(document.getElementById('art-precio').value) || 0;
+    const porcentaje_iva = parseFloat(document.getElementById('art-iva').value) || 21;
+    const data = new FormData();
+    data.append('descripcion', descripcion); data.append('precio', precio); data.append('porcentaje_iva', porcentaje_iva);
+    try {
+      const res  = await fetch('/api/articulos', { method: 'POST', body: data });
+      const json = await res.json();
+      if (!res.ok) { errEl.textContent = json.error || 'Error al crear el artículo.'; errEl.style.display = 'block'; return; }
+      artMap[json.id] = json;
+      const optHtml = `<option value="${json.id}" data-desc="${json.descripcion}" data-precio="${json.precio}" data-iva="${json.porcentaje_iva}">${json.descripcion}</option>`;
+      document.querySelectorAll('.sel-articulo').forEach(sel => sel.insertAdjacentHTML('beforeend', optHtml));
+      if (activeRow) { activeRow.querySelector('.sel-articulo').value = json.id; activeRow.querySelector('.sel-articulo').dispatchEvent(new Event('change')); }
+      document.getElementById('modal-articulo').style.display = 'none';
+    } catch (_) { errEl.textContent = 'Error de conexión.'; errEl.style.display = 'block'; }
+  });
+
+  // ── Modal cliente ─────────────────────────────────────────────────────────
+  document.getElementById('btn-nuevo-cliente').addEventListener('click', () => {
+    ['cli-nombre','cli-nif','cli-tel','cli-email'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('modal-cli-error').style.display = 'none';
+    document.getElementById('modal-cliente').style.display = 'flex';
+    setTimeout(() => document.getElementById('cli-nombre').focus(), 50);
+  });
+  document.getElementById('close-modal-cliente').addEventListener('click', () => {
+    document.getElementById('modal-cliente').style.display = 'none';
+  });
+  document.getElementById('modal-cliente').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+  });
+  document.getElementById('btn-guardar-cliente').addEventListener('click', async function() {
+    const errEl = document.getElementById('modal-cli-error');
+    errEl.style.display = 'none';
+    const nombre = document.getElementById('cli-nombre').value.trim();
+    if (!nombre) { errEl.textContent = 'El nombre es obligatorio.'; errEl.style.display = 'block'; return; }
+    const data = new FormData();
+    data.append('nombre_agencia', nombre);
+    data.append('nif_cif',  document.getElementById('cli-nif').value.trim());
+    data.append('telefono', document.getElementById('cli-tel').value.trim());
+    data.append('email',    document.getElementById('cli-email').value.trim());
+    try {
+      const res  = await fetch('/api/clientes', { method: 'POST', body: data });
+      const json = await res.json();
+      if (!res.ok) { errEl.textContent = json.error || 'Error al crear el cliente.'; errEl.style.display = 'block'; return; }
+      const select = document.getElementById('cliente_id');
+      let inserted = false;
+      for (let i = 1; i < select.options.length; i++) {
+        if (select.options[i].text.localeCompare(json.nombre_agencia, 'es', {sensitivity: 'base'}) > 0) {
+          select.insertBefore(new Option(json.nombre_agencia, json.id), select.options[i]);
+          inserted = true; break;
+        }
+      }
+      if (!inserted) select.add(new Option(json.nombre_agencia, json.id));
+      select.value = json.id;
+      document.getElementById('modal-cliente').style.display = 'none';
+    } catch (_) { errEl.textContent = 'Error de conexión.'; errEl.style.display = 'block'; }
+  });
+
+})();
+</script>
+{% endblock %}

@@ -11,6 +11,7 @@
   </div>
   <div style="display:flex; gap:8px;">
     <a href="{{ url_for('proformas_pdf', id=proforma.id) }}" class="btn btn-terra">Descargar PDF</a>
+    <a href="{{ url_for('proformas_editar', id=proforma.id) }}" class="btn btn-secondary">Editar</a>
     {% if proforma.estado != 'confirmada' %}
     <form method="POST" action="{{ url_for('proformas_confirmar', id=proforma.id) }}" style="display:inline;">
       <button type="submit" class="btn btn-primary">Confirmar y registrar en Excel</button>
