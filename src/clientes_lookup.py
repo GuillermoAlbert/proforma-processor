@@ -502,7 +502,10 @@ def buscar_cliente(cif: str, deepseek_api_key: str = None) -> dict:
 
     normalizado = normalizar_cif(cif)
     if not normalizado:
-        return {"ok": False, "message": "CIF vacío.", "fields": empty_fields}
+        return {"ok": False, "message": "CIF vacío.", "fields": empty_fields, "url": ""}
+
+    # URL de la ficha de einforma (para abrir manualmente si la consulta falla)
+    einforma_url = _EINFORMA_URL.format(cif=normalizado)
 
     # Validación local (no bloqueante: aviso pero continúa)
     aviso_validacion = ""
@@ -513,14 +516,14 @@ def buscar_cliente(cif: str, deepseek_api_key: str = None) -> dict:
     vies = consultar_vies(normalizado)
     if not vies["ok"]:
         msg = f"{aviso_validacion}No se pudo consultar VIES: {vies['error']}."
-        return {"ok": False, "message": msg, "fields": empty_fields}
+        return {"ok": False, "message": msg, "fields": empty_fields, "url": einforma_url}
 
     if not vies["isValid"]:
         msg = (
             f"{aviso_validacion}"
             "CIF no encontrado en el registro VIES (puede no estar dado de alta para IVA intracomunitario)."
         )
-        return {"ok": False, "message": msg, "fields": empty_fields}
+        return {"ok": False, "message": msg, "fields": empty_fields, "url": einforma_url}
 
     # CIF válido en VIES — extraer campos.
     # España enmascara nombre/dirección: VIES los devuelve como "---" (o vacío).
@@ -584,6 +587,7 @@ def buscar_cliente(cif: str, deepseek_api_key: str = None) -> dict:
             "poblacion": addr_fields["poblacion"],
             "provincia": addr_fields["provincia"],
         },
+        "url": einforma_url,
     }
 
 
@@ -609,7 +613,11 @@ def buscar_cliente_por_nombre(nombre: str, deepseek_api_key: str = None) -> dict
 
     nombre = (nombre or "").strip()
     if not nombre:
-        return {"ok": False, "message": "Introduce un nombre.", "fields": empty_fields}
+        return {"ok": False, "message": "Introduce un nombre.", "fields": empty_fields, "url": ""}
+
+    # URL del listado de einforma para este nombre (para abrir manualmente si falla)
+    import urllib.parse
+    listado_url = _EINFORMA_LISTADO_URL.format(nombre=urllib.parse.quote(nombre, safe=''))
 
     # Buscar slug en el listado
     slug_url = buscar_einforma_slug(nombre)
@@ -618,16 +626,17 @@ def buscar_cliente_por_nombre(nombre: str, deepseek_api_key: str = None) -> dict
             "ok": False,
             "message": "No se encontró ninguna empresa con ese nombre en einforma.",
             "fields": empty_fields,
+            "url": listado_url,
         }
 
     # Descargar y parsear la ficha
     ficha = consultar_einforma_url(slug_url)
     if not ficha["ok"]:
         if ficha.get("code") == 429:
-            msg = "einforma está limitando las consultas (HTTP 429). Espera unos segundos e inténtalo de nuevo."
+            msg = "einforma está limitando las consultas (HTTP 429). Pulsa «Abrir en einforma» para verlo en tu navegador."
         else:
             msg = f"Error al acceder a la ficha de einforma: {ficha.get('error', '')}"
-        return {"ok": False, "message": msg, "fields": empty_fields}
+        return {"ok": False, "message": msg, "fields": empty_fields, "url": slug_url}
 
     ei = parsear_einforma(ficha["html"])
     nombre_agencia = ei["nombre_agencia"]
@@ -666,6 +675,7 @@ def buscar_cliente_por_nombre(nombre: str, deepseek_api_key: str = None) -> dict
             "poblacion": addr["poblacion"],
             "provincia": addr["provincia"],
         },
+        "url": slug_url,
     }
 
 

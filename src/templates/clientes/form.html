@@ -18,6 +18,8 @@
                   style="flex-shrink:0; white-space:nowrap;" title="Buscar empresa por nombre en einforma">🔍 Buscar</button>
         </div>
         <span id="nombre-status" style="font-size:12px; margin-top:3px; min-height:16px; display:block;"></span>
+        <a id="nombre-link" href="#" target="_blank" rel="noopener"
+           style="display:none; font-size:12px;">🔗 Abrir en einforma para verlo manualmente</a>
       </div>
       <div class="form-group">
         <label for="nif_cif">NIF / CIF</label>
@@ -28,6 +30,8 @@
                   style="flex-shrink:0; white-space:nowrap;" title="Buscar datos de empresa (VIES + einforma)">🔍 Buscar datos</button>
         </div>
         <span id="cif-status" style="font-size:12px; margin-top:3px; min-height:16px; display:block;"></span>
+        <a id="cif-link" href="#" target="_blank" rel="noopener"
+           style="display:none; font-size:12px;">🔗 Abrir en einforma para verlo manualmente</a>
       </div>
       <div class="form-group">
         <label for="codigo_factusol">Código Factusol</label>
@@ -103,6 +107,15 @@
     setTimeout(function () { el.classList.remove('vies-highlight'); }, 1800);
   }
 
+  // Muestra/oculta el enlace «Abrir en einforma» con la URL devuelta por el servidor.
+  // El navegador del usuario no está limitado por el 429 del servidor.
+  function setLink(linkId, url) {
+    var a = document.getElementById(linkId);
+    if (!a) return;
+    if (url) { a.href = url; a.style.display = 'inline-block'; }
+    else { a.style.display = 'none'; a.removeAttribute('href'); }
+  }
+
   btn.addEventListener('click', function () {
     const cif = document.getElementById('nif_cif').value.trim();
     if (!cif) {
@@ -115,6 +128,7 @@
     fetch('/clientes/lookup?cif=' + encodeURIComponent(cif))
       .then(function (r) { return r.json(); })
       .then(function (data) {
+        setLink('cif-link', data.url);
         if (data.ok) {
           // Rellenar los campos sugeridos (marcados en amarillo para revisión).
           FIELDS.forEach(function (id) {
@@ -164,6 +178,7 @@
       fetch('/clientes/lookup-nombre?nombre=' + encodeURIComponent(nombre))
         .then(function (r) { return r.json(); })
         .then(function (data) {
+          setLink('nombre-link', data.url);
           if (data.ok) {
             NOMBRE_FIELDS.forEach(function (id) {
               var val = data.fields && data.fields[id];
