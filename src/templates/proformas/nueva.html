@@ -338,9 +338,6 @@ const ARTICULOS = {{ articulos_json | safe }};
   document.getElementById('close-modal-articulo').addEventListener('click', () => {
     document.getElementById('modal-articulo').style.display = 'none';
   });
-  document.getElementById('modal-articulo').addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
-  });
 
   document.getElementById('btn-guardar-articulo').addEventListener('click', async function() {
     const errEl = document.getElementById('modal-art-error');
@@ -396,9 +393,6 @@ const ARTICULOS = {{ articulos_json | safe }};
 
   document.getElementById('close-modal-cliente').addEventListener('click', () => {
     document.getElementById('modal-cliente').style.display = 'none';
-  });
-  document.getElementById('modal-cliente').addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
   });
 
   document.getElementById('btn-guardar-cliente').addEventListener('click', async function() {

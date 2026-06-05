@@ -34,6 +34,7 @@
           <td class="td-actions">
             <a href="{{ url_for('proformas_detalle', id=p.id) }}" class="btn btn-secondary btn-sm">Ver</a>
             <a href="{{ url_for('proformas_pdf', id=p.id) }}" class="btn btn-terra btn-sm">PDF</a>
+            <a href="{{ url_for('proformas_editar', id=p.id) }}" class="btn btn-secondary btn-sm">Editar</a>
             {% if p.estado != 'confirmada' %}
             <form method="POST" action="{{ url_for('proformas_confirmar', id=p.id) }}" style="display:inline;">
               <button type="submit" class="btn btn-primary btn-sm">Confirmar</button>
