@@ -28,7 +28,7 @@
           <td>{{ p.fecha }}</td>
           <td>{{ p.nombre_agencia or '—' }}</td>
           <td>{{ p.guia_nombre or '—' }}</td>
-          <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(p.total_suplidos) }} €</td>
+          <td style="text-align:right; font-weight:600; white-space:nowrap;">{{ "%.2f"|format(p.total_suplidos) }} €</td>
           <td><span class="badge badge-{{ p.estado }}">{{ p.estado|capitalize }}</span></td>
           <td class="td-actions">
             <a href="{{ url_for('proformas_pdf', id=p.id) }}" class="btn btn-terra btn-sm">PDF</a>

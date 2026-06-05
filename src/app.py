@@ -802,6 +802,7 @@ def config_empresa():
             'condiciones_pago': request.form.get('condiciones_pago', '').strip(),
             'tagline': request.form.get('tagline', '').strip(),
             'mostrar_direccion': '1' if request.form.get('mostrar_direccion') else '0',
+            'aviso_legal': request.form.get('aviso_legal', '').strip(),
         }
         set_empresa_config(fields)
         _purgar_cache_pdf()

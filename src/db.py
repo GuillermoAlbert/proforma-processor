@@ -187,6 +187,7 @@ _EMPRESA_DEFAULTS = {
     'condiciones_pago': '30 días desde fecha de factura',
     'tagline': 'Guías oficiales de la Comunidad Valenciana desde 1992',
     'mostrar_direccion': '1',
+    'aviso_legal': 'Este documento es una FACTURA PROFORMA y no tiene validez fiscal. No sustituye a la factura oficial. La factura legal (Verifactu) se emitirá desde Factusol una vez confirmado el servicio.',
 }
 
 
