@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Factura Proforma {{ proforma.numero_proforma }} — Guías de Alicante</title>
+<title>Factura Proforma {{ proforma.numero_proforma }} — {{ empresa.nombre }}</title>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -46,12 +46,14 @@
   @page {
     size: A4;
     margin: 0 0 14mm 0;
+    background: #F7F4EF;
 
     @bottom-left {
       content: element(footer);
       vertical-align: top;
       margin: 0 16mm;
       width: calc(210mm - 32mm);
+      background: #F7F4EF;
     }
   }
 
@@ -231,7 +233,7 @@
   .detail-key {
     color: var(--stone-dark);
     font-size: 9pt;
-    min-width: 46px;
+    width: 64px;
     flex-shrink: 0;
   }
 
@@ -245,7 +247,7 @@
     border-left: 4px solid var(--navy);
     background: var(--navy-pale);
     border-radius: 0 8px 8px 0;
-    padding: 14px 16px 14px 16px;
+    padding: 0 16px 14px 14px;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -506,7 +508,7 @@
       </svg>
       <div>
         <div class="header-company-name">{{ empresa.nombre | default('Guías de Alicante') }}</div>
-        <div class="header-tagline">Guías oficiales de la Comunidad Valenciana desde 1992</div>
+        <div class="header-tagline">{{ empresa.tagline }}</div>
       </div>
     </div>
 
@@ -558,7 +560,7 @@
       </div>
       <div class="detail-row">
         <span class="detail-key">Web</span>
-        <span class="detail-val">{{ empresa.web | default('guiasdealicante.es') }}</span>
+        <span class="detail-val"><a href="https://{{ empresa.web | default('guiasdealicante.es') }}" target="_blank" rel="noopener noreferrer" style="color:var(--ink); text-decoration:underline;">{{ empresa.web | default('guiasdealicante.es') }}</a></span>
       </div>
     </div>
 
@@ -569,7 +571,7 @@
         <div class="party-name">{{ cliente.nombre_agencia }}</div>
         <div class="detail-row">
           <span class="detail-key">NIF/CIF</span>
-          <span class="detail-val">{{ cliente.nif_cif }}</span>
+          <span class="detail-val">{{ cliente.nif_cif or '' }}</span>
         </div>
         {% if cliente.direccion %}
         <div class="detail-row">
@@ -577,10 +579,13 @@
           <span class="detail-val">{{ cliente.direccion }}</span>
         </div>
         {% endif %}
+        {% set cp_pob = [cliente.cp, cliente.poblacion] | select | join(' ') %}
+        {% if cp_pob or cliente.provincia %}
         <div class="detail-row">
           <span class="detail-key"></span>
-          <span class="detail-val">{{ cliente.cp }} {{ cliente.poblacion }}{% if cliente.provincia %} ({{ cliente.provincia }}){% endif %}</span>
+          <span class="detail-val">{{ cp_pob }}{% if cliente.provincia %} ({{ cliente.provincia }}){% endif %}</span>
         </div>
+        {% endif %}
         {% if cliente.email %}
         <div class="detail-row">
           <span class="detail-key">Email</span>
@@ -602,10 +607,12 @@
        LÍNEAS DE SERVICIO
        ══════════════════════════════════════════════════════ -->
   <div class="section-label">Servicios</div>
+  {% set has_fechas = proforma.lineas | selectattr('fecha') | list | length > 0 %}
   <table class="rates">
     <thead>
       <tr>
         <th style="width:28px; text-align:center;">#</th>
+        {% if has_fechas %}<th class="c" style="width:80px;">Fecha</th>{% endif %}
         <th>Descripción</th>
         <th class="c" style="width:52px;">Cant.</th>
         <th class="r" style="width:92px;">Precio unit.</th>
@@ -617,6 +624,7 @@
       {% for linea in proforma.lineas %}
       <tr>
         <td class="c muted" style="font-size:8.5pt;">{{ loop.index }}</td>
+        {% if has_fechas %}<td class="c muted">{{ linea.fecha | fecha_es }}</td>{% endif %}
         <td>{{ linea.descripcion }}</td>
         <td class="c">{{ linea.cantidad }}</td>
         <td class="r muted">{{ "%.2f"|format(linea.precio) }} €</td>
@@ -691,9 +699,9 @@
        PIE
        ══════════════════════════════════════════════════════ -->
   <footer class="doc-footer">
-    <span>Guías oficiales de la Comunidad Valenciana desde 1992</span>
+    <span>{{ empresa.tagline }}</span>
     <span class="footer-mid">{{ proforma.numero_proforma }} &middot; {{ proforma.fecha }}</span>
-    <span>{{ empresa.email | default('info@guiasdealicante.es') }} &middot; {{ empresa.telefono | default('+34 661 639 964') }}</span>
+    <span style="text-align:right;">{{ empresa.email | default('info@guiasdealicante.es') }}<br>{{ empresa.telefono | default('+34 661 639 964') }}</span>
   </footer>
 
 </div>

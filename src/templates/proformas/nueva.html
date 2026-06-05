@@ -74,7 +74,8 @@ const ARTICULOS = {{ articulos_json | safe }};
       <thead>
         <tr>
           <th style="width:28px;">#</th>
-          <th style="width:230px;">Artículo del catálogo</th>
+          <th style="width:120px; text-align:center;">Fecha <span style="font-weight:400; color:var(--stone);">(opcional)</span></th>
+          <th style="width:200px;">Artículo del catálogo</th>
           <th>Descripción</th>
           <th style="width:70px; text-align:center;">Cant.</th>
           <th style="width:110px; text-align:right;">Precio unit.</th>
@@ -86,6 +87,8 @@ const ARTICULOS = {{ articulos_json | safe }};
       <tbody id="lineas-body">
         <tr class="linea-row">
           <td class="linea-num" style="color:#888; text-align:center; font-size:12px;">1</td>
+          <td><input type="date" name="linea_fecha[]" class="inp-fecha"
+                     style="width:100%; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
           <td>
             <div style="display:flex; gap:3px; align-items:center;">
               <select class="sel-articulo" style="flex:1; min-width:0; font-size:12px; padding:4px 6px; border:1px solid #ddd; border-radius:4px;">
@@ -303,6 +306,7 @@ const ARTICULOS = {{ articulos_json | safe }};
     clone.querySelector('.sel-articulo').value = '';
     clone.querySelector('.inp-art-id').value = '';
     clone.querySelector('.inp-desc').value = '';
+    clone.querySelector('.inp-fecha').value = '';
     clone.querySelector('.inp-cant').value = '1';
     clone.querySelector('.inp-precio').value = '0';
     clone.querySelector('.inp-iva').value = '21';

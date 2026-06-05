@@ -65,8 +65,10 @@
   <div class="table-wrap">
     <table class="data-table">
       <thead>
+        {% set has_fechas = lineas | selectattr('fecha') | list | length > 0 %}
         <tr>
           <th style="width:28px; text-align:center;">#</th>
+          {% if has_fechas %}<th style="text-align:center; width:110px;">Fecha</th>{% endif %}
           <th>Descripción</th>
           <th style="text-align:center; width:60px;">Cant.</th>
           <th style="text-align:right; width:110px;">Precio unit.</th>
@@ -78,6 +80,7 @@
         {% for l in lineas %}
         <tr>
           <td style="text-align:center; color:#888; font-size:12px;">{{ loop.index }}</td>
+          {% if has_fechas %}<td style="text-align:center; color:var(--stone);">{{ l.fecha or '' }}</td>{% endif %}
           <td>{{ l.descripcion }}</td>
           <td style="text-align:center;">{{ l.cantidad }}</td>
           <td style="text-align:right; color:var(--stone);">{{ "%.2f"|format(l.precio) }} €</td>
@@ -86,7 +89,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="6" style="text-align:center; color:#888; padding:20px;">Sin líneas.</td>
+          <td colspan="{{ 7 if has_fechas else 6 }}" style="text-align:center; color:#888; padding:20px;">Sin líneas.</td>
         </tr>
         {% endfor %}
       </tbody>

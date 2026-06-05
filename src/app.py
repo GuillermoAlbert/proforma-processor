@@ -5,13 +5,18 @@ import threading
 from datetime import date
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 
-from db import get_db, init_db, siguiente_numero_proforma
+from db import get_db, init_db, siguiente_numero_proforma, get_empresa_config, set_empresa_config
 from admin_helpers import require_auth
 from pdf import generar_pdf, PDF_DIR
 import excel
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'proforma-admin-secret-2026')
+
+
+@app.context_processor
+def inject_empresa():
+    return {'empresa_config': get_empresa_config()}
 
 
 # ── Clientes ────────────────────────────────────────────────────────────────
@@ -321,6 +326,7 @@ def proformas_nueva():
         precios = request.form.getlist('linea_precio[]')
         ivas = request.form.getlist('linea_iva[]')
         articulo_ids = request.form.getlist('linea_articulo_id[]')
+        fechas = request.form.getlist('linea_fecha[]')
 
         lineas = []
         for i in range(len(descripciones)):
@@ -331,6 +337,7 @@ def proformas_nueva():
             precio = float(precios[i] or 0)
             iva = float(ivas[i] or 21)
             art_id = articulo_ids[i] if i < len(articulo_ids) and articulo_ids[i] else None
+            fecha = fechas[i].strip() if i < len(fechas) and fechas[i].strip() else None
             importe = cantidad * precio * (1 + iva / 100)
             lineas.append({
                 'descripcion': desc,
@@ -339,6 +346,7 @@ def proformas_nueva():
                 'porcentaje_iva': iva,
                 'importe': importe,
                 'articulo_id': art_id,
+                'fecha': fecha,
             })
 
         base = sum(l['cantidad'] * l['precio'] for l in lineas)
@@ -373,10 +381,10 @@ def proformas_nueva():
             for l in lineas:
                 conn.execute(
                     """INSERT INTO proforma_lineas
-                       (proforma_id, articulo_id, descripcion, cantidad, precio, porcentaje_iva, importe)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                       (proforma_id, articulo_id, descripcion, cantidad, precio, porcentaje_iva, importe, fecha)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (proforma_id, l['articulo_id'], l['descripcion'],
-                     l['cantidad'], l['precio'], l['porcentaje_iva'], l['importe'])
+                     l['cantidad'], l['precio'], l['porcentaje_iva'], l['importe'], l['fecha'])
                 )
 
         flash(f'Proforma {numero} creada correctamente.', 'success')
@@ -554,6 +562,30 @@ def config_reintentar_excel():
     else:
         flash('No había pendientes que registrar (o el Excel sigue abierto).', 'success')
     return redirect(url_for('config_index'))
+
+
+@app.route('/config/empresa', methods=['GET', 'POST'])
+@require_auth
+def config_empresa():
+    if request.method == 'POST':
+        fields = {
+            'nombre': request.form.get('nombre', '').strip(),
+            'nif': request.form.get('nif', '').strip(),
+            'direccion': request.form.get('direccion', '').strip(),
+            'cp': request.form.get('cp', '').strip(),
+            'poblacion': request.form.get('poblacion', '').strip(),
+            'provincia': request.form.get('provincia', '').strip(),
+            'email': request.form.get('email', '').strip(),
+            'telefono': request.form.get('telefono', '').strip(),
+            'web': request.form.get('web', '').strip(),
+            'condiciones_pago': request.form.get('condiciones_pago', '').strip(),
+            'tagline': request.form.get('tagline', '').strip(),
+        }
+        set_empresa_config(fields)
+        _purgar_cache_pdf()
+        flash('Datos de empresa actualizados. La caché de PDFs se ha limpiado.', 'success')
+        return redirect(url_for('config_empresa'))
+    return render_template('config/empresa.html', empresa=get_empresa_config())
 
 
 def _purgar_cache_pdf():

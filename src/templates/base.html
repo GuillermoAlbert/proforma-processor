@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Proforma Admin{% endblock %} — Guías de Alicante</title>
+  <title>{% block title %}Proforma Admin{% endblock %} — {{ empresa_config.nombre }}</title>
   <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -221,7 +221,7 @@
 <body>
 
 <nav>
-  <span class="nav-brand">Guías de Alicante</span>
+  <span class="nav-brand">{{ empresa_config.nombre }}</span>
   <ul class="nav-links">
     <li><a href="{{ url_for('proformas_lista') }}" {% if request.endpoint and 'proforma' in request.endpoint %}class="active"{% endif %}>Proformas</a></li>
     <li><a href="{{ url_for('clientes_lista') }}" {% if request.endpoint and 'cliente' in request.endpoint %}class="active"{% endif %}>Clientes</a></li>

@@ -7,6 +7,14 @@
 </div>
 
 <div class="card" style="max-width:420px; padding:28px 24px; margin-bottom:20px;">
+  <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 8px;">Datos de empresa</h2>
+  <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
+    Nombre, NIF, dirección, teléfono, condiciones de pago y otros datos que aparecen en los PDFs de proforma.
+  </p>
+  <a href="{{ url_for('config_empresa') }}" class="btn btn-primary">Editar datos de empresa</a>
+</div>
+
+<div class="card" style="max-width:420px; padding:28px 24px; margin-bottom:20px;">
   <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 12px;">Excel de Hacienda</h2>
   <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
     {% if pendientes_excel %}

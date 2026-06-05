@@ -1,25 +1,10 @@
 import os
 import jinja2
 import weasyprint
-from db import get_db
+from db import get_db, get_empresa_config
 
 TEMPLATE_DIR = os.environ.get('TEMPLATE_DIR', '/mnt/empresa/proforma-admin/DOCS_ETL_PROFORMAS')
 PDF_DIR = os.environ.get('PDF_DIR', '/mnt/empresa/proformas-pdf')
-
-EMPRESA = {
-    'nombre': 'Guías de Alicante',
-    'nif': 'XXXXXXXXX',
-    'direccion': 'Alicante',
-    'cp': '03001',
-    'poblacion': 'Alicante',
-    'provincia': 'Alicante',
-    'email': 'info@guiasdealicante.es',
-    'telefono': '+34 661 639 964',
-    'web': 'guiasdealicante.es',
-    'iban': 'ES00 0000 0000 0000 0000 0000',
-    'banco': 'Entidad bancaria',
-    'condiciones_pago': '30 días desde fecha de factura',
-}
 
 
 def generar_pdf(proforma_id):
@@ -52,8 +37,8 @@ def generar_pdf(proforma_id):
     cliente_dict = dict(cliente) if cliente else {}
 
     # La cuenta seleccionada (si la hay) define el IBAN/entidad/titular del bloque
-    # de pago; si no, se usan los valores por defecto de EMPRESA.
-    empresa = dict(EMPRESA)
+    # de pago; si no, se usan los valores de empresa (DB o defaults).
+    empresa = get_empresa_config()
     if cuenta:
         if cuenta['iban']:
             empresa['iban'] = cuenta['iban']
@@ -61,10 +46,21 @@ def generar_pdf(proforma_id):
             empresa['banco'] = cuenta['banco']
         empresa['titular'] = cuenta['titular'] or ''
 
+    def _fecha_es(value):
+        """Convierte YYYY-MM-DD a DD/MM/YYYY para el PDF."""
+        if not value:
+            return ''
+        try:
+            y, m, d = value.split('-')
+            return f"{d}/{m}/{y}"
+        except (ValueError, AttributeError):
+            return value or ''
+
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(TEMPLATE_DIR),
         autoescape=jinja2.select_autoescape(['html'])
     )
+    env.filters['fecha_es'] = _fecha_es
     template = env.get_template('plantilla-proforma.html')
     html_rendered = template.render(
         proforma=proforma_dict,

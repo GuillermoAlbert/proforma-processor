@@ -78,6 +78,10 @@ CREATE TABLE IF NOT EXISTS cuentas (
     bic TEXT,
     predeterminada INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS config (
+    clave TEXT PRIMARY KEY,
+    valor TEXT
+);
 """
 
 
@@ -145,11 +149,63 @@ def _migrate_add_cuenta_id(conn):
         conn.execute("ALTER TABLE proformas ADD COLUMN cuenta_id INTEGER REFERENCES cuentas(id)")
 
 
+def _migrate_lineas_fecha(conn):
+    """Añade proforma_lineas.fecha (TEXT, opcional) si no existe. Idempotente."""
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(proforma_lineas)").fetchall()]
+    if 'fecha' not in cols:
+        conn.execute("ALTER TABLE proforma_lineas ADD COLUMN fecha TEXT")
+
+
 def init_db():
     with get_db() as conn:
         conn.executescript(SCHEMA)
         _migrate_to_multi_guia(conn)
         _migrate_add_cuenta_id(conn)
+        _migrate_lineas_fecha(conn)
+
+
+_EMPRESA_DEFAULTS = {
+    'nombre': 'Guías de Alicante',
+    'nif': 'XXXXXXXXX',
+    'direccion': 'Alicante',
+    'cp': '03001',
+    'poblacion': 'Alicante',
+    'provincia': 'Alicante',
+    'email': 'info@guiasdealicante.es',
+    'telefono': '+34 661 639 964',
+    'web': 'guiasdealicante.es',
+    'iban': 'ES00 0000 0000 0000 0000 0000',
+    'banco': 'Entidad bancaria',
+    'condiciones_pago': '30 días desde fecha de factura',
+    'tagline': 'Guías oficiales de la Comunidad Valenciana desde 1992',
+}
+
+
+def get_empresa_config():
+    """Returns empresa dict, merging DB overrides over hardcoded defaults."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT clave, valor FROM config WHERE clave LIKE 'empresa.%'"
+        ).fetchall()
+    result = dict(_EMPRESA_DEFAULTS)
+    for row in rows:
+        key = row['clave'][len('empresa.'):]
+        if row['valor'] is not None:
+            result[key] = row['valor']
+    return result
+
+
+def set_empresa_config(fields):
+    """Saves empresa fields to config table. Empty string deletes the key (reverts to default)."""
+    with get_db() as conn:
+        for k, v in fields.items():
+            if v:
+                conn.execute(
+                    "INSERT OR REPLACE INTO config (clave, valor) VALUES (?, ?)",
+                    (f'empresa.{k}', v)
+                )
+            else:
+                conn.execute("DELETE FROM config WHERE clave = ?", (f'empresa.{k}',))
 
 
 def siguiente_numero_proforma(serie='PRO', anio=2026):
