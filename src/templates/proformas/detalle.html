@@ -27,6 +27,7 @@
     <table style="font-size:13px; width:100%; border-collapse:collapse;">
       <tr><td style="padding:4px 0; color:var(--stone); width:120px;">Fecha</td><td style="padding:4px 0; font-weight:500;">{{ proforma.fecha }}</td></tr>
       <tr><td style="padding:4px 0; color:var(--stone);">Trimestre</td><td style="padding:4px 0;">T{{ proforma.trimestre }}</td></tr>
+      <tr><td style="padding:4px 0; color:var(--stone);">Cuenta de cobro</td><td style="padding:4px 0;">{% if cuenta %}{{ cuenta.nombre }}{% if cuenta.iban %} <span style="color:var(--stone);">({{ cuenta.iban }})</span>{% endif %}{% else %}<span style="color:#888;">Valores por defecto</span>{% endif %}</td></tr>
       {% if proforma.comentarios %}
       <tr><td style="padding:4px 0; color:var(--stone); vertical-align:top;">Comentarios</td><td style="padding:4px 0;">{{ proforma.comentarios }}</td></tr>
       {% endif %}

@@ -36,6 +36,12 @@ def generar_pdf(proforma_id):
             "SELECT * FROM clientes WHERE id = ?", (proforma['cliente_id'],)
         ).fetchone()
 
+        cuenta = None
+        if proforma['cuenta_id']:
+            cuenta = conn.execute(
+                "SELECT * FROM cuentas WHERE id = ?", (proforma['cuenta_id'],)
+            ).fetchone()
+
         lineas = conn.execute(
             "SELECT * FROM proforma_lineas WHERE proforma_id = ? ORDER BY id",
             (proforma_id,)
@@ -45,6 +51,16 @@ def generar_pdf(proforma_id):
     proforma_dict['lineas'] = [dict(l) for l in lineas]
     cliente_dict = dict(cliente) if cliente else {}
 
+    # La cuenta seleccionada (si la hay) define el IBAN/entidad/titular del bloque
+    # de pago; si no, se usan los valores por defecto de EMPRESA.
+    empresa = dict(EMPRESA)
+    if cuenta:
+        if cuenta['iban']:
+            empresa['iban'] = cuenta['iban']
+        if cuenta['banco']:
+            empresa['banco'] = cuenta['banco']
+        empresa['titular'] = cuenta['titular'] or ''
+
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(TEMPLATE_DIR),
         autoescape=jinja2.select_autoescape(['html'])
@@ -53,7 +69,7 @@ def generar_pdf(proforma_id):
     html_rendered = template.render(
         proforma=proforma_dict,
         cliente=cliente_dict,
-        empresa=EMPRESA,
+        empresa=empresa,
     )
 
     pdf_path = os.path.join(PDF_DIR, f"{proforma_dict['numero_proforma']}.pdf")

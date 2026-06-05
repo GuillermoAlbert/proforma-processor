@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS series (
     ultimo_numero INTEGER DEFAULT 0,
     PRIMARY KEY (serie, anio)
 );
+CREATE TABLE IF NOT EXISTS cuentas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    titular TEXT,
+    iban TEXT,
+    banco TEXT,
+    bic TEXT,
+    predeterminada INTEGER DEFAULT 0
+);
 """
 
 
@@ -129,10 +138,18 @@ def _migrate_to_multi_guia(conn):
     conn.execute("ALTER TABLE proformas_new RENAME TO proformas")
 
 
+def _migrate_add_cuenta_id(conn):
+    """Añade proformas.cuenta_id (FK a cuentas) si no existe. Idempotente."""
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(proformas)").fetchall()]
+    if 'cuenta_id' not in cols:
+        conn.execute("ALTER TABLE proformas ADD COLUMN cuenta_id INTEGER REFERENCES cuentas(id)")
+
+
 def init_db():
     with get_db() as conn:
         conn.executescript(SCHEMA)
         _migrate_to_multi_guia(conn)
+        _migrate_add_cuenta_id(conn)
 
 
 def siguiente_numero_proforma(serie='PRO', anio=2026):

@@ -184,6 +184,94 @@ def guias_eliminar(id):
     return redirect(url_for('guias_lista'))
 
 
+# ── Cuentas bancarias ─────────────────────────────────────────────────────────
+
+def _aplicar_predeterminada(conn, cuenta_id, marcar):
+    """Si marcar es True, deja esta cuenta como única predeterminada."""
+    if marcar:
+        conn.execute("UPDATE cuentas SET predeterminada = 0")
+        conn.execute("UPDATE cuentas SET predeterminada = 1 WHERE id = ?", (cuenta_id,))
+    else:
+        conn.execute("UPDATE cuentas SET predeterminada = 0 WHERE id = ?", (cuenta_id,))
+
+
+@app.route('/cuentas')
+@require_auth
+def cuentas_lista():
+    with get_db() as conn:
+        cuentas = conn.execute(
+            "SELECT * FROM cuentas ORDER BY predeterminada DESC, nombre"
+        ).fetchall()
+    return render_template('cuentas/lista.html', cuentas=cuentas)
+
+
+@app.route('/cuentas/nueva', methods=['GET', 'POST'])
+@require_auth
+def cuentas_nueva():
+    if request.method == 'POST':
+        with get_db() as conn:
+            conn.execute(
+                """INSERT INTO cuentas (nombre, titular, iban, banco, bic, predeterminada)
+                   VALUES (?, ?, ?, ?, ?, 0)""",
+                (
+                    request.form.get('nombre', '').strip(),
+                    request.form.get('titular', '').strip(),
+                    request.form.get('iban', '').strip(),
+                    request.form.get('banco', '').strip(),
+                    request.form.get('bic', '').strip(),
+                )
+            )
+            cuenta_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            # La primera cuenta creada queda predeterminada automáticamente.
+            es_unica = conn.execute("SELECT COUNT(*) FROM cuentas").fetchone()[0] == 1
+            _aplicar_predeterminada(conn, cuenta_id, request.form.get('predeterminada') or es_unica)
+        flash('Cuenta creada correctamente.', 'success')
+        return redirect(url_for('cuentas_lista'))
+    return render_template('cuentas/form.html', cuenta=None)
+
+
+@app.route('/cuentas/<int:id>/editar', methods=['GET', 'POST'])
+@require_auth
+def cuentas_editar(id):
+    with get_db() as conn:
+        cuenta = conn.execute("SELECT * FROM cuentas WHERE id = ?", (id,)).fetchone()
+        if cuenta is None:
+            flash('Cuenta no encontrada.', 'error')
+            return redirect(url_for('cuentas_lista'))
+        if request.method == 'POST':
+            conn.execute(
+                """UPDATE cuentas SET nombre=?, titular=?, iban=?, banco=?, bic=?
+                   WHERE id=?""",
+                (
+                    request.form.get('nombre', '').strip(),
+                    request.form.get('titular', '').strip(),
+                    request.form.get('iban', '').strip(),
+                    request.form.get('banco', '').strip(),
+                    request.form.get('bic', '').strip(),
+                    id,
+                )
+            )
+            _aplicar_predeterminada(conn, id, request.form.get('predeterminada'))
+            flash('Cuenta actualizada.', 'success')
+            return redirect(url_for('cuentas_lista'))
+    return render_template('cuentas/form.html', cuenta=cuenta)
+
+
+@app.route('/cuentas/<int:id>/eliminar', methods=['POST'])
+@require_auth
+def cuentas_eliminar(id):
+    with get_db() as conn:
+        en_uso = conn.execute(
+            "SELECT COUNT(*) FROM proformas WHERE cuenta_id = ?", (id,)
+        ).fetchone()[0]
+        if en_uso > 0:
+            flash('No se puede eliminar: la cuenta está asignada a proformas.', 'error')
+        else:
+            conn.execute("DELETE FROM cuentas WHERE id = ?", (id,))
+            flash('Cuenta eliminada.', 'success')
+    return redirect(url_for('cuentas_lista'))
+
+
 # ── Proformas ────────────────────────────────────────────────────────────────
 
 @app.route('/')
@@ -216,10 +304,14 @@ def proformas_nueva():
         clientes = conn.execute("SELECT * FROM clientes ORDER BY nombre_agencia").fetchall()
         guias = conn.execute("SELECT * FROM guias ORDER BY nombre").fetchall()
         articulos = conn.execute("SELECT * FROM articulos ORDER BY descripcion").fetchall()
+        cuentas = conn.execute(
+            "SELECT * FROM cuentas ORDER BY predeterminada DESC, nombre"
+        ).fetchall()
 
     if request.method == 'POST':
         fecha_str = request.form.get('fecha', str(date.today()))
         cliente_id = request.form.get('cliente_id') or None
+        cuenta_id = request.form.get('cuenta_id') or None
         guia_ids = [int(g) for g in request.form.getlist('guia_ids[]') if g]
         suplidos = float(request.form.get('suplidos', 0) or 0)
         comentarios = request.form.get('comentarios', '').strip()
@@ -266,10 +358,10 @@ def proformas_nueva():
         with get_db() as conn:
             conn.execute(
                 """INSERT INTO proformas
-                   (numero_proforma, fecha, cliente_id, estado, base, iva_total,
+                   (numero_proforma, fecha, cliente_id, cuenta_id, estado, base, iva_total,
                     suplidos, total, total_suplidos, comentarios, trimestre)
-                   VALUES (?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?)""",
-                (numero, fecha_str, cliente_id, base, iva_total,
+                   VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?)""",
+                (numero, fecha_str, cliente_id, cuenta_id, base, iva_total,
                  suplidos, total, total_suplidos, comentarios, trimestre)
             )
             proforma_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -300,12 +392,17 @@ def proformas_nueva():
         }
         for a in articulos
     ])
+    cuenta_predeterminada_id = next(
+        (c['id'] for c in cuentas if c['predeterminada']), None
+    )
     return render_template(
         'proformas/nueva.html',
         clientes=clientes,
         guias=guias,
         articulos=articulos,
         articulos_json=articulos_json,
+        cuentas=cuentas,
+        cuenta_predeterminada_id=cuenta_predeterminada_id,
         hoy=str(date.today()),
     )
 
@@ -323,6 +420,11 @@ def proformas_detalle(id):
             cliente = conn.execute(
                 "SELECT * FROM clientes WHERE id = ?", (proforma['cliente_id'],)
             ).fetchone()
+        cuenta = None
+        if proforma['cuenta_id']:
+            cuenta = conn.execute(
+                "SELECT * FROM cuentas WHERE id = ?", (proforma['cuenta_id'],)
+            ).fetchone()
         guias = conn.execute(
             """SELECT g.* FROM guias g
                JOIN proforma_guias pg ON g.id = pg.guia_id
@@ -337,6 +439,7 @@ def proformas_detalle(id):
         'proformas/detalle.html',
         proforma=proforma,
         cliente=cliente,
+        cuenta=cuenta,
         guias=guias,
         lineas=lineas,
     )

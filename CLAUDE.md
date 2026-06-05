@@ -67,7 +67,7 @@ pct exec 104 -- bash -c "cd /mnt/empresa/proforma-admin && pip install -r src/re
 
 | Archivo | Qué hace |
 |---|---|
-| `app.py` | Flask app + rutas (CRUD clientes/artículos/guías, proformas, PDF, **confirmar→Excel**) |
+| `app.py` | Flask app + rutas (CRUD clientes/artículos/guías/cuentas, proformas, PDF, **confirmar→Excel**) |
 | `db.py` | Context manager SQLite WAL, schema DDL, `siguiente_numero_proforma()` |
 | `pdf.py` | Generación PDF con WeasyPrint + Jinja2. Datos empresa hardcodeados aquí. |
 | `excel.py` | **Fase 2.** Registro en `facturas-emitidas.xlsx`: backup + lock + reintentos + cola. `registrar_proforma()`, `drain_pending()`, `contar_pendientes()`. |
@@ -78,12 +78,13 @@ pct exec 104 -- bash -c "cd /mnt/empresa/proforma-admin && pip install -r src/re
 | `templates/clientes/` | lista.html + form.html |
 | `templates/articulos/` | lista.html + form.html |
 | `templates/guias/lista.html` | CRUD inline |
+| `templates/cuentas/` | lista.html + form.html — CRUD de cuentas bancarias de cobro (una `predeterminada`) |
 | `templates/proformas/lista.html` | Listado con enlace a PDF + botón Confirmar |
-| `templates/proformas/nueva.html` | Form con líneas dinámicas (JS vanilla) + totales en tiempo real |
+| `templates/proformas/nueva.html` | Form con líneas dinámicas (JS vanilla) + totales en tiempo real + selector de cuenta de cobro |
 | `templates/proformas/detalle.html` | Vista + descarga PDF + Confirmar y registrar en Excel |
 | `templates/config/index.html` | Reiniciar servicio + reintentar pendientes de Excel |
 
-**Datos de empresa** (NIF, IBAN): editar directamente en `src/pdf.py` líneas 11–22.
+**Datos de empresa** (NIF, dirección, condiciones de pago, IBAN por defecto): editar en `src/pdf.py` (dict `EMPRESA`). **El IBAN/entidad/titular del PDF se toma de la cuenta seleccionada en la proforma** (tabla `cuentas`, gestionada en la pantalla **Cuentas**); el `EMPRESA['iban']`/`['banco']` solo se usan como fallback cuando la proforma no tiene cuenta asignada.
 
 **Variables de entorno del servicio** (en el unit systemd):
 - `DB_PATH` — default `/mnt/empresa/proformas.db`
@@ -119,8 +120,9 @@ Ver propuesta completa para el DDL detallado. Resumen:
 - `clientes` — agencias/clientes reutilizables (NIF, dirección, código Factusol)
 - `articulos` — catálogo de servicios con precio e IVA por defecto
 - `guias` — nombres de guías (columna "Guía" del Excel de Hacienda)
+- `cuentas` — cuentas bancarias de cobro (nombre/alias, titular, iban, banco, bic, `predeterminada`). La cuenta elegida define el bloque de pago del PDF. Solo una `predeterminada` a la vez; se preselecciona en proformas nuevas.
 - `proforma_guias` — tabla puente muchos-a-muchos: una proforma puede tener varios guías. **Los guías solo van al Excel (col 16, todos concatenados con coma), nunca al PDF.**
-- `proformas` — cabecera: cliente, totales, estado, ruta PDF. **No tiene `guia_id` — la relación es a través de `proforma_guias`.**
+- `proformas` — cabecera: cliente, `cuenta_id` (cuenta de cobro, FK → cuentas, nullable), totales, estado, ruta PDF. **No tiene `guia_id` — la relación es a través de `proforma_guias`.**
 - `proforma_lineas` — líneas de cada proforma
 - `series` — contador de numeración por serie y año
 

@@ -227,6 +227,7 @@
     <li><a href="{{ url_for('clientes_lista') }}" {% if request.endpoint and 'cliente' in request.endpoint %}class="active"{% endif %}>Clientes</a></li>
     <li><a href="{{ url_for('articulos_lista') }}" {% if request.endpoint and 'articulo' in request.endpoint %}class="active"{% endif %}>Artículos</a></li>
     <li><a href="{{ url_for('guias_lista') }}" {% if request.endpoint and 'guia' in request.endpoint %}class="active"{% endif %}>Guías</a></li>
+    <li><a href="{{ url_for('cuentas_lista') }}" {% if request.endpoint and 'cuenta' in request.endpoint %}class="active"{% endif %}>Cuentas</a></li>
     <li><a href="{{ url_for('config_index') }}" {% if request.endpoint and 'config' in request.endpoint %}class="active"{% endif %}>Configuración</a></li>
   </ul>
 </nav>

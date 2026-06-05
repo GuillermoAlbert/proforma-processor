@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar cuenta' if cuenta else 'Nueva cuenta' }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ 'Editar cuenta' if cuenta else 'Nueva cuenta' }}</h1>
+</div>
+
+<div class="card form-card">
+  <form method="post">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label for="nombre">Nombre / alias *</label>
+        <input type="text" id="nombre" name="nombre" required
+               placeholder="Ej.: Sabadell principal"
+               value="{{ cuenta.nombre if cuenta else '' }}">
+      </div>
+      <div class="form-group full">
+        <label for="iban">IBAN</label>
+        <input type="text" id="iban" name="iban"
+               placeholder="ES00 0000 0000 0000 0000 0000"
+               value="{{ cuenta.iban if cuenta else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="banco">Entidad bancaria</label>
+        <input type="text" id="banco" name="banco"
+               placeholder="Banco Sabadell"
+               value="{{ cuenta.banco if cuenta else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="bic">BIC / SWIFT</label>
+        <input type="text" id="bic" name="bic"
+               value="{{ cuenta.bic if cuenta else '' }}">
+      </div>
+      <div class="form-group full">
+        <label for="titular">Titular</label>
+        <input type="text" id="titular" name="titular"
+               placeholder="Guías de Alicante S.L."
+               value="{{ cuenta.titular if cuenta else '' }}">
+      </div>
+      <div class="form-group full">
+        <label style="display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:normal; font-weight:500; cursor:pointer;">
+          <input type="checkbox" name="predeterminada" value="1" style="width:auto;"
+                 {% if cuenta and cuenta.predeterminada %}checked{% endif %}>
+          Usar como cuenta predeterminada en proformas nuevas
+        </label>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Guardar</button>
+      <a href="{{ url_for('cuentas_lista') }}" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

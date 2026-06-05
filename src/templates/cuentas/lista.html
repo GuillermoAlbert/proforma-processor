@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Cuentas{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Cuentas bancarias</h1>
+  <a href="{{ url_for('cuentas_nueva') }}" class="btn btn-primary">+ Nueva cuenta</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>IBAN</th>
+          <th>Entidad</th>
+          <th>Titular</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cuentas %}
+        <tr>
+          <td>
+            {{ c.nombre }}
+            {% if c.predeterminada %}
+            <span class="badge badge-confirmada" style="margin-left:6px;">★ Predeterminada</span>
+            {% endif %}
+          </td>
+          <td style="font-variant-numeric:tabular-nums;">{{ c.iban or '—' }}</td>
+          <td>{{ c.banco or '—' }}</td>
+          <td>{{ c.titular or '—' }}</td>
+          <td class="td-actions">
+            <a href="{{ url_for('cuentas_editar', id=c.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+            <form method="POST" action="{{ url_for('cuentas_eliminar', id=c.id) }}" style="display:inline;"
+                  onsubmit="return confirm('¿Eliminar la cuenta «{{ c.nombre }}»?');">
+              <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" style="text-align:center; color:#888; padding:24px;">
+            No hay cuentas. <a href="{{ url_for('cuentas_nueva') }}">Crea la primera.</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -670,7 +670,7 @@
     <div class="payment-col">
       <div class="pago-label">Cuenta bancaria (IBAN)</div>
       <div class="pago-value">{{ empresa.iban | default('ES[XX XXXX XXXX XXXX XXXX XXXX]') }}</div>
-      <div class="pago-note">{{ empresa.banco | default('[Entidad bancaria]') }}</div>
+      <div class="pago-note">{{ empresa.banco | default('[Entidad bancaria]') }}{% if empresa.titular %} &middot; {{ empresa.titular }}{% endif %}</div>
     </div>
     <div class="payment-col">
       <div class="pago-label">Condiciones de pago</div>
