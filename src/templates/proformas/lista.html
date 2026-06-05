@@ -1,6 +1,70 @@
 {% extends 'base.html' %}
 {% block title %}Proformas{% endblock %}
+
+{% macro sort_th(col, label, align='left') %}
+  {% set active = (sort == col) %}
+  {% set new_dir = 'asc' if (active and direction == 'desc') else 'desc' %}
+  <th style="text-align:{{ align }};">
+    <a href="{{ url_for('proformas_lista', sort=col, dir=new_dir, page=1) }}"
+       class="sort-link {% if active %}sort-active{% endif %}">
+      {{ label }}
+      {% if active %}
+        <span class="sort-arrow">{{ '▲' if direction == 'asc' else '▼' }}</span>
+      {% else %}
+        <span class="sort-arrow sort-idle">⇅</span>
+      {% endif %}
+    </a>
+  </th>
+{% endmacro %}
+
 {% block content %}
+<style>
+  .sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--navy);
+    text-decoration: none;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .sort-link:hover { text-decoration: none; opacity: 0.75; }
+  .sort-active { color: var(--navy); }
+  .sort-arrow { font-size: 10px; }
+  .sort-idle { opacity: 0.3; }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-top: 1px solid var(--hairline);
+    font-size: 13px;
+    color: var(--stone);
+  }
+  .pagination-pages { display: flex; gap: 4px; align-items: center; }
+  .page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--ink);
+    border: 1px solid var(--hairline);
+    background: #fff;
+    transition: background 0.12s;
+  }
+  .page-link:hover { background: var(--sand); text-decoration: none; }
+  .page-link.current { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .page-link.disabled { opacity: 0.35; pointer-events: none; }
+  .page-ellipsis { padding: 0 4px; color: var(--stone); }
+</style>
+
 <div class="page-header">
   <h1>Proformas</h1>
   <a href="{{ url_for('proformas_nueva') }}" class="btn btn-primary">+ Nueva proforma</a>
@@ -11,11 +75,11 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th>Número</th>
-          <th>Fecha</th>
+          {{ sort_th('numero', 'Número') }}
+          {{ sort_th('fecha', 'Fecha') }}
           <th>Cliente</th>
           <th>Guía</th>
-          <th style="text-align:right;">Total</th>
+          {{ sort_th('total', 'Total', align='right') }}
           <th>Estado</th>
           <th>Acciones</th>
         </tr>
@@ -23,21 +87,22 @@
       <tbody>
         {% for p in proformas %}
         <tr>
-          <td><strong>{{ p.numero_proforma }}</strong></td>
+          <td><a href="{{ url_for('proformas_detalle', id=p.id) }}" style="font-weight:600; color:var(--navy);">{{ p.numero_proforma }}</a></td>
           <td>{{ p.fecha }}</td>
           <td>{{ p.nombre_agencia or '—' }}</td>
           <td>{{ p.guia_nombre or '—' }}</td>
           <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(p.total_suplidos) }} €</td>
-          <td>
-            <span class="badge badge-{{ p.estado }}">{{ p.estado|capitalize }}</span>
-          </td>
+          <td><span class="badge badge-{{ p.estado }}">{{ p.estado|capitalize }}</span></td>
           <td class="td-actions">
-            <a href="{{ url_for('proformas_detalle', id=p.id) }}" class="btn btn-secondary btn-sm">Ver</a>
             <a href="{{ url_for('proformas_pdf', id=p.id) }}" class="btn btn-terra btn-sm">PDF</a>
             <a href="{{ url_for('proformas_editar', id=p.id) }}" class="btn btn-secondary btn-sm">Editar</a>
             {% if p.estado != 'confirmada' %}
-            <form method="POST" action="{{ url_for('proformas_confirmar', id=p.id) }}" style="display:inline;">
+            <form method="POST" action="{{ url_for('proformas_confirmar', id=p.id) }}" style="display:contents;">
               <button type="submit" class="btn btn-primary btn-sm">Confirmar</button>
+            </form>
+            <form method="POST" action="{{ url_for('proformas_eliminar', id=p.id) }}" style="display:contents;"
+                  onsubmit="return confirm('¿Eliminar {{ p.numero_proforma }}? Esta acción no se puede deshacer.');">
+              <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
             </form>
             {% endif %}
           </td>
@@ -52,5 +117,39 @@
       </tbody>
     </table>
   </div>
+
+  {% if total_pages > 1 or total > 0 %}
+  <div class="pagination">
+    <span>{{ total }} proforma{{ 's' if total != 1 }}</span>
+
+    <div class="pagination-pages">
+      {# Anterior #}
+      {% if page > 1 %}
+        <a href="{{ url_for('proformas_lista', sort=sort, dir=direction, page=page-1) }}" class="page-link">‹</a>
+      {% else %}
+        <span class="page-link disabled">‹</span>
+      {% endif %}
+
+      {# Números de página con ventana deslizante #}
+      {% set window = 2 %}
+      {% for p in range(1, total_pages + 1) %}
+        {% if p == 1 or p == total_pages or (p >= page - window and p <= page + window) %}
+          {% if loop.index > 1 and p > range(1, total_pages + 1)[loop.index0 - 1] + 1 %}
+            <span class="page-ellipsis">…</span>
+          {% endif %}
+          <a href="{{ url_for('proformas_lista', sort=sort, dir=direction, page=p) }}"
+             class="page-link {% if p == page %}current{% endif %}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {# Siguiente #}
+      {% if page < total_pages %}
+        <a href="{{ url_for('proformas_lista', sort=sort, dir=direction, page=page+1) }}" class="page-link">›</a>
+      {% else %}
+        <span class="page-link disabled">›</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

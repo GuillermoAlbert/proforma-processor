@@ -352,18 +352,47 @@ def index():
 @app.route('/proformas')
 @require_auth
 def proformas_lista():
+    sort = request.args.get('sort', 'fecha')
+    direction = request.args.get('dir', 'desc')
+    try:
+        page = max(1, int(request.args.get('page', 1) or 1))
+    except ValueError:
+        page = 1
+    per_page = 30
+
+    sort_map = {
+        'numero':  'p.numero_proforma',
+        'fecha':   'p.fecha',
+        'total':   'p.total_suplidos',
+    }
+    sort_col = sort_map.get(sort, 'p.fecha')
+    sort_dir = 'ASC' if direction == 'asc' else 'DESC'
+
     with get_db() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM proformas").fetchone()[0]
         proformas = conn.execute(
-            """SELECT p.*, c.nombre_agencia,
+            f"""SELECT p.*, c.nombre_agencia,
                       GROUP_CONCAT(g.nombre, ', ') as guia_nombre
                FROM proformas p
                LEFT JOIN clientes c ON p.cliente_id = c.id
                LEFT JOIN proforma_guias pg ON p.id = pg.proforma_id
                LEFT JOIN guias g ON pg.guia_id = g.id
                GROUP BY p.id
-               ORDER BY p.fecha DESC, p.id DESC"""
+               ORDER BY {sort_col} {sort_dir}, p.id {sort_dir}
+               LIMIT ? OFFSET ?""",
+            (per_page, (page - 1) * per_page)
         ).fetchall()
-    return render_template('proformas/lista.html', proformas=proformas)
+
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    return render_template(
+        'proformas/lista.html',
+        proformas=proformas,
+        page=page,
+        total_pages=total_pages,
+        sort=sort,
+        direction=direction,
+        total=total,
+    )
 
 
 @app.route('/proformas/nueva', methods=['GET', 'POST'])
@@ -557,6 +586,30 @@ def proformas_pdf(id):
 
     return send_file(ruta_pdf, as_attachment=True,
                      download_name=os.path.basename(ruta_pdf))
+
+
+@app.route('/proformas/<int:id>/eliminar', methods=['POST'])
+@require_auth
+def proformas_eliminar(id):
+    with get_db() as conn:
+        proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
+        if proforma is None:
+            flash('Proforma no encontrada.', 'error')
+            return redirect(url_for('proformas_lista'))
+        if proforma['estado'] == 'confirmada':
+            flash('No se puede eliminar una proforma confirmada (ya registrada en Hacienda).', 'error')
+            return redirect(url_for('proformas_detalle', id=id))
+        ruta_pdf = proforma['ruta_pdf']
+        conn.execute("DELETE FROM proforma_lineas WHERE proforma_id = ?", (id,))
+        conn.execute("DELETE FROM proforma_guias WHERE proforma_id = ?", (id,))
+        conn.execute("DELETE FROM proformas WHERE id = ?", (id,))
+    if ruta_pdf and os.path.exists(ruta_pdf):
+        try:
+            os.remove(ruta_pdf)
+        except OSError:
+            pass
+    flash('Proforma eliminada correctamente.', 'success')
+    return redirect(url_for('proformas_lista'))
 
 
 @app.route('/proformas/<int:id>/confirmar', methods=['POST'])
