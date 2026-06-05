@@ -6,8 +6,10 @@ Sin dependencias externas: solo stdlib (urllib, json, re).
 
 import re
 import json
+import time
 import urllib.request
 import urllib.error
+import http.cookiejar
 import sys
 
 # ── Provincias por prefijo CP ────────────────────────────────────────────────
@@ -257,42 +259,79 @@ _BROWSER_UA   = (
 )
 
 
-def consultar_einforma_url(url: str, intentos: int = 3) -> dict:
-    """GET de una URL arbitraria de einforma con User-Agent de navegador + decodificación ISO-8859-1.
-    Reintenta con backoff ante throttling transitorio (HTTP 429/503), respetando
-    la cabecera Retry-After (acotada). Devuelve {"ok": True, "html": str} o
-    {"ok": False, "error": str, "code": int|None}. Nunca lanza excepciones.
-    """
-    import time
+# Sesión compartida con cookies (parece un navegador real, no un bot sin sesión).
+_EINFORMA_HOME = "https://www.einforma.com/"
+_opener = urllib.request.build_opener(
+    urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
+)
+_sesion_lista = False        # ¿hemos visitado la home para obtener cookies?
+_ultima_peticion = 0.0       # timestamp de la última petición (para throttling)
+_bloqueado_hasta = 0.0       # si einforma nos dio 429, no reintentar hasta este momento
+_cache = {}                  # url -> (timestamp, html) de respuestas correctas
 
-    ultimo_error = "desconocido"
-    ultimo_code = None
-    for intento in range(intentos):
+_INTERVALO_MIN = 1.5         # segundos mínimos entre peticiones
+_COOLDOWN_429 = 90           # segundos sin tocar einforma tras un 429
+_CACHE_TTL = 6 * 3600        # validez de la caché (6 h)
+
+
+def _calentar_sesion():
+    """Visita la home de einforma una vez por proceso para obtener cookies de sesión."""
+    global _sesion_lista
+    if _sesion_lista:
+        return
+    _sesion_lista = True
+    try:
+        req = urllib.request.Request(_EINFORMA_HOME, headers={"User-Agent": _BROWSER_UA})
+        _opener.open(req, timeout=10).read()
+    except Exception:
+        pass
+
+
+def consultar_einforma_url(url: str) -> dict:
+    """GET de una URL de einforma con sesión (cookies + Referer), throttling y caché.
+    Un único reintento suave ante 429/503. Tras un 429 entra en cooldown para no
+    insistir. Devuelve {"ok": True, "html": str} o {"ok": False, "error": str, "code": int|None}.
+    Nunca lanza excepciones.
+    """
+    global _ultima_peticion, _bloqueado_hasta
+
+    # Caché de respuestas correctas
+    hit = _cache.get(url)
+    if hit and (time.time() - hit[0]) < _CACHE_TTL:
+        return {"ok": True, "html": hit[1]}
+
+    # Si nos bloquearon hace poco, no insistimos (evita agravar el bloqueo)
+    if time.monotonic() < _bloqueado_hasta:
+        return {"ok": False, "error": "HTTP 429", "code": 429}
+
+    _calentar_sesion()
+
+    for intento in range(2):  # 1 intento + 1 reintento suave
+        # Throttle: separar las peticiones en el tiempo
+        espera = _INTERVALO_MIN - (time.monotonic() - _ultima_peticion)
+        if espera > 0:
+            time.sleep(espera)
+        _ultima_peticion = time.monotonic()
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": _BROWSER_UA})
-            with urllib.request.urlopen(req, timeout=12) as resp:
+            req = urllib.request.Request(
+                url, headers={"User-Agent": _BROWSER_UA, "Referer": _EINFORMA_HOME}
+            )
+            with _opener.open(req, timeout=12) as resp:
                 raw = resp.read()
             html = raw.decode("iso-8859-1", errors="replace")
+            _cache[url] = (time.time(), html)
             return {"ok": True, "html": html}
         except urllib.error.HTTPError as e:
-            ultimo_error, ultimo_code = f"HTTP {e.code}", e.code
-            # 429 (Too Many Requests) / 503: throttling transitorio → reintentar
-            if e.code in (429, 503) and intento < intentos - 1:
-                espera = 1.5 * (intento + 1)
-                try:
-                    ra = e.headers.get("Retry-After") if e.headers else None
-                    if ra and ra.isdigit():
-                        espera = min(float(ra), 6.0)  # acotado para no colgar la petición web
-                except Exception:
-                    pass
-                time.sleep(espera)
+            if e.code in (429, 503) and intento == 0:
+                time.sleep(2.0)
                 continue
-            return {"ok": False, "error": ultimo_error, "code": ultimo_code}
+            if e.code == 429:
+                _bloqueado_hasta = time.monotonic() + _COOLDOWN_429
+            return {"ok": False, "error": f"HTTP {e.code}", "code": e.code}
         except urllib.error.URLError as e:
             return {"ok": False, "error": f"Red: {e.reason}", "code": None}
         except Exception as e:
             return {"ok": False, "error": str(e)[:80], "code": None}
-    return {"ok": False, "error": ultimo_error, "code": ultimo_code}
 
 
 def consultar_einforma(cif: str) -> dict:
