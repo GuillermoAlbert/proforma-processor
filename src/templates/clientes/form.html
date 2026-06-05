@@ -19,7 +19,7 @@
           <input type="text" id="nif_cif" name="nif_cif" style="flex:1; min-width:0;"
                  value="{{ cliente.nif_cif if cliente else '' }}">
           <button type="button" id="btn-buscar-cif" class="btn btn-secondary btn-sm"
-                  style="flex-shrink:0; white-space:nowrap;" title="Validar CIF en el registro VIES">🔍 Validar</button>
+                  style="flex-shrink:0; white-space:nowrap;" title="Buscar datos de empresa (VIES + einforma)">🔍 Buscar datos</button>
         </div>
         <span id="cif-status" style="font-size:12px; margin-top:3px; min-height:16px; display:block;"></span>
       </div>
@@ -107,8 +107,7 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.ok) {
-          // VIES valida el CIF; para España no devuelve nombre/dirección,
-          // pero rellenamos cualquier campo que sí venga (no-ES, futuro).
+          // Rellenar los campos sugeridos (marcados en amarillo para revisión).
           FIELDS.forEach(function (id) {
             var val = data.fields && data.fields[id];
             if (val) {
@@ -116,7 +115,10 @@
               highlight(id);
             }
           });
-          setStatus(data.message || 'CIF válido.', 'ok');
+          setStatus((data.message || 'CIF válido.') + (
+            (data.fields && (data.fields.nombre_agencia || data.fields.direccion))
+              ? ' Datos sugeridos — verifica antes de guardar.' : ''
+          ), 'ok');
         } else {
           setStatus(data.message || 'No se encontraron datos.', 'error');
         }

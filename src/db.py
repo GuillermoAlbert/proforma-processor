@@ -218,6 +218,33 @@ def set_empresa_config(fields):
                 conn.execute("DELETE FROM config WHERE clave = ?", (f'empresa.{k}',))
 
 
+def get_setting(clave: str, default: str = '') -> str:
+    """Lee un valor genérico de la tabla config. Devuelve default si no existe. Nunca lanza."""
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT valor FROM config WHERE clave = ?", (clave,)
+            ).fetchone()
+        return row['valor'] if row and row['valor'] is not None else default
+    except Exception:
+        return default
+
+
+def set_setting(clave: str, valor: str) -> None:
+    """Guarda un valor genérico en la tabla config. Vacío elimina la clave. Nunca lanza."""
+    try:
+        with get_db() as conn:
+            if valor:
+                conn.execute(
+                    "INSERT OR REPLACE INTO config (clave, valor) VALUES (?, ?)",
+                    (clave, valor)
+                )
+            else:
+                conn.execute("DELETE FROM config WHERE clave = ?", (clave,))
+    except Exception:
+        pass
+
+
 def siguiente_numero_proforma(serie='PRO', anio=2026):
     with get_db() as conn:
         conn.execute(

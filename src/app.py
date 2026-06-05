@@ -5,7 +5,7 @@ import threading
 from datetime import date
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 
-from db import get_db, init_db, siguiente_numero_proforma, get_empresa_config, set_empresa_config
+from db import get_db, init_db, siguiente_numero_proforma, get_empresa_config, set_empresa_config, get_setting, set_setting
 from admin_helpers import require_auth
 from pdf import generar_pdf, PDF_DIR
 import excel
@@ -115,7 +115,8 @@ def clientes_lookup():
     cif = request.args.get('cif', '').strip()
     if not cif:
         return jsonify({"ok": False, "message": "Introduce un CIF/NIF."}), 400
-    return jsonify(_buscar_cliente_vies(cif))
+    api_key = get_setting('integraciones.deepseek_api_key')
+    return jsonify(_buscar_cliente_vies(cif, deepseek_api_key=api_key or None))
 
 
 @app.route('/clientes/provincia')
@@ -789,7 +790,20 @@ def api_clientes_nuevo():
 @app.route('/config')
 @require_auth
 def config_index():
-    return render_template('config/index.html', pendientes_excel=excel.contar_pendientes())
+    return render_template(
+        'config/index.html',
+        pendientes_excel=excel.contar_pendientes(),
+        deepseek_configurada=bool(get_setting('integraciones.deepseek_api_key')),
+    )
+
+
+@app.route('/config/integraciones', methods=['POST'])
+@require_auth
+def config_integraciones():
+    valor = request.form.get('deepseek_api_key', '').strip()
+    set_setting('integraciones.deepseek_api_key', valor)
+    flash('Configuración de integraciones guardada.', 'success')
+    return redirect(url_for('config_index'))
 
 
 @app.route('/config/reintentar-excel', methods=['POST'])

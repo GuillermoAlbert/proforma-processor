@@ -248,10 +248,178 @@ def _title(s: str) -> str:
     return ' '.join(resultado)
 
 
+# ── Consulta einforma ────────────────────────────────────────────────────────
+
+_EINFORMA_URL = "https://www.einforma.com/servlet/app/portal/ENTP/prod/ETIQUETA_EMPRESA/nif/{cif}"
+_BROWSER_UA   = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
+)
+
+
+def consultar_einforma(cif: str) -> dict:
+    """GET einforma para el CIF dado (sin prefijo ES).
+    Devuelve {"ok": True, "html": str} o {"ok": False, "error": str}.
+    Nunca lanza excepciones.
+    """
+    try:
+        url = _EINFORMA_URL.format(cif=cif)
+        req = urllib.request.Request(url, headers={"User-Agent": _BROWSER_UA})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            raw = resp.read()
+        html = raw.decode("iso-8859-1", errors="replace")
+        return {"ok": True, "html": html}
+    except urllib.error.HTTPError as e:
+        return {"ok": False, "error": f"HTTP {e.code}"}
+    except urllib.error.URLError as e:
+        return {"ok": False, "error": f"Red: {e.reason}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:80]}
+
+
+def _strip_tags(text: str) -> str:
+    """Elimina etiquetas HTML de una cadena."""
+    return re.sub(r'<[^>]+>', ' ', text)
+
+
+def parsear_einforma(html: str) -> dict:
+    """Extrae nombre_agencia y dirección del HTML de einforma.
+    Reutiliza parsear_direccion() y provincia_desde_cp() / _title().
+    Devuelve {"nombre_agencia","direccion","cp","poblacion","provincia"} (vacíos si no encuentra).
+    Nunca lanza excepciones.
+    """
+    empty = {"nombre_agencia": "", "direccion": "", "cp": "", "poblacion": "", "provincia": ""}
+    if not html:
+        return empty
+
+    try:
+        # Decodificar a UTF-8 si llegó como bytes; si ya es str, reencoding no aplica.
+        # El HTML fue decodificado de ISO-8859-1; re-encodear+decodificar a utf-8 no ayuda.
+        # Trabajamos directamente con la cadena.
+
+        # — Nombre: dataLayer JS
+        nombre_agencia = ""
+        m = re.search(r"'nombreEmpresa':\s*'([^']*)'", html)
+        if m:
+            nombre_agencia = _title(m.group(1).strip())
+
+        # — Dirección: el layout de einforma tiene dos celdas separadas:
+        #   "Domicilio social actual:" → calle (+ enlace Ver Mapa en misma celda)
+        #   "Localidad:"              → CP POBLACION (PROVINCIA)
+        addr_fields = {"direccion": "", "cp": "", "poblacion": "", "provincia": ""}
+        anchor = "Domicilio social actual:"
+        idx = html.find(anchor)
+        if idx != -1:
+            # Bloque completo para la búsqueda (hasta 1500 chars)
+            zona = html[idx: idx + 1500]
+
+            # Decodificar entidades HTML en la zona
+            def _decode_ents(s):
+                s = s.replace('&ntilde;', 'ñ').replace('&Ntilde;', 'Ñ')
+                s = s.replace('&eacute;', 'é').replace('&Eacute;', 'É')
+                s = s.replace('&aacute;', 'á').replace('&Aacute;', 'Á')
+                s = s.replace('&iacute;', 'í').replace('&Iacute;', 'Í')
+                s = s.replace('&oacute;', 'ó').replace('&Oacute;', 'Ó')
+                s = s.replace('&uacute;', 'ú').replace('&Uacute;', 'Ú')
+                s = s.replace('&amp;', '&').replace('&nbsp;', ' ')
+                return s
+            zona = _decode_ents(zona)
+
+            # Calle: texto hasta el primer enlace/tag (antes de "Ver Mapa")
+            street_blob = zona[len(anchor):]
+            street_text = re.sub(r'\s+', ' ', _strip_tags(
+                re.split(r'Ver Mapa|<a ', street_blob, maxsplit=1)[0]
+            )).strip()
+
+            # Localidad: celda del row siguiente — buscar "Localidad:" y extraer su td
+            loc_match = re.search(
+                r'Localidad:</strong></td><td[^>]*>([^<]+)', zona
+            )
+            localidad_text = ""
+            if loc_match:
+                localidad_text = _decode_ents(loc_match.group(1).strip())
+
+            # Combinar calle + localidad como una sola cadena de dirección para parsear
+            full_addr = (street_text.rstrip(', ') + ' ' + localidad_text).strip()
+            if full_addr:
+                addr_fields = parsear_direccion(full_addr)
+
+        # Completar provincia desde CP si falta
+        if not addr_fields["provincia"] and addr_fields["cp"]:
+            addr_fields["provincia"] = provincia_desde_cp(addr_fields["cp"])
+
+        return {
+            "nombre_agencia": nombre_agencia,
+            "direccion": addr_fields["direccion"],
+            "cp": addr_fields["cp"],
+            "poblacion": addr_fields["poblacion"],
+            "provincia": addr_fields["provincia"],
+        }
+    except Exception:
+        return empty
+
+
+# ── Extracción con DeepSeek ──────────────────────────────────────────────────
+
+_DEEPSEEK_URL = "https://api.deepseek.com/v1/chat/completions"
+
+
+def extraer_con_deepseek(texto: str, api_key: str) -> dict:
+    """Llama a DeepSeek para extraer campos de empresa del texto de la página.
+    Devuelve {"nombre_agencia","direccion","cp","poblacion","provincia"} (vacíos en cualquier fallo).
+    Nunca lanza excepciones.
+    """
+    empty = {"nombre_agencia": "", "direccion": "", "cp": "", "poblacion": "", "provincia": ""}
+    if not texto or not api_key:
+        return empty
+
+    try:
+        prompt = (
+            "Extrae del siguiente texto de una página de empresa española un objeto JSON con "
+            "exactamente estas claves: nombre_agencia, direccion, cp, poblacion. "
+            "Sin inventar; solo campos presentes en el texto. Valores string vacío si no aparecen.\n\n"
+            + texto[:3000]
+        )
+        body = json.dumps({
+            "model": "deepseek-chat",
+            "messages": [{"role": "user", "content": prompt}],
+            "response_format": {"type": "json_object"},
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            _DEEPSEEK_URL,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "User-Agent": "proforma-admin/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+        data = json.loads(raw)
+        content = data["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+        nombre_agencia = _title(str(parsed.get("nombre_agencia") or "").strip())
+        cp = str(parsed.get("cp") or "").strip()
+        addr_fields = {
+            "direccion": str(parsed.get("direccion") or "").strip(),
+            "cp": cp,
+            "poblacion": _title(str(parsed.get("poblacion") or "").strip()),
+            "provincia": provincia_desde_cp(cp) if cp else "",
+        }
+        return {
+            "nombre_agencia": nombre_agencia,
+            **addr_fields,
+        }
+    except Exception:
+        return empty
+
+
 # ── Orquestador principal ────────────────────────────────────────────────────
 
-def buscar_cliente(cif: str) -> dict:
-    """Busca un cliente por CIF/NIF en VIES y devuelve los campos para el formulario.
+def buscar_cliente(cif: str, deepseek_api_key: str = None) -> dict:
+    """Busca un cliente por CIF/NIF en VIES y, para España, completa desde einforma.
 
     Retorna:
         {
@@ -300,9 +468,45 @@ def buscar_cliente(cif: str) -> dict:
     nombre_agencia = _title(nombre_raw) if nombre_raw else ""
     addr_fields = parsear_direccion(address_raw)
 
+    fuente = "VIES"
+    algun_dato_vies = bool(nombre_agencia or addr_fields["cp"] or addr_fields["direccion"])
+
+    # Si VIES no aportó nombre/dirección (España los enmascara), intentar einforma
+    if not algun_dato_vies:
+        einforma_resp = consultar_einforma(normalizado)
+        if einforma_resp["ok"]:
+            ei = parsear_einforma(einforma_resp["html"])
+            nombre_agencia   = ei["nombre_agencia"]  or nombre_agencia
+            if ei["direccion"] or ei["cp"]:
+                addr_fields = {
+                    "direccion": ei["direccion"],
+                    "cp":        ei["cp"],
+                    "poblacion": ei["poblacion"],
+                    "provincia": ei["provincia"],
+                }
+            fuente = "einforma"
+
+        # Si todavía faltan campos clave y hay API key de DeepSeek, usar IA
+        if deepseek_api_key and (not nombre_agencia or not addr_fields["direccion"]):
+            html_para_ds = einforma_resp.get("html", "") if einforma_resp["ok"] else ""
+            texto_plano = re.sub(r'\s+', ' ', _strip_tags(html_para_ds)).strip() if html_para_ds else ""
+            if texto_plano:
+                ds = extraer_con_deepseek(texto_plano, deepseek_api_key)
+                nombre_agencia   = nombre_agencia   or ds["nombre_agencia"]
+                addr_fields["direccion"] = addr_fields["direccion"] or ds["direccion"]
+                addr_fields["cp"]        = addr_fields["cp"]        or ds["cp"]
+                addr_fields["poblacion"] = addr_fields["poblacion"] or ds["poblacion"]
+                addr_fields["provincia"] = addr_fields["provincia"] or ds["provincia"]
+                if ds["nombre_agencia"] or ds["direccion"]:
+                    fuente = "DeepSeek"
+
+    # Completar provincia desde CP si sigue vacía
+    if not addr_fields["provincia"] and addr_fields["cp"]:
+        addr_fields["provincia"] = provincia_desde_cp(addr_fields["cp"])
+
     algun_dato = bool(nombre_agencia or addr_fields["cp"] or addr_fields["direccion"])
     if algun_dato:
-        message = aviso_validacion + "✓ CIF válido. Datos cargados desde VIES."
+        message = aviso_validacion + f"✓ CIF válido. Datos sugeridos desde {fuente} — verifica antes de guardar."
     else:
         message = aviso_validacion + "✓ CIF válido (verificado en VIES)."
 
@@ -356,11 +560,23 @@ if __name__ == "__main__":
     assert "Alicante" in r["poblacion"], f"Población incorrecta: {r['poblacion']!r}"
     print("  OK: CP, provincia y población correctos")
 
-    # Consultas VIES en vivo (opcionales, requieren red)
+    # Consultas en vivo (requieren red)
     cifs_argv = sys.argv[1:] if len(sys.argv) > 1 else ["ESA15022510", "ESA28017895"]
-    print(f"\n=== Consultas VIES en vivo: {cifs_argv} ===")
+    import pprint
+
+    # Smoke test einforma directo
+    print(f"\n=== Smoke test einforma: {cifs_argv[0]} ===")
+    cif_test = normalizar_cif(cifs_argv[0])
+    ei_resp = consultar_einforma(cif_test)
+    if ei_resp["ok"]:
+        ei_parsed = parsear_einforma(ei_resp["html"])
+        print(f"  consultar_einforma: ok, html len={len(ei_resp['html'])}")
+        print(f"  parsear_einforma:   {ei_parsed}")
+    else:
+        print(f"  consultar_einforma: fallo — {ei_resp.get('error')}")
+
+    print(f"\n=== Consultas buscar_cliente en vivo: {cifs_argv} ===")
     for c in cifs_argv:
         print(f"\n  buscar_cliente({c!r}):")
         resultado = buscar_cliente(c)
-        import pprint
         pprint.pprint(resultado, indent=4)
