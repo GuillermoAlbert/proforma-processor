@@ -257,23 +257,42 @@ _BROWSER_UA   = (
 )
 
 
-def consultar_einforma_url(url: str) -> dict:
+def consultar_einforma_url(url: str, intentos: int = 3) -> dict:
     """GET de una URL arbitraria de einforma con User-Agent de navegador + decodificación ISO-8859-1.
-    Devuelve {"ok": True, "html": str} o {"ok": False, "error": str}.
-    Nunca lanza excepciones.
+    Reintenta con backoff ante throttling transitorio (HTTP 429/503), respetando
+    la cabecera Retry-After (acotada). Devuelve {"ok": True, "html": str} o
+    {"ok": False, "error": str, "code": int|None}. Nunca lanza excepciones.
     """
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": _BROWSER_UA})
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            raw = resp.read()
-        html = raw.decode("iso-8859-1", errors="replace")
-        return {"ok": True, "html": html}
-    except urllib.error.HTTPError as e:
-        return {"ok": False, "error": f"HTTP {e.code}"}
-    except urllib.error.URLError as e:
-        return {"ok": False, "error": f"Red: {e.reason}"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)[:80]}
+    import time
+
+    ultimo_error = "desconocido"
+    ultimo_code = None
+    for intento in range(intentos):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": _BROWSER_UA})
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                raw = resp.read()
+            html = raw.decode("iso-8859-1", errors="replace")
+            return {"ok": True, "html": html}
+        except urllib.error.HTTPError as e:
+            ultimo_error, ultimo_code = f"HTTP {e.code}", e.code
+            # 429 (Too Many Requests) / 503: throttling transitorio → reintentar
+            if e.code in (429, 503) and intento < intentos - 1:
+                espera = 1.5 * (intento + 1)
+                try:
+                    ra = e.headers.get("Retry-After") if e.headers else None
+                    if ra and ra.isdigit():
+                        espera = min(float(ra), 6.0)  # acotado para no colgar la petición web
+                except Exception:
+                    pass
+                time.sleep(espera)
+                continue
+            return {"ok": False, "error": ultimo_error, "code": ultimo_code}
+        except urllib.error.URLError as e:
+            return {"ok": False, "error": f"Red: {e.reason}", "code": None}
+        except Exception as e:
+            return {"ok": False, "error": str(e)[:80], "code": None}
+    return {"ok": False, "error": ultimo_error, "code": ultimo_code}
 
 
 def consultar_einforma(cif: str) -> dict:
@@ -604,11 +623,11 @@ def buscar_cliente_por_nombre(nombre: str, deepseek_api_key: str = None) -> dict
     # Descargar y parsear la ficha
     ficha = consultar_einforma_url(slug_url)
     if not ficha["ok"]:
-        return {
-            "ok": False,
-            "message": f"Error al acceder a la ficha de einforma: {ficha.get('error', '')}",
-            "fields": empty_fields,
-        }
+        if ficha.get("code") == 429:
+            msg = "einforma está limitando las consultas (HTTP 429). Espera unos segundos e inténtalo de nuevo."
+        else:
+            msg = f"Error al acceder a la ficha de einforma: {ficha.get('error', '')}"
+        return {"ok": False, "message": msg, "fields": empty_fields}
 
     ei = parsear_einforma(ficha["html"])
     nombre_agencia = ei["nombre_agencia"]
