@@ -31,7 +31,7 @@
     color: var(--ink);
     font-family: var(--font-ui);
     font-size: 11pt;
-    line-height: 1.7;
+    line-height: 1.45;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -39,7 +39,7 @@
   .page {
     width: 210mm;
     margin: 0 auto;
-    padding: 14mm 16mm 6mm;
+    padding: 11mm 16mm 6mm;
     background: var(--sand);
   }
 
@@ -60,14 +60,21 @@
     .page { margin: 0; box-shadow: none; }
   }
 
+  /* Evitar cortes feos de bloques al pasar de página */
+  table.rates tbody tr,
+  .totals-box,
+  .payment-box,
+  .highlight,
+  .legal { break-inside: avoid; }
+
   /* ── Cabecera ───────────────────────────────────────────── */
   .doc-header {
     background: #ffffff;
     border-radius: 12px;
     border: 0.5pt solid var(--hairline);
     border-top: 3px solid var(--terra);
-    padding: 20px 24px;
-    margin-bottom: 24px;
+    padding: 14px 24px;
+    margin-bottom: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -81,7 +88,6 @@
     align-items: center;
     gap: 14px;
     min-width: 0;
-    overflow: hidden;
   }
 
   .header-logo {
@@ -109,8 +115,6 @@
     margin-top: 3px;
     letter-spacing: 0.01em;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .header-doc {
@@ -139,11 +143,12 @@
   .doc-number {
     display: block;
     font-family: var(--font-head);
-    font-size: 20pt;
+    font-size: 19pt;
     font-weight: 600;
     color: var(--navy);
-    line-height: 1.05;
+    line-height: 1.1;
     letter-spacing: -0.01em;
+    white-space: nowrap;
   }
 
   .doc-date {
@@ -180,21 +185,21 @@
     color: var(--stone-dark);
     padding-bottom: 6px;
     border-bottom: 0.5pt solid var(--hairline);
-    margin-bottom: 12px;
+    margin-bottom: 7px;
   }
 
   /* ── Emisor / Cliente (dos columnas con flexbox) ─────────── */
   .billing-wrap {
     display: flex;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 10px;
   }
 
   .billing-col {
     flex: 1 1 0;
     font-family: var(--font-ui);
     font-size: 9.5pt;
-    line-height: 1.65;
+    line-height: 1.45;
   }
 
   .party-label {
@@ -261,7 +266,7 @@
     font-family: var(--font-ui);
     font-weight: 600;
     text-align: left;
-    padding: 10px 12px;
+    padding: 7px 12px;
     font-size: 9pt;
     letter-spacing: 0.02em;
   }
@@ -270,10 +275,10 @@
   table.rates thead th.c { text-align: center; }
 
   table.rates tbody td {
-    padding: 9px 12px;
+    padding: 6px 12px;
     border-bottom: 0.5pt solid var(--hairline);
     vertical-align: top;
-    line-height: 1.5;
+    line-height: 1.4;
   }
 
   table.rates tbody tr:nth-child(even) {
@@ -293,8 +298,8 @@
   .totals-area {
     display: flex;
     justify-content: flex-end;
-    margin-top: 14px;
-    margin-bottom: 24px;
+    margin-top: 10px;
+    margin-bottom: 16px;
   }
 
   .totals-box {
@@ -310,7 +315,7 @@
   }
 
   .totals-box table td {
-    padding: 8px 15px;
+    padding: 6px 15px;
     font-size: 10pt;
     border-bottom: 0.5pt solid var(--hairline);
   }
@@ -373,8 +378,8 @@
     background: var(--navy);
     color: #fff;
     border-radius: 10px;
-    padding: 18px 22px;
-    margin-bottom: 16px;
+    padding: 13px 22px;
+    margin-bottom: 12px;
     display: flex;
     gap: 0;
     -webkit-print-color-adjust: exact;
@@ -422,11 +427,11 @@
     font-size: 7.5pt;
     color: var(--stone-dark);
     text-align: center;
-    line-height: 1.55;
-    padding: 9px 8px;
+    line-height: 1.5;
+    padding: 7px 8px;
     border-top: 0.5pt solid var(--hairline);
     border-bottom: 0.5pt solid var(--hairline);
-    margin-bottom: 18px;
+    margin-bottom: 0;
   }
 
   .legal strong {

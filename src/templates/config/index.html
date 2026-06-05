@@ -22,7 +22,9 @@
 
 <div class="card" style="max-width:420px; padding:28px 24px;">
   <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
-    Reinicia el servidor de la aplicación. La página se recargará sola cuando esté lista.
+    Reinicia el servidor de la aplicación y limpia la caché de PDF (las proformas se
+    regeneran con la plantilla actual al volver a descargarlas). La página se recargará
+    sola cuando esté lista.
   </p>
   <button id="reboot-btn" class="btn btn-danger" onclick="doReboot()">Reiniciar servicio</button>
   <p id="reboot-status" style="display:none; margin-top:16px; font-size:13px; color:var(--stone);"></p>

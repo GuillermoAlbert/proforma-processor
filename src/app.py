@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 
 from db import get_db, init_db, siguiente_numero_proforma
 from admin_helpers import require_auth
-from pdf import generar_pdf
+from pdf import generar_pdf, PDF_DIR
 import excel
 
 app = Flask(__name__)
@@ -453,13 +453,33 @@ def config_reintentar_excel():
     return redirect(url_for('config_index'))
 
 
+def _purgar_cache_pdf():
+    """Borra los PDF cacheados y limpia ruta_pdf. Se regeneran al vuelo en la
+    siguiente descarga, así un reinicio refleja siempre los cambios de plantilla."""
+    borrados = 0
+    if os.path.isdir(PDF_DIR):
+        for nombre in os.listdir(PDF_DIR):
+            if nombre.endswith('.pdf'):
+                try:
+                    os.remove(os.path.join(PDF_DIR, nombre))
+                    borrados += 1
+                except OSError:
+                    pass
+    with get_db() as conn:
+        conn.execute("UPDATE proformas SET ruta_pdf = NULL")
+    return borrados
+
+
 @app.route('/config/reboot', methods=['POST'])
 @require_auth
 def config_reboot():
+    borrados = _purgar_cache_pdf()
+
     def _restart():
         subprocess.run(['systemctl', 'restart', 'proforma-admin'])
     threading.Timer(0.5, _restart).start()
-    flash('Reiniciando… vuelve a cargar en unos segundos.', 'success')
+    flash(f'Caché de PDF limpiada ({borrados} fichero(s)). Reiniciando… '
+          'vuelve a cargar en unos segundos.', 'success')
     return redirect(url_for('config_index'))
 
 
