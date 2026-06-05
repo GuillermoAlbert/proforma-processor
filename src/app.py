@@ -9,6 +9,7 @@ from db import get_db, init_db, siguiente_numero_proforma, get_empresa_config, s
 from admin_helpers import require_auth
 from pdf import generar_pdf, PDF_DIR
 import excel
+from clientes_lookup import buscar_cliente as _buscar_cliente_vies, provincia_desde_cp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'proforma-admin-secret-2026')
@@ -106,6 +107,23 @@ def clientes_editar(id):
             flash('Cliente actualizado.', 'success')
             return redirect(url_for('clientes_lista'))
     return render_template('clientes/form.html', cliente=cliente)
+
+
+@app.route('/clientes/lookup')
+@require_auth
+def clientes_lookup():
+    cif = request.args.get('cif', '').strip()
+    if not cif:
+        return jsonify({"ok": False, "message": "Introduce un CIF/NIF."}), 400
+    return jsonify(_buscar_cliente_vies(cif))
+
+
+@app.route('/clientes/provincia')
+@require_auth
+def clientes_provincia():
+    """Devuelve la provincia derivada de un código postal (tabla local, sin red)."""
+    cp = request.args.get('cp', '').strip()
+    return jsonify({"provincia": provincia_desde_cp(cp)})
 
 
 # ── Artículos ────────────────────────────────────────────────────────────────

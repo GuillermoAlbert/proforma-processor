@@ -15,8 +15,13 @@
       </div>
       <div class="form-group">
         <label for="nif_cif">NIF / CIF</label>
-        <input type="text" id="nif_cif" name="nif_cif"
-               value="{{ cliente.nif_cif if cliente else '' }}">
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="text" id="nif_cif" name="nif_cif" style="flex:1; min-width:0;"
+                 value="{{ cliente.nif_cif if cliente else '' }}">
+          <button type="button" id="btn-buscar-cif" class="btn btn-secondary btn-sm"
+                  style="flex-shrink:0; white-space:nowrap;" title="Validar CIF en el registro VIES">🔍 Validar</button>
+        </div>
+        <span id="cif-status" style="font-size:12px; margin-top:3px; min-height:16px; display:block;"></span>
       </div>
       <div class="form-group">
         <label for="codigo_factusol">Código Factusol</label>
@@ -60,4 +65,90 @@
     </div>
   </form>
 </div>
+
+<style>
+  .vies-highlight {
+    transition: background-color 0.2s;
+    background-color: #fffbcc !important;
+  }
+  #cif-status.status-ok    { color: #065F46; }
+  #cif-status.status-error { color: #991B1B; }
+  #cif-status.status-info  { color: var(--stone); }
+</style>
+
+<script>
+(function () {
+  const btn    = document.getElementById('btn-buscar-cif');
+  const status = document.getElementById('cif-status');
+  const FIELDS = ['nombre_agencia', 'direccion', 'cp', 'poblacion', 'provincia'];
+
+  function setStatus(msg, tipo) {
+    status.textContent = msg;
+    status.className   = 'status-' + tipo;
+  }
+
+  function highlight(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('vies-highlight');
+    setTimeout(function () { el.classList.remove('vies-highlight'); }, 1800);
+  }
+
+  btn.addEventListener('click', function () {
+    const cif = document.getElementById('nif_cif').value.trim();
+    if (!cif) {
+      setStatus('Introduce un CIF/NIF primero.', 'error');
+      return;
+    }
+    btn.disabled = true;
+    setStatus('Buscando…', 'info');
+
+    fetch('/clientes/lookup?cif=' + encodeURIComponent(cif))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          // VIES valida el CIF; para España no devuelve nombre/dirección,
+          // pero rellenamos cualquier campo que sí venga (no-ES, futuro).
+          FIELDS.forEach(function (id) {
+            var val = data.fields && data.fields[id];
+            if (val) {
+              document.getElementById(id).value = val;
+              highlight(id);
+            }
+          });
+          setStatus(data.message || 'CIF válido.', 'ok');
+        } else {
+          setStatus(data.message || 'No se encontraron datos.', 'error');
+        }
+      })
+      .catch(function (err) {
+        setStatus('Error de red al consultar VIES.', 'error');
+        console.error('VIES lookup error:', err);
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
+
+  // CP → provincia: al completar el código postal, autocompleta la provincia
+  // usando la tabla local del servidor (sin red externa).
+  var cpInput   = document.getElementById('cp');
+  var provInput = document.getElementById('provincia');
+  if (cpInput && provInput) {
+    cpInput.addEventListener('change', function () {
+      var cp = cpInput.value.trim();
+      if (cp.length < 5) return;
+      fetch('/clientes/provincia?cp=' + encodeURIComponent(cp))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.provincia) {
+            provInput.value = data.provincia;
+            highlight('provincia');
+          }
+        })
+        .catch(function () { /* silencioso: la provincia se puede escribir a mano */ });
+    });
+  }
+}());
+</script>
 {% endblock %}
