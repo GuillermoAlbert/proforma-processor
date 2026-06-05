@@ -9,7 +9,11 @@ from db import get_db, init_db, siguiente_numero_proforma, get_empresa_config, s
 from admin_helpers import require_auth
 from pdf import generar_pdf, PDF_DIR
 import excel
-from clientes_lookup import buscar_cliente as _buscar_cliente_vies, provincia_desde_cp
+from clientes_lookup import (
+    buscar_cliente as _buscar_cliente_vies,
+    buscar_cliente_por_nombre as _buscar_cliente_nombre,
+    provincia_desde_cp,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'proforma-admin-secret-2026')
@@ -117,6 +121,14 @@ def clientes_lookup():
         return jsonify({"ok": False, "message": "Introduce un CIF/NIF."}), 400
     api_key = get_setting('integraciones.deepseek_api_key')
     return jsonify(_buscar_cliente_vies(cif, deepseek_api_key=api_key or None))
+
+
+@app.route('/clientes/lookup-nombre')
+@require_auth
+def clientes_lookup_nombre():
+    nombre = request.args.get('nombre', '').strip()
+    api_key = get_setting('integraciones.deepseek_api_key')
+    return jsonify(_buscar_cliente_nombre(nombre, deepseek_api_key=api_key or None))
 
 
 @app.route('/clientes/provincia')

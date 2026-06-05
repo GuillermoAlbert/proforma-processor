@@ -10,8 +10,14 @@
     <div class="form-grid">
       <div class="form-group full">
         <label for="nombre_agencia">Nombre de agencia *</label>
-        <input type="text" id="nombre_agencia" name="nombre_agencia" required
-               value="{{ cliente.nombre_agencia if cliente else '' }}">
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="text" id="nombre_agencia" name="nombre_agencia" required
+                 style="flex:1; min-width:0;"
+                 value="{{ cliente.nombre_agencia if cliente else '' }}">
+          <button type="button" id="btn-buscar-nombre" class="btn btn-secondary btn-sm"
+                  style="flex-shrink:0; white-space:nowrap;" title="Buscar empresa por nombre en einforma">🔍 Buscar</button>
+        </div>
+        <span id="nombre-status" style="font-size:12px; margin-top:3px; min-height:16px; display:block;"></span>
       </div>
       <div class="form-group">
         <label for="nif_cif">NIF / CIF</label>
@@ -74,6 +80,9 @@
   #cif-status.status-ok    { color: #065F46; }
   #cif-status.status-error { color: #991B1B; }
   #cif-status.status-info  { color: var(--stone); }
+  #nombre-status.status-ok    { color: #065F46; }
+  #nombre-status.status-error { color: #991B1B; }
+  #nombre-status.status-info  { color: var(--stone); }
 </style>
 
 <script>
@@ -131,6 +140,52 @@
         btn.disabled = false;
       });
   });
+
+  // Búsqueda por nombre de agencia → einforma
+  var btnNombre   = document.getElementById('btn-buscar-nombre');
+  var nombreStatus = document.getElementById('nombre-status');
+  var NOMBRE_FIELDS = ['nombre_agencia', 'nif_cif', 'direccion', 'cp', 'poblacion', 'provincia'];
+
+  function setNombreStatus(msg, tipo) {
+    nombreStatus.textContent = msg;
+    nombreStatus.className   = 'status-' + tipo;
+  }
+
+  if (btnNombre) {
+    btnNombre.addEventListener('click', function () {
+      var nombre = document.getElementById('nombre_agencia').value.trim();
+      if (!nombre) {
+        setNombreStatus('Introduce un nombre primero.', 'error');
+        return;
+      }
+      btnNombre.disabled = true;
+      setNombreStatus('Buscando…', 'info');
+
+      fetch('/clientes/lookup-nombre?nombre=' + encodeURIComponent(nombre))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok) {
+            NOMBRE_FIELDS.forEach(function (id) {
+              var val = data.fields && data.fields[id];
+              if (val) {
+                var el = document.getElementById(id);
+                if (el) { el.value = val; highlight(id); }
+              }
+            });
+            setNombreStatus(data.message || 'Datos encontrados — verifica antes de guardar.', 'ok');
+          } else {
+            setNombreStatus(data.message || 'No se encontraron datos.', 'error');
+          }
+        })
+        .catch(function (err) {
+          setNombreStatus('Error de red al consultar einforma.', 'error');
+          console.error('nombre lookup error:', err);
+        })
+        .finally(function () {
+          btnNombre.disabled = false;
+        });
+    });
+  }
 
   // CP → provincia: al completar el código postal, autocompleta la provincia
   // usando la tabla local del servidor (sin red externa).

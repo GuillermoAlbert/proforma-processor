@@ -257,13 +257,12 @@ _BROWSER_UA   = (
 )
 
 
-def consultar_einforma(cif: str) -> dict:
-    """GET einforma para el CIF dado (sin prefijo ES).
+def consultar_einforma_url(url: str) -> dict:
+    """GET de una URL arbitraria de einforma con User-Agent de navegador + decodificación ISO-8859-1.
     Devuelve {"ok": True, "html": str} o {"ok": False, "error": str}.
     Nunca lanza excepciones.
     """
     try:
-        url = _EINFORMA_URL.format(cif=cif)
         req = urllib.request.Request(url, headers={"User-Agent": _BROWSER_UA})
         with urllib.request.urlopen(req, timeout=12) as resp:
             raw = resp.read()
@@ -277,18 +276,55 @@ def consultar_einforma(cif: str) -> dict:
         return {"ok": False, "error": str(e)[:80]}
 
 
+def consultar_einforma(cif: str) -> dict:
+    """GET einforma para el CIF dado (sin prefijo ES).
+    Devuelve {"ok": True, "html": str} o {"ok": False, "error": str}.
+    Nunca lanza excepciones.
+    """
+    url = _EINFORMA_URL.format(cif=cif)
+    return consultar_einforma_url(url)
+
+
+_EINFORMA_LISTADO_URL = (
+    "https://www.einforma.com/servlet/app/portal/ENTP/prod/LISTADO_EMPRESAS"
+    "/searchccaa/empresas/razonsocial/{nombre}"
+)
+
+
+def buscar_einforma_slug(nombre: str) -> "str | None":
+    """Busca 'nombre' en el listado de einforma y devuelve la primera URL de ficha
+    del tipo https://www.einforma.com/informacion-empresa/{slug}, o None si no la encuentra.
+    Nunca lanza excepciones.
+    """
+    try:
+        import urllib.parse
+        nombre_enc = urllib.parse.quote(nombre.strip(), safe='')
+        url = _EINFORMA_LISTADO_URL.format(nombre=nombre_enc)
+        resp = consultar_einforma_url(url)
+        if not resp["ok"]:
+            return None
+        html = resp["html"]
+        # Buscar la primera href de ficha de empresa
+        m = re.search(r'href="(https://www\.einforma\.com/informacion-empresa/[^"]+)"', html)
+        if m:
+            return m.group(1)
+        return None
+    except Exception:
+        return None
+
+
 def _strip_tags(text: str) -> str:
     """Elimina etiquetas HTML de una cadena."""
     return re.sub(r'<[^>]+>', ' ', text)
 
 
 def parsear_einforma(html: str) -> dict:
-    """Extrae nombre_agencia y dirección del HTML de einforma.
+    """Extrae nombre_agencia, CIF y dirección del HTML de einforma.
     Reutiliza parsear_direccion() y provincia_desde_cp() / _title().
-    Devuelve {"nombre_agencia","direccion","cp","poblacion","provincia"} (vacíos si no encuentra).
+    Devuelve {"nombre_agencia","nif_cif","direccion","cp","poblacion","provincia"} (vacíos si no encuentra).
     Nunca lanza excepciones.
     """
-    empty = {"nombre_agencia": "", "direccion": "", "cp": "", "poblacion": "", "provincia": ""}
+    empty = {"nombre_agencia": "", "nif_cif": "", "direccion": "", "cp": "", "poblacion": "", "provincia": ""}
     if not html:
         return empty
 
@@ -302,6 +338,14 @@ def parsear_einforma(html: str) -> dict:
         m = re.search(r"'nombreEmpresa':\s*'([^']*)'", html)
         if m:
             nombre_agencia = _title(m.group(1).strip())
+
+        # — CIF: microdata itemprop="taxID" (ignorar placeholder A00000000)
+        nif_cif = ""
+        m_cif = re.search(r'itemprop="taxID">\s*([A-W][0-9]{8})', html)
+        if m_cif:
+            candidate = m_cif.group(1)
+            if candidate != "A00000000":
+                nif_cif = candidate
 
         # — Dirección: el layout de einforma tiene dos celdas separadas:
         #   "Domicilio social actual:" → calle (+ enlace Ver Mapa en misma celda)
@@ -350,6 +394,7 @@ def parsear_einforma(html: str) -> dict:
 
         return {
             "nombre_agencia": nombre_agencia,
+            "nif_cif": nif_cif,
             "direccion": addr_fields["direccion"],
             "cp": addr_fields["cp"],
             "poblacion": addr_fields["poblacion"],
@@ -523,6 +568,88 @@ def buscar_cliente(cif: str, deepseek_api_key: str = None) -> dict:
     }
 
 
+def buscar_cliente_por_nombre(nombre: str, deepseek_api_key: str = None) -> dict:
+    """Busca un cliente por nombre de empresa en einforma.
+
+    Retorna:
+        {
+            "ok": bool,
+            "message": str,
+            "fields": {"nombre_agencia","nif_cif","direccion","cp","poblacion","provincia"}
+        }
+    Nunca lanza excepciones.
+    """
+    empty_fields = {
+        "nombre_agencia": "",
+        "nif_cif": "",
+        "direccion": "",
+        "cp": "",
+        "poblacion": "",
+        "provincia": "",
+    }
+
+    nombre = (nombre or "").strip()
+    if not nombre:
+        return {"ok": False, "message": "Introduce un nombre.", "fields": empty_fields}
+
+    # Buscar slug en el listado
+    slug_url = buscar_einforma_slug(nombre)
+    if not slug_url:
+        return {
+            "ok": False,
+            "message": "No se encontró ninguna empresa con ese nombre en einforma.",
+            "fields": empty_fields,
+        }
+
+    # Descargar y parsear la ficha
+    ficha = consultar_einforma_url(slug_url)
+    if not ficha["ok"]:
+        return {
+            "ok": False,
+            "message": f"Error al acceder a la ficha de einforma: {ficha.get('error', '')}",
+            "fields": empty_fields,
+        }
+
+    ei = parsear_einforma(ficha["html"])
+    nombre_agencia = ei["nombre_agencia"]
+    nif_cif = ei["nif_cif"]
+    addr = {
+        "direccion": ei["direccion"],
+        "cp": ei["cp"],
+        "poblacion": ei["poblacion"],
+        "provincia": ei["provincia"],
+    }
+
+    # Fallback a DeepSeek si no se extrajeron datos y hay API key
+    todo_vacio = not nombre_agencia and not nif_cif and not addr["direccion"]
+    if todo_vacio and deepseek_api_key:
+        texto_plano = re.sub(r'\s+', ' ', _strip_tags(ficha["html"])).strip()
+        if texto_plano:
+            ds = extraer_con_deepseek(texto_plano, deepseek_api_key)
+            nombre_agencia = nombre_agencia or ds.get("nombre_agencia", "")
+            addr["direccion"] = addr["direccion"] or ds.get("direccion", "")
+            addr["cp"] = addr["cp"] or ds.get("cp", "")
+            addr["poblacion"] = addr["poblacion"] or ds.get("poblacion", "")
+            addr["provincia"] = addr["provincia"] or ds.get("provincia", "")
+
+    # Completar provincia desde CP si falta
+    if not addr["provincia"] and addr["cp"]:
+        addr["provincia"] = provincia_desde_cp(addr["cp"])
+
+    return {
+        "ok": True,
+        "message": "Datos sugeridos desde einforma — verifica antes de guardar.",
+        "fields": {
+            "nombre_agencia": nombre_agencia,
+            "nif_cif": nif_cif,
+            "direccion": addr["direccion"],
+            "cp": addr["cp"],
+            "poblacion": addr["poblacion"],
+            "provincia": addr["provincia"],
+        },
+    }
+
+
 # ── Tests manuales CLI ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -580,3 +707,18 @@ if __name__ == "__main__":
         print(f"\n  buscar_cliente({c!r}):")
         resultado = buscar_cliente(c)
         pprint.pprint(resultado, indent=4)
+
+    # Smoke test buscar_cliente_por_nombre
+    nombre_test = "VIAJES EL CORTE INGLES"
+    print(f"\n=== Smoke test buscar_cliente_por_nombre({nombre_test!r}) ===")
+    resultado_nombre = buscar_cliente_por_nombre(nombre_test)
+    pprint.pprint(resultado_nombre, indent=4)
+    if resultado_nombre.get("ok"):
+        f = resultado_nombre["fields"]
+        print(f"  nombre_agencia : {f['nombre_agencia']!r}")
+        print(f"  nif_cif        : {f['nif_cif']!r}")
+        print(f"  direccion      : {f['direccion']!r}")
+        print(f"  cp/poblacion   : {f['cp']!r} / {f['poblacion']!r}")
+        print(f"  provincia      : {f['provincia']!r}")
+    else:
+        print(f"  ERROR: {resultado_nombre.get('message')}")
