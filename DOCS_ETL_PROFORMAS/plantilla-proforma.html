@@ -605,7 +605,7 @@
   <!-- ══════════════════════════════════════════════════════
        LÍNEAS DE SERVICIO
        ══════════════════════════════════════════════════════ -->
-  <div class="section-label">Servicios</div>
+  <div class="section-label">Servicios{% if proforma.referencia %} &middot; {{ proforma.referencia }}{% endif %}</div>
   {% set has_fechas = proforma.lineas | selectattr('fecha') | list | length > 0 %}
   <table class="rates">
     <thead>
@@ -648,6 +648,12 @@
           <td class="t-label">IVA</td>
           <td class="t-val">{{ "%.2f"|format(proforma.iva_total) }} €</td>
         </tr>
+        {% if proforma.suplidos_items or proforma.suplidos > 0 %}
+        <tr style="-webkit-print-color-adjust:exact; print-color-adjust:exact; background:var(--navy-pale);">
+          <td class="t-label" style="color:var(--navy); font-weight:600; border-top:1pt solid var(--navy-pale);">Subtotal</td>
+          <td class="t-val" style="color:var(--navy); border-top:1pt solid var(--navy-pale);">{{ "%.2f"|format(proforma.total) }} €</td>
+        </tr>
+        {% endif %}
         {% if proforma.suplidos_items %}
         <tr style="-webkit-print-color-adjust:exact; print-color-adjust:exact;">
           <td colspan="2" style="padding:6px 15px 3px; font-size:8pt; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:var(--stone-dark); background:var(--sand); border-top:1pt solid var(--hairline);">Suplidos</td>

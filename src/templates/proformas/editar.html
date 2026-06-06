@@ -69,6 +69,10 @@ const ARTICULOS = {{ articulos_json | safe }};
         {% endfor %}
       </select>
     </div>
+    <div class="form-group">
+      <label for="referencia">Referencia <span style="font-weight:400; color:var(--stone);">(opcional, aparece en PDF)</span></label>
+      <input type="text" id="referencia" name="referencia" value="{{ proforma.referencia or '' }}" placeholder="Ej: OF-2024-001">
+    </div>
   </div>
 
 </div>

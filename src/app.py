@@ -501,6 +501,7 @@ def proformas_nueva():
         guia_ids   = [int(g) for g in request.form.getlist('guia_ids[]') if g]
         suplidos, suplidos_detalle = _parse_suplidos(request.form)
         comentarios = request.form.get('comentarios', '').strip()
+        referencia  = request.form.get('referencia', '').strip() or None
 
         lineas = _parse_lineas(request.form)
         base, iva_total, total, total_suplidos = _calcular_totales(lineas, suplidos)
@@ -515,10 +516,10 @@ def proformas_nueva():
             conn.execute(
                 """INSERT INTO proformas
                    (numero_proforma, fecha, cliente_id, cuenta_id, estado, base, iva_total,
-                    suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre)
-                   VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre, referencia)
+                   VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (numero, fecha_str, cliente_id, cuenta_id, base, iva_total,
-                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre)
+                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre, referencia)
             )
             proforma_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             _insertar_guias(conn, proforma_id, guia_ids)
@@ -610,6 +611,7 @@ def proformas_editar(id):
         guia_ids    = [int(g) for g in request.form.getlist('guia_ids[]') if g]
         suplidos, suplidos_detalle = _parse_suplidos(request.form)
         comentarios = request.form.get('comentarios', '').strip()
+        referencia  = request.form.get('referencia', '').strip() or None
 
         lineas = _parse_lineas(request.form)
         base, iva_total, total, total_suplidos = _calcular_totales(lineas, suplidos)
@@ -625,9 +627,9 @@ def proformas_editar(id):
             conn.execute(
                 """UPDATE proformas SET fecha=?, cliente_id=?, cuenta_id=?, base=?, iva_total=?,
                    suplidos=?, suplidos_detalle=?, total=?, total_suplidos=?, comentarios=?,
-                   trimestre=?, ruta_pdf=NULL WHERE id=?""",
+                   trimestre=?, referencia=?, ruta_pdf=NULL WHERE id=?""",
                 (fecha_str, cliente_id, cuenta_id, base, iva_total,
-                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre, id)
+                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre, referencia, id)
             )
             conn.execute("DELETE FROM proforma_lineas WHERE proforma_id=?", (id,))
             _insertar_lineas(conn, id, lineas)

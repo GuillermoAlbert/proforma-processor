@@ -163,6 +163,13 @@ def _migrate_add_suplidos_detalle(conn):
         conn.execute("ALTER TABLE proformas ADD COLUMN suplidos_detalle TEXT")
 
 
+def _migrate_add_referencia(conn):
+    """Añade proformas.referencia (texto libre opcional) si no existe. Idempotente."""
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(proformas)").fetchall()]
+    if 'referencia' not in cols:
+        conn.execute("ALTER TABLE proformas ADD COLUMN referencia TEXT")
+
+
 def init_db():
     with get_db() as conn:
         conn.executescript(SCHEMA)
@@ -170,6 +177,7 @@ def init_db():
         _migrate_add_cuenta_id(conn)
         _migrate_lineas_fecha(conn)
         _migrate_add_suplidos_detalle(conn)
+        _migrate_add_referencia(conn)
 
 
 _EMPRESA_DEFAULTS = {
