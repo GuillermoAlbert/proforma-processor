@@ -68,11 +68,19 @@ def generar_pdf(proforma_id):
         except (ValueError, AttributeError):
             return value or ''
 
+    def _iban_format(value):
+        """Formatea un IBAN en grupos de 4 caracteres: ES91 2100 0418 ..."""
+        if not value:
+            return ''
+        clean = value.replace(' ', '').upper()
+        return ' '.join(clean[i:i+4] for i in range(0, len(clean), 4))
+
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(TEMPLATE_DIR),
         autoescape=jinja2.select_autoescape(['html'])
     )
     env.filters['fecha_es'] = _fecha_es
+    env.filters['iban_format'] = _iban_format
     template = env.get_template('plantilla-proforma.html')
     html_rendered = template.render(
         proforma=proforma_dict,

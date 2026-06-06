@@ -244,10 +244,15 @@
     border-left: 4px solid var(--navy);
     background: var(--navy-pale);
     border-radius: 0 8px 8px 0;
-    padding: 0 16px 14px 14px;
+    padding: 14px 16px 14px 14px;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* La caja azul lleva padding superior para que la etiqueta respire dentro
+     del fondo; el emisor compensa con el mismo padding para que «Emisor» y
+     «Facturar a» queden alineados horizontalmente. */
+  .billing-wrap > .billing-col:first-child { padding-top: 14px; }
 
   /* ── Tabla de líneas ────────────────────────────────────── */
   table.rates {
@@ -683,7 +688,7 @@
         <td class="c muted" style="font-size:8.5pt;">{{ loop.index }}</td>
         {% if has_fechas %}<td class="c muted">{{ linea.fecha | fecha_es }}</td>{% endif %}
         <td>{{ linea.descripcion }}</td>
-        <td class="c">{{ linea.cantidad }}</td>
+        <td class="c">{{ '%g'|format(linea.cantidad) }}</td>
         <td class="r muted">{{ "%.2f"|format(linea.precio) }} €</td>
         <td class="c muted">{{ linea.porcentaje_iva }}%</td>
         <td class="price">{{ "%.2f"|format(linea.importe) }} €</td>
@@ -754,7 +759,7 @@
   <div class="payment-box">
     <div class="payment-col">
       <div class="pago-label">Cuenta bancaria (IBAN)</div>
-      <div class="pago-value">{{ empresa.iban | default('ES[XX XXXX XXXX XXXX XXXX XXXX]') }}</div>
+      <div class="pago-value">{{ empresa.iban | iban_format | default('ES[XX XXXX XXXX XXXX XXXX XXXX]') }}</div>
       <div class="pago-note">{{ empresa.banco | default('[Entidad bancaria]') }}{% if empresa.titular %} &middot; {{ empresa.titular }}{% endif %}</div>
     </div>
     <div class="payment-col">
