@@ -121,7 +121,8 @@ def clientes_lookup():
     cif = request.args.get('cif', '').strip()
     if not cif:
         return jsonify({"ok": False, "message": "Introduce un CIF/NIF."}), 400
-    api_key = get_setting('integraciones.deepseek_api_key')
+    enabled = get_setting('integraciones.deepseek_enabled') == '1'
+    api_key = get_setting('integraciones.deepseek_api_key') if enabled else None
     return jsonify(_buscar_cliente_vies(cif, deepseek_api_key=api_key or None))
 
 
@@ -129,7 +130,8 @@ def clientes_lookup():
 @require_auth
 def clientes_lookup_nombre():
     nombre = request.args.get('nombre', '').strip()
-    api_key = get_setting('integraciones.deepseek_api_key')
+    enabled = get_setting('integraciones.deepseek_enabled') == '1'
+    api_key = get_setting('integraciones.deepseek_api_key') if enabled else None
     return jsonify(_buscar_cliente_nombre(nombre, deepseek_api_key=api_key or None))
 
 
@@ -881,6 +883,7 @@ def config_index():
         'config/index.html',
         pendientes_excel=excel.contar_pendientes(),
         deepseek_configurada=bool(get_setting('integraciones.deepseek_api_key')),
+        deepseek_enabled=get_setting('integraciones.deepseek_enabled') == '1',
     )
 
 
@@ -888,7 +891,10 @@ def config_index():
 @require_auth
 def config_integraciones():
     valor = request.form.get('deepseek_api_key', '').strip()
-    set_setting('integraciones.deepseek_api_key', valor)
+    if valor:
+        set_setting('integraciones.deepseek_api_key', valor)
+    enabled = '1' if request.form.get('deepseek_enabled') else '0'
+    set_setting('integraciones.deepseek_enabled', enabled)
     flash('Configuración de integraciones guardada.', 'success')
     return redirect(url_for('config_index'))
 

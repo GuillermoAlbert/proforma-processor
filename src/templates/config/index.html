@@ -49,16 +49,25 @@
       Clave DeepSeek: <strong>{{ 'configurada' if deepseek_configurada else 'no configurada' }}</strong>
     </p>
     <p style="font-size:12px; color:var(--stone); margin-bottom:16px;">
-      Opcional. Mejora el autocompletado de clientes cuando einforma no extrae el nombre o la dirección.
+      Opcional. Mejora el autocompletado de clientes cuando VIES/einforma no extrae el nombre o la dirección.
       Obtén tu clave en <a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>.
     </p>
     <form method="POST" action="{{ url_for('config_integraciones') }}">
-      <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-        <input type="password" name="deepseek_api_key" placeholder="sk-…  (déjalo vacío para eliminar)"
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+        <input type="password" name="deepseek_api_key"
+               placeholder="{{ 'Nueva clave (déjala vacía para conservar la actual)' if deepseek_configurada else 'sk-…' }}"
                autocomplete="new-password"
                style="flex:1; min-width:0; font-size:13px; padding:6px 10px; border:1px solid var(--hairline); border-radius:4px;">
-        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
       </div>
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:16px; font-size:13px; color:var(--ink);">
+        <input type="checkbox" name="deepseek_enabled" value="1" {{ 'checked' if deepseek_enabled }}
+               style="width:16px; height:16px; cursor:pointer; accent-color:var(--terra);">
+        Activar DeepSeek en el autocompletado de clientes
+        {% if not deepseek_configurada %}
+        <span style="color:var(--stone); font-size:12px;">(necesita clave)</span>
+        {% endif %}
+      </label>
+      <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
     </form>
   </div>
 
