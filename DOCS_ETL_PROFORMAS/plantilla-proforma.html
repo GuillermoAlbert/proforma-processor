@@ -346,6 +346,64 @@
     color: var(--gold-light);
   }
 
+  /* Subtotal (servicios + IVA, antes de sumar suplidos) */
+  .totals-box .row-subtotal td {
+    background: var(--navy-pale);
+    border-top: 1pt solid var(--navy-pale);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .totals-box .row-subtotal .t-label { color: var(--navy); font-weight: 600; }
+  .totals-box .row-subtotal .t-val   { color: var(--navy); }
+
+  /* Grupo de suplidos: banda arena suave separada del bloque sujeto a IVA */
+  .totals-box .sup-eyebrow td {
+    background: var(--sand);
+    padding: 7px 15px 2px;
+    font-family: var(--font-ui);
+    font-size: 7.5pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    border-top: 1pt solid var(--hairline);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .totals-box .sup-row td {
+    background: var(--sand);
+    padding-top: 4px;
+    padding-bottom: 4px;
+    border-bottom: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .totals-box .sup-row .t-label { color: var(--ink); font-size: 9.5pt; }
+  .totals-box .sup-row .t-val   { color: var(--ink); }
+  .totals-box .sup-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--gold);
+    margin-right: 9px;
+    vertical-align: middle;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .totals-box .sup-note { color: var(--stone-dark); font-weight: 400; }
+
+  /* Desglose por unidades (cantidad × precio) bajo el concepto del suplido */
+  .totals-box .sup-calc td {
+    background: var(--sand);
+    padding: 0 15px 5px 29px;
+    font-size: 7.5pt;
+    color: var(--stone-dark);
+    border-bottom: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* ── Bloque destacado (filete dorado = intro/comentarios) ── */
   .highlight {
     border-left: 4px solid var(--gold);
@@ -648,26 +706,28 @@
           <td class="t-label">IVA</td>
           <td class="t-val">{{ "%.2f"|format(proforma.iva_total) }} €</td>
         </tr>
+        {% set sup_detallado = (proforma.suplidos_items | selectattr('desc') | list | length) > 0 %}
         {% if proforma.suplidos_items or proforma.suplidos > 0 %}
-        <tr style="-webkit-print-color-adjust:exact; print-color-adjust:exact; background:var(--navy-pale);">
-          <td class="t-label" style="color:var(--navy); font-weight:600; border-top:1pt solid var(--navy-pale);">Subtotal</td>
-          <td class="t-val" style="color:var(--navy); border-top:1pt solid var(--navy-pale);">{{ "%.2f"|format(proforma.total) }} €</td>
+        <tr class="row-subtotal">
+          <td class="t-label">Subtotal</td>
+          <td class="t-val">{{ "%.2f"|format(proforma.total) }} €</td>
         </tr>
         {% endif %}
-        {% if proforma.suplidos_items %}
-        <tr style="-webkit-print-color-adjust:exact; print-color-adjust:exact;">
-          <td colspan="2" style="padding:6px 15px 3px; font-size:8pt; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:var(--stone-dark); background:var(--sand); border-top:1pt solid var(--hairline);">Suplidos</td>
-        </tr>
+        {% if sup_detallado %}
+        <tr class="sup-eyebrow"><td colspan="2">Suplidos · no sujetos a IVA</td></tr>
           {% for s in proforma.suplidos_items %}
-          <tr>
-            <td class="t-label" style="padding-left:22px;">{{ s.desc if s.desc else '—' }}</td>
+          <tr class="sup-row">
+            <td class="t-label"><span class="sup-dot"></span>{{ s.desc if s.desc else '—' }}</td>
             <td class="t-val">{{ "%.2f"|format(s.importe) }} €</td>
           </tr>
+          {% if s.precio and s.cantidad and s.cantidad != 1 %}
+          <tr class="sup-calc"><td colspan="2">{{ '%g'|format(s.cantidad) }} × {{ "%.2f"|format(s.precio) }} €</td></tr>
+          {% endif %}
           {% endfor %}
-        {% elif proforma.suplidos > 0 %}
-        <tr>
-          <td class="t-label">Suplidos</td>
-          <td class="t-val">{{ "%.2f"|format(proforma.suplidos) }} €</td>
+        {% elif proforma.suplidos_items or proforma.suplidos > 0 %}
+        <tr class="sup-row sup-single">
+          <td class="t-label"><span class="sup-dot"></span>Suplidos <span class="sup-note">· no sujetos a IVA</span></td>
+          <td class="t-val">{{ "%.2f"|format(proforma.suplidos if proforma.suplidos else (proforma.suplidos_items | sum(attribute='importe'))) }} €</td>
         </tr>
         {% endif %}
         <tr class="row-total">

@@ -126,7 +126,7 @@
       {% if suplidos_items %}
         {% for s in suplidos_items %}
         <tr>
-          <td style="padding:7px 16px; color:var(--stone); border-bottom:1px solid var(--hairline);">{{ s.desc if s.desc else 'Suplidos' }}</td>
+          <td style="padding:7px 16px; color:var(--stone); border-bottom:1px solid var(--hairline);">{{ s.desc if s.desc else 'Suplidos' }}{% if s.precio and s.cantidad and s.cantidad != 1 %}<span style="color:var(--stone); font-size:11px;"> · {{ '%g'|format(s.cantidad) }} × {{ "%.2f"|format(s.precio) }} €</span>{% endif %}</td>
           <td style="padding:7px 16px; text-align:right; font-weight:600; border-bottom:1px solid var(--hairline);">{{ "%.2f"|format(s.importe) }} €</td>
         </tr>
         {% endfor %}

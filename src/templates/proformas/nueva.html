@@ -142,13 +142,30 @@ const ARTICULOS = {{ articulos_json | safe }};
       </div>
       <div class="card" style="overflow:hidden;">
         <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead>
+            <tr style="background:var(--sand-dark);">
+              <th style="text-align:left;  padding:5px 8px; font-size:11px; color:var(--stone); font-weight:600;">Concepto</th>
+              <th style="text-align:center; padding:5px 4px; width:56px;  font-size:11px; color:var(--stone); font-weight:600;">Cant.</th>
+              <th style="text-align:right; padding:5px 4px; width:88px;  font-size:11px; color:var(--stone); font-weight:600;">P. unit.</th>
+              <th style="text-align:right; padding:5px 4px; width:96px;  font-size:11px; color:var(--stone); font-weight:600;">Importe</th>
+              <th style="width:28px;"></th>
+            </tr>
+          </thead>
           <tbody id="suplidos-body">
             <tr class="suplido-row-tpl" style="display:none;">
               <td style="padding:5px 8px;">
                 <input type="text" name="suplido_desc[]" class="inp-sup-desc" placeholder="Concepto"
                        style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
               </td>
-              <td style="padding:5px 4px; width:110px;">
+              <td style="padding:5px 4px;">
+                <input type="number" name="suplido_cantidad[]" class="inp-sup-cant" min="0" step="1" placeholder="—"
+                       style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+              </td>
+              <td style="padding:5px 4px;">
+                <input type="number" name="suplido_precio[]" class="inp-sup-precio" min="0" step="0.01" placeholder="—"
+                       style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+              </td>
+              <td style="padding:5px 4px;">
                 <input type="number" name="suplido_importe[]" class="inp-sup-importe"
                        value="0" min="0" step="0.01"
                        style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
@@ -161,6 +178,10 @@ const ARTICULOS = {{ articulos_json | safe }};
           </tbody>
         </table>
       </div>
+      <p style="font-size:11px; color:var(--stone); margin:6px 2px 0; line-height:1.5;">
+        Por unidades (p. ej. entradas): rellena <strong>Cant.</strong> y <strong>P. unit.</strong> y el importe se calcula solo.
+        Importe fijo (p. ej. dieta): deja esas casillas vacías y escribe el <strong>Importe</strong>.
+      </p>
     </div>
   </div>
 
@@ -349,7 +370,27 @@ const ARTICULOS = {{ articulos_json | safe }};
   recalcTotals();
 
   // ── Suplidos ──────────────────────────────────────────────────────────────
+  // Si hay precio unitario, el importe se calcula (cant × precio) y se bloquea.
+  function recalcSuplido(row) {
+    const precio = parseFloat(row.querySelector('.inp-sup-precio').value) || 0;
+    const imp = row.querySelector('.inp-sup-importe');
+    if (precio > 0) {
+      const cantRaw = row.querySelector('.inp-sup-cant').value.trim();
+      const cant = cantRaw === '' ? 1 : (parseFloat(cantRaw) || 0);
+      imp.value = (cant * precio).toFixed(2);
+      imp.readOnly = true;
+      imp.style.background = '#efece6';
+      imp.style.color = 'var(--stone-dark)';
+    } else {
+      imp.readOnly = false;
+      imp.style.background = '';
+      imp.style.color = '';
+    }
+  }
   function bindSuplido(row) {
+    ['inp-sup-cant', 'inp-sup-precio'].forEach(cls => {
+      row.querySelector('.' + cls).addEventListener('input', () => { recalcSuplido(row); recalcTotals(); });
+    });
     row.querySelector('.inp-sup-importe').addEventListener('input', recalcTotals);
     row.querySelector('.btn-del-suplido').addEventListener('click', () => { row.remove(); recalcTotals(); });
   }
@@ -359,6 +400,8 @@ const ARTICULOS = {{ articulos_json | safe }};
     clone.className = 'suplido-row';
     clone.style.display = '';
     clone.querySelector('.inp-sup-desc').value    = '';
+    clone.querySelector('.inp-sup-cant').value    = '';
+    clone.querySelector('.inp-sup-precio').value  = '';
     clone.querySelector('.inp-sup-importe').value = '0';
     document.getElementById('suplidos-body').appendChild(clone);
     bindSuplido(clone);

@@ -386,15 +386,36 @@ def _parse_lineas(form):
 
 
 def _parse_suplidos(form):
-    """Extrae los ítems de suplidos del formulario. Devuelve (total_float, json_str_or_None)."""
+    """Extrae los ítems de suplidos del formulario. Devuelve (total_float, json_str_or_None).
+
+    Cada ítem puede ser plano (solo importe, p. ej. dieta) o calculado por
+    unidades (cantidad × precio, p. ej. entradas a museo). En los calculados el
+    importe se recalcula aquí desde cantidad × precio para no fiarse del campo
+    de solo lectura del formulario.
+    """
     descs    = form.getlist('suplido_desc[]')
+    cants    = form.getlist('suplido_cantidad[]')
+    precios  = form.getlist('suplido_precio[]')
     importes = form.getlist('suplido_importe[]')
     items, total = [], 0.0
-    for d, i in zip(descs, importes):
-        imp = float(i or 0)
-        if d.strip() or imp:
-            items.append({'desc': d.strip(), 'importe': round(imp, 2)})
-            total += imp
+    for idx, d in enumerate(descs):
+        d = d.strip()
+        precio   = float(precios[idx]) if idx < len(precios) and precios[idx].strip() else 0.0
+        cant_raw = cants[idx].strip() if idx < len(cants) else ''
+        if precio > 0:
+            cant = float(cant_raw) if cant_raw else 1.0
+            imp  = round(cant * precio, 2)
+        else:
+            cant = None
+            imp  = round(float(importes[idx] or 0) if idx < len(importes) else 0.0, 2)
+        if not (d or imp):
+            continue
+        item = {'desc': d, 'importe': imp}
+        if precio > 0:
+            item['cantidad'] = cant
+            item['precio']   = round(precio, 2)
+        items.append(item)
+        total += imp
     return round(total, 2), (json.dumps(items, ensure_ascii=False) if items else None)
 
 
