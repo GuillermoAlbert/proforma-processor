@@ -5,7 +5,9 @@ import threading
 from datetime import date
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 
-from db import get_db, init_db, siguiente_numero_proforma, get_empresa_config, set_empresa_config, get_setting, set_setting
+from db import (get_db, init_db, siguiente_numero_proforma, peek_numero_proforma,
+                get_serie_config, set_serie_config, set_proximo_numero,
+                get_empresa_config, set_empresa_config, get_setting, set_setting)
 from admin_helpers import require_auth
 from pdf import generar_pdf, PDF_DIR
 import excel
@@ -531,7 +533,16 @@ def proformas_nueva():
         except (IndexError, ValueError):
             trimestre = 1
         anio = int(fecha_str.split('-')[0]) if fecha_str else date.today().year
-        numero = siguiente_numero_proforma(serie='PRO', anio=anio)
+        numero_form = request.form.get('numero_proforma', '').strip()
+        numero_auto = siguiente_numero_proforma(anio)
+        numero = numero_form if numero_form else numero_auto
+        if numero != numero_auto:
+            with get_db() as conn:
+                if conn.execute(
+                    "SELECT 1 FROM proformas WHERE numero_proforma=?", (numero,)
+                ).fetchone():
+                    flash(f'El número «{numero}» ya está en uso.', 'error')
+                    return redirect(url_for('proformas_nueva'))
 
         with get_db() as conn:
             conn.execute(
@@ -549,6 +560,7 @@ def proformas_nueva():
         flash(f'Proforma {numero} creada correctamente.', 'success')
         return redirect(url_for('proformas_detalle', id=proforma_id))
 
+    anio_hoy = date.today().year
     articulos_json = json.dumps([
         {'id': a['id'], 'codigo': a['codigo'], 'descripcion': a['descripcion'],
          'precio': a['precio'], 'porcentaje_iva': a['porcentaje_iva']}
@@ -563,6 +575,7 @@ def proformas_nueva():
         articulos_json=articulos_json,
         cuenta_predeterminada_id=cuenta_predeterminada_id,
         hoy=str(date.today()),
+        numero_sugerido=peek_numero_proforma(anio_hoy),
     )
 
 
@@ -633,6 +646,15 @@ def proformas_editar(id):
         suplidos, suplidos_detalle = _parse_suplidos(request.form)
         comentarios = request.form.get('comentarios', '').strip()
         referencia  = request.form.get('referencia', '').strip() or None
+        numero_nuevo = request.form.get('numero_proforma', '').strip() or proforma['numero_proforma']
+
+        if numero_nuevo != proforma['numero_proforma']:
+            with get_db() as conn:
+                if conn.execute(
+                    "SELECT 1 FROM proformas WHERE numero_proforma=? AND id!=?", (numero_nuevo, id)
+                ).fetchone():
+                    flash(f'El número «{numero_nuevo}» ya está en uso.', 'error')
+                    return redirect(url_for('proformas_editar', id=id))
 
         lineas = _parse_lineas(request.form)
         base, iva_total, total, total_suplidos = _calcular_totales(lineas, suplidos)
@@ -646,10 +668,10 @@ def proformas_editar(id):
                 "SELECT ruta_pdf FROM proformas WHERE id=?", (id,)
             ).fetchone()['ruta_pdf']
             conn.execute(
-                """UPDATE proformas SET fecha=?, cliente_id=?, cuenta_id=?, base=?, iva_total=?,
-                   suplidos=?, suplidos_detalle=?, total=?, total_suplidos=?, comentarios=?,
-                   trimestre=?, referencia=?, ruta_pdf=NULL WHERE id=?""",
-                (fecha_str, cliente_id, cuenta_id, base, iva_total,
+                """UPDATE proformas SET numero_proforma=?, fecha=?, cliente_id=?, cuenta_id=?,
+                   base=?, iva_total=?, suplidos=?, suplidos_detalle=?, total=?, total_suplidos=?,
+                   comentarios=?, trimestre=?, referencia=?, ruta_pdf=NULL WHERE id=?""",
+                (numero_nuevo, fecha_str, cliente_id, cuenta_id, base, iva_total,
                  suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre, referencia, id)
             )
             conn.execute("DELETE FROM proforma_lineas WHERE proforma_id=?", (id,))
@@ -841,6 +863,17 @@ def config_integraciones():
     return redirect(url_for('config_index'))
 
 
+@app.route('/config/descargar-excel')
+@require_auth
+def config_descargar_excel():
+    excel_path = os.environ.get('EXCEL_PATH', '/mnt/empresa/facturas-emitidas.xlsx')
+    if not os.path.exists(excel_path):
+        flash('El fichero Excel no existe todavía (aún no se ha confirmado ninguna proforma).', 'error')
+        return redirect(url_for('config_index'))
+    return send_file(excel_path, as_attachment=True,
+                     download_name=os.path.basename(excel_path))
+
+
 @app.route('/config/reintentar-excel', methods=['POST'])
 @require_auth
 def config_reintentar_excel():
@@ -906,6 +939,40 @@ def config_reboot():
     flash(f'Caché de PDF limpiada ({borrados} fichero(s)). Reiniciando… '
           'vuelve a cargar en unos segundos.', 'success')
     return redirect(url_for('config_index'))
+
+
+@app.route('/config/numeracion', methods=['GET', 'POST'])
+@require_auth
+def config_numeracion():
+    anio_actual = date.today().year
+    if request.method == 'POST':
+        prefijo = request.form.get('prefijo', 'PRO').strip() or 'PRO'
+        formato = request.form.get('formato', '{serie}-{anio}-{n}').strip() or '{serie}-{anio}-{n}'
+        digitos = request.form.get('digitos', '4').strip() or '4'
+        set_serie_config(prefijo, formato, int(digitos))
+        proximo_raw = request.form.get('proximo_numero', '').strip()
+        if proximo_raw:
+            try:
+                set_proximo_numero(anio_actual, int(proximo_raw))
+            except ValueError:
+                flash('El próximo número debe ser un entero.', 'error')
+                return redirect(url_for('config_numeracion'))
+        flash('Configuración de numeración guardada.', 'success')
+        return redirect(url_for('config_numeracion'))
+    cfg = get_serie_config()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT ultimo_numero FROM series WHERE serie=? AND anio=?",
+            (cfg['prefijo'], anio_actual)
+        ).fetchone()
+    proximo_n = (row['ultimo_numero'] if row else 0) + 1
+    return render_template(
+        'config/numeracion.html',
+        cfg=cfg,
+        anio_actual=anio_actual,
+        ejemplo=peek_numero_proforma(anio_actual),
+        proximo_n=proximo_n,
+    )
 
 
 if __name__ == '__main__':
