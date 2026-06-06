@@ -24,24 +24,26 @@
       <tbody>
         {% for p in proformas %}
         <tr>
-          <td><a href="{{ url_for('proformas_detalle', id=p.id) }}" style="font-weight:600; color:var(--navy);">{{ p.numero_proforma }}</a></td>
-          <td>{{ p.fecha }}</td>
+          <td class="nowrap"><a href="{{ url_for('proformas_detalle', id=p.id) }}" style="font-weight:600; color:var(--navy);">{{ p.numero_proforma }}</a></td>
+          <td class="nowrap">{{ p.fecha }}</td>
           <td>{{ p.nombre_agencia or '—' }}</td>
           <td>{{ p.guia_nombre or '—' }}</td>
-          <td style="text-align:right; font-weight:600; white-space:nowrap;">{{ "%.2f"|format(p.total_suplidos) }} €</td>
-          <td><span class="badge badge-{{ p.estado }}">{{ p.estado|capitalize }}</span></td>
-          <td class="td-actions">
-            <a href="{{ url_for('proformas_pdf', id=p.id) }}" class="btn btn-terra btn-sm">PDF</a>
-            <a href="{{ url_for('proformas_editar', id=p.id) }}" class="btn btn-secondary btn-sm">Editar</a>
-            {% if p.estado != 'confirmada' %}
-            <form method="POST" action="{{ url_for('proformas_confirmar', id=p.id) }}" style="display:contents;">
-              <button type="submit" class="btn btn-primary btn-sm">Confirmar</button>
-            </form>
-            <form method="POST" action="{{ url_for('proformas_eliminar', id=p.id) }}" style="display:contents;"
-                  onsubmit="return confirm('¿Eliminar {{ p.numero_proforma }}? Esta acción no se puede deshacer.');">
-              <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
-            </form>
-            {% endif %}
+          <td class="nowrap" style="text-align:right; font-weight:600;">{{ "%.2f"|format(p.total_suplidos) }} €</td>
+          <td class="nowrap"><span class="badge badge-{{ p.estado }}">{{ p.estado|capitalize }}</span></td>
+          <td class="nowrap">
+            <div class="td-actions">
+              <a href="{{ url_for('proformas_pdf', id=p.id) }}" class="btn btn-terra btn-sm">PDF</a>
+              <a href="{{ url_for('proformas_editar', id=p.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+              {% if p.estado != 'confirmada' %}
+              <form method="POST" action="{{ url_for('proformas_confirmar', id=p.id) }}" style="display:contents;">
+                <button type="submit" class="btn btn-primary btn-sm">Confirmar</button>
+              </form>
+              <form method="POST" action="{{ url_for('proformas_eliminar', id=p.id) }}" style="display:contents;"
+                    onsubmit="return confirm('¿Eliminar {{ p.numero_proforma }}? Esta acción no se puede deshacer.');">
+                <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+              </form>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% else %}

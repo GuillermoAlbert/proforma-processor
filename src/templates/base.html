@@ -145,9 +145,10 @@
       border-bottom: 1px solid var(--hairline);
       vertical-align: middle;
     }
+    table.data-table tbody td.nowrap { white-space: nowrap; }
     table.data-table tbody tr:last-child td { border-bottom: none; }
     table.data-table tbody tr:hover { background: var(--sand); }
-    .td-actions { display: flex; gap: 6px; }
+    .td-actions { display: flex; gap: 6px; flex-wrap: nowrap; align-items: center; }
 
     /* Forms */
     .form-card { max-width: 640px; }
