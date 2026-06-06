@@ -20,6 +20,11 @@
           onsubmit="return confirm('¿Eliminar {{ proforma.numero_proforma }}? Esta acción no se puede deshacer.');">
       <button type="submit" class="btn btn-danger">Eliminar</button>
     </form>
+    {% else %}
+    <form method="POST" action="{{ url_for('proformas_desconfirmar', id=proforma.id) }}" style="display:contents;"
+          onsubmit="return confirm('¿Desconfirmar {{ proforma.numero_proforma }}?\n\nSu fila se eliminará del Excel de Hacienda y la proforma volverá a estado borrador para que puedas editarla y volver a confirmarla.');">
+      <button type="submit" class="btn btn-secondary">Desconfirmar</button>
+    </form>
     {% endif %}
     <a href="{{ url_for('proformas_lista') }}" class="btn btn-secondary">Volver</a>
   </div>

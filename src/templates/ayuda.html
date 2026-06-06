@@ -148,6 +148,7 @@
     <li><span>Añade las <strong>líneas</strong> (artículo o texto libre, cantidad, precio, IVA). Los totales se calculan solos.</span></li>
     <li><span>Guarda como <span class="badge-inline b-borrador">borrador</span>. Puedes editarla o descargar el PDF para revisarla antes de enviarla.</span></li>
     <li><span>Cuando esté lista, pulsa <strong>Confirmar y registrar en Excel</strong>. La proforma pasa a <span class="badge-inline b-confirmada">confirmada</span> y se anota automáticamente en el fichero de Hacienda.</span></li>
+    <li><span>Si necesitas corregirla después, pulsa <strong>Desconfirmar</strong> (en el detalle o en la pantalla de edición). La fila del Excel se elimina y la proforma vuelve a <span class="badge-inline b-borrador">borrador</span>. Edita lo que necesites y vuelve a confirmar: se escribirá una fila nueva y actualizada en el Excel.</span></li>
   </ol>
 </div>
 
@@ -224,8 +225,15 @@
   <details>
     <summary>¿Puedo editar una proforma confirmada?</summary>
     <div class="faq-body">
-      <p>No directamente. Una proforma <span class="badge-inline b-confirmada">confirmada</span> ya está registrada en el Excel de Hacienda, por lo que no se puede modificar desde la app.</p>
-      <p>Si necesitas corregirla, tendrás que hacer el ajuste manualmente en el Excel y crear una nueva proforma si es necesario.</p>
+      <p>Sí, usando el botón <strong>Desconfirmar</strong>. Aparece tanto en la pantalla de detalle como en la pantalla de edición (cuando la proforma está <span class="badge-inline b-confirmada">confirmada</span>).</p>
+      <p>Al desconfirmar ocurren tres cosas a la vez:</p>
+      <ul>
+        <li>La fila correspondiente se <strong>elimina del Excel de Hacienda</strong>.</li>
+        <li>La proforma vuelve a estado <span class="badge-inline b-borrador">borrador</span>.</li>
+        <li>Todos los campos se desbloquean para edición.</li>
+      </ul>
+      <p>Una vez editada, pulsa <strong>Confirmar y registrar en Excel</strong>. Se escribirá una fila nueva y actualizada en el fichero.</p>
+      <p><em>Nota: si el Excel estaba abierto en el momento de desconfirmar y no se pudo eliminar la fila, la app te avisa. En ese caso, elimina manualmente la fila antigua antes de volver a confirmar para evitar duplicados.</em></p>
     </div>
   </details>
 

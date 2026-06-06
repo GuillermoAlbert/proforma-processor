@@ -261,6 +261,33 @@ def registrar_proforma(proforma_id):
     return resultado
 
 
+def eliminar_fila_excel(numero_proforma):
+    """Elimina del Excel la fila del número de proforma indicado.
+
+    Devuelve True si se eliminó, False si no se encontró o el fichero no existe,
+    None si el fichero estaba bloqueado.
+    """
+    if not os.path.exists(EXCEL_PATH):
+        return False
+    with _file_lock():
+        _backup()
+        wb, ws = _load_or_create_workbook()
+        fila_a_borrar = None
+        for row in ws.iter_rows(min_row=2):
+            if row[2].value == numero_proforma:  # columna C = Nº Proforma
+                fila_a_borrar = row[0].row
+                break
+        if fila_a_borrar is None:
+            return False
+        ws.delete_rows(fila_a_borrar)
+        # Re-numerar índice (columna A) de todas las filas de datos
+        for i, row_cells in enumerate(ws.iter_rows(min_row=2, max_row=ws.max_row), start=1):
+            row_cells[0].value = i
+        if not _save_con_reintentos(wb):
+            return None  # Excel bloqueado
+    return True
+
+
 def drain_pending():
     """Vacía la cola de pendientes. Devuelve cuántas filas se han escrito."""
     ids = _cargar_cola()

@@ -799,6 +799,36 @@ def proformas_confirmar(id):
     return redirect(url_for('proformas_detalle', id=id))
 
 
+@app.route('/proformas/<int:id>/desconfirmar', methods=['POST'])
+@require_auth
+def proformas_desconfirmar(id):
+    with get_db() as conn:
+        proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
+        if proforma is None:
+            flash('Proforma no encontrada.', 'error')
+            return redirect(url_for('proformas_lista'))
+        if proforma['estado'] != 'confirmada':
+            flash('La proforma no está confirmada.', 'error')
+            return redirect(url_for('proformas_detalle', id=id))
+
+        numero = proforma['numero_proforma']
+        resultado = excel.eliminar_fila_excel(numero)
+        conn.execute(
+            "UPDATE proformas SET estado = 'borrador', exportada_excel = 0 WHERE id = ?", (id,)
+        )
+
+    if resultado is True:
+        flash('Proforma desconfirmada y fila eliminada del Excel de Hacienda. Ya puedes editarla y volver a confirmarla.', 'success')
+    elif resultado is None:
+        flash('Proforma desconfirmada, pero el Excel estaba bloqueado y no se pudo eliminar la fila. Elimínala manualmente antes de re-confirmar.', 'warning')
+    else:
+        flash('Proforma desconfirmada. No se encontró su fila en el Excel (puede que no estuviera registrada).', 'success')
+
+    if request.form.get('next') == 'edit':
+        return redirect(url_for('proformas_editar', id=id))
+    return redirect(url_for('proformas_detalle', id=id))
+
+
 # ── API (creación rápida desde modales) ──────────────────────────────────────
 
 @app.route('/api/articulos', methods=['POST'])
