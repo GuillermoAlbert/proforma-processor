@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}Ayuda{% endblock %}
+
+{% block content %}
+<style>
+  .help-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+  .help-card {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--hairline);
+    padding: 24px;
+  }
+  .help-card h2 {
+    font-family: var(--font-head);
+    font-size: 15px;
+    color: var(--navy);
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .help-card p, .help-card li {
+    font-size: 13px;
+    color: var(--stone);
+    line-height: 1.7;
+  }
+  .help-card ul {
+    margin: 8px 0 0 16px;
+  }
+  .help-card li { margin-bottom: 4px; }
+
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .steps li::before {
+    content: counter(step);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    background: var(--navy);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .steps li span { font-size: 13px; color: var(--stone); line-height: 1.6; }
+  .steps li strong { color: var(--ink); }
+
+  .faq { margin-bottom: 32px; }
+  .faq h2 {
+    font-family: var(--font-head);
+    font-size: 18px;
+    color: var(--navy);
+    margin: 0 0 16px;
+  }
+  details {
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: #fff;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  summary {
+    padding: 14px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after {
+    content: '▾';
+    font-size: 12px;
+    color: var(--stone);
+    transition: transform 0.15s;
+    flex-shrink: 0;
+  }
+  details[open] summary::after { transform: rotate(-180deg); }
+  details[open] summary { border-bottom: 1px solid var(--hairline); }
+  .faq-body {
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--stone);
+    line-height: 1.7;
+  }
+  .faq-body p { margin-bottom: 8px; }
+  .faq-body p:last-child { margin-bottom: 0; }
+  .faq-body ul { margin: 6px 0 0 16px; }
+  .faq-body li { margin-bottom: 4px; }
+  code {
+    background: var(--navy-pale);
+    color: var(--navy);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+  .badge-inline {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .b-borrador   { background: #E5E7EB; color: #374151; }
+  .b-confirmada { background: #D1FAE5; color: #065F46; }
+  .section-title {
+    font-family: var(--font-head);
+    font-size: 18px;
+    color: var(--navy);
+    margin: 0 0 16px;
+  }
+</style>
+
+<div class="page-header">
+  <h1>Ayuda</h1>
+</div>
+
+<!-- Flujo básico -->
+<h2 class="section-title">Cómo crear y confirmar una proforma</h2>
+<div class="help-card" style="max-width:680px; margin-bottom:32px;">
+  <ol class="steps">
+    <li><span><strong>Añade el cliente</strong> en «Clientes» si es la primera vez. Solo necesitas el nombre y el NIF/CIF; el resto es opcional.</span></li>
+    <li><span>En «Proformas», pulsa <strong>Nueva proforma</strong>. Selecciona el cliente, la fecha y la cuenta de cobro.</span></li>
+    <li><span>Añade las <strong>líneas</strong> (artículo o texto libre, cantidad, precio, IVA). Los totales se calculan solos.</span></li>
+    <li><span>Guarda como <span class="badge-inline b-borrador">borrador</span>. Puedes editarla o descargar el PDF para revisarla antes de enviarla.</span></li>
+    <li><span>Cuando esté lista, pulsa <strong>Confirmar y registrar en Excel</strong>. La proforma pasa a <span class="badge-inline b-confirmada">confirmada</span> y se anota automáticamente en el fichero de Hacienda.</span></li>
+  </ol>
+</div>
+
+<!-- Tarjetas de secciones -->
+<h2 class="section-title">Catálogo y configuración</h2>
+<div class="help-grid">
+
+  <div class="help-card">
+    <h2>Clientes</h2>
+    <p>Lista de agencias o personas a las que facturas. Guarda sus datos (NIF, dirección, provincia) para no repetirlos cada vez que creas una proforma.</p>
+    <ul>
+      <li>Puedes buscar por NIF/CIF con el botón <strong>Buscar en VIES/Hacienda</strong> para rellenar los datos automáticamente.</li>
+      <li>El campo <em>Código Factusol</em> es opcional y se usa para la exportación a ese programa (Fase 3).</li>
+    </ul>
+  </div>
+
+  <div class="help-card">
+    <h2>Artículos</h2>
+    <p>Catálogo de servicios habituales con precio e IVA por defecto. Al crear una proforma puedes seleccionarlos del desplegable para rellenar la línea al instante.</p>
+    <ul>
+      <li>Si necesitas algo puntual, escríbelo directamente en la línea sin usar el catálogo.</li>
+    </ul>
+  </div>
+
+  <div class="help-card">
+    <h2>Guías</h2>
+    <p>Nombres de los guías turísticos. Se asignan a una proforma pero <strong>solo aparecen en el Excel de Hacienda</strong>, no en el PDF.</p>
+    <ul>
+      <li>Una proforma puede tener varios guías a la vez.</li>
+      <li>Gestión rápida en línea: edita o elimina sin salir de la lista.</li>
+    </ul>
+  </div>
+
+  <div class="help-card">
+    <h2>Cuentas bancarias</h2>
+    <p>Cuentas desde las que cobras. La que marques como <strong>predeterminada</strong> se preselecciona al crear una proforma nueva.</p>
+    <ul>
+      <li>Titular, IBAN, banco y BIC aparecen en el bloque de pago del PDF.</li>
+      <li>Puedes tener varias y elegir una diferente por proforma.</li>
+    </ul>
+  </div>
+
+  <div class="help-card">
+    <h2>Configuración › Datos de empresa</h2>
+    <p>Nombre, NIF, dirección y condiciones de pago que aparecen en la cabecera de todos los PDFs. Cámbialos aquí sin tocar código.</p>
+  </div>
+
+  <div class="help-card">
+    <h2>Configuración › Numeración</h2>
+    <p>Formato del número de proforma. Por defecto es <code>PRO-2026-0001</code>.</p>
+    <ul>
+      <li><code>{serie}</code> — el prefijo (ej. <code>PRO</code>)</li>
+      <li><code>{anio}</code> — año completo &nbsp;|&nbsp; <code>{aa}</code> — año corto</li>
+      <li><code>{n}</code> — número secuencial (rellena con ceros según los dígitos configurados)</li>
+      <li>El <strong>contador</strong> se puede ajustar si necesitas empezar desde un número concreto.</li>
+    </ul>
+  </div>
+
+  <div class="help-card">
+    <h2>Configuración › Excel de Hacienda</h2>
+    <p>Al confirmar una proforma, la app escribe automáticamente en el fichero Excel. Si tenías el archivo abierto en ese momento, la proforma queda en cola.</p>
+    <ul>
+      <li>Cierra el Excel y pulsa <strong>Reintentar pendientes</strong> para registrar las proformas en cola.</li>
+      <li>Usa <strong>Descargar Excel</strong> para obtener una copia del fichero desde aquí.</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- FAQ -->
+<div class="faq">
+  <h2>Preguntas frecuentes</h2>
+
+  <details>
+    <summary>¿Puedo editar una proforma confirmada?</summary>
+    <div class="faq-body">
+      <p>No directamente. Una proforma <span class="badge-inline b-confirmada">confirmada</span> ya está registrada en el Excel de Hacienda, por lo que no se puede modificar desde la app.</p>
+      <p>Si necesitas corregirla, tendrás que hacer el ajuste manualmente en el Excel y crear una nueva proforma si es necesario.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>El PDF no refleja los últimos cambios que hice en los datos de empresa</summary>
+    <div class="faq-body">
+      <p>Los PDFs ya generados se guardan en disco y no se regeneran solos. Para forzar la regeneración con los datos actuales, ve a <strong>Configuración › Servicio</strong> y pulsa <strong>Reiniciar servicio</strong>. La próxima vez que descargues el PDF se generará de nuevo con los datos actualizados.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>¿Qué son los suplidos?</summary>
+    <div class="faq-body">
+      <p>Gastos que adelantas en nombre del cliente (entradas, transporte, etc.) y que no llevan IVA porque los repercutes por su importe exacto. Al crearlos en la proforma, se muestran en el PDF como una partida separada y se suman al total.</p>
+      <p>En el Excel de Hacienda se anotan en la columna de suplidos para que la fórmula de «Total + suplidos» cuadre.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>¿Para qué sirve el campo «Referencia»?</summary>
+    <div class="faq-body">
+      <p>Es un texto libre (número de expediente, nombre del grupo, código de reserva…) que aparece en el PDF justo debajo del número de proforma. Es opcional y no afecta a ningún cálculo.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>¿Qué columnas rellena la app automáticamente en el Excel?</summary>
+    <div class="faq-body">
+      <p>Al confirmar una proforma se escriben:</p>
+      <ul>
+        <li>Nº Proforma, NIF/CIF, Trimestre, Agencia, Provincia</li>
+        <li>Base imponible, IVA, Total (fórmula)</li>
+        <li>Suplidos y Total+suplidos (fórmula)</li>
+        <li>Comentarios y Guía(s)</li>
+      </ul>
+      <p>Las columnas de <strong>Fecha Factura, Cobrado y Nº Factura Factusol</strong> se rellenan a mano después.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>La app dice que hay proformas pendientes de registrar en Excel</summary>
+    <div class="faq-body">
+      <p>Ocurre cuando el fichero Excel estaba abierto en el ordenador en el momento de confirmar la proforma. La app no puede escribir en él mientras está bloqueado y guarda las proformas en una cola.</p>
+      <p><strong>Solución:</strong> cierra el Excel y ve a <strong>Configuración → Reintentar pendientes</strong>.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>¿Cómo funciona el autocompletado de clientes?</summary>
+    <div class="faq-body">
+      <p>Al introducir un NIF/CIF en el formulario de cliente, el botón <strong>Buscar</strong> consulta la base de datos europea VIES. Si el NIF está registrado y España ha autorizado la consulta, rellena el nombre y la dirección automáticamente.</p>
+      <p>Si tienes configurada la clave DeepSeek en <strong>Configuración › Integraciones</strong>, también puede rellenar campos que VIES no devuelve (como la provincia a partir del código postal).</p>
+    </div>
+  </details>
+
+</div>
+{% endblock %}

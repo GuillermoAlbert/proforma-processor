@@ -975,6 +975,12 @@ def config_numeracion():
     )
 
 
+@app.route('/ayuda')
+@require_auth
+def ayuda():
+    return render_template('ayuda.html')
+
+
 if __name__ == '__main__':
     init_db()
     excel.drain_pending()  # registra en el Excel cualquier proforma que quedara en cola
