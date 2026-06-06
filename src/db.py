@@ -253,7 +253,34 @@ def set_setting(clave: str, valor: str) -> None:
         pass
 
 
-def siguiente_numero_proforma(serie='PRO', anio=2026):
+def get_serie_config():
+    return {
+        'prefijo': get_setting('serie.prefijo', 'PRO'),
+        'formato': get_setting('serie.formato', '{serie}-{anio}-{n}'),
+        'digitos': int(get_setting('serie.digitos', '4') or '4'),
+    }
+
+
+def set_serie_config(prefijo, formato, digitos):
+    set_setting('serie.prefijo', prefijo.strip() or 'PRO')
+    set_setting('serie.formato', formato.strip() or '{serie}-{anio}-{n}')
+    set_setting('serie.digitos', str(max(1, min(9, int(digitos or 4)))))
+
+
+def _aplicar_formato(cfg, anio, n):
+    n_str = str(n).zfill(cfg['digitos'])
+    try:
+        return cfg['formato'].format(
+            serie=cfg['prefijo'], prefijo=cfg['prefijo'],
+            anio=anio, aa=str(anio)[-2:], n=n_str,
+        )
+    except (KeyError, ValueError, IndexError):
+        return f"{cfg['prefijo']}-{anio}-{n_str}"
+
+
+def siguiente_numero_proforma(anio):
+    cfg = get_serie_config()
+    serie = cfg['prefijo']
     with get_db() as conn:
         conn.execute(
             "INSERT OR IGNORE INTO series (serie, anio, ultimo_numero) VALUES (?, ?, 0)",
@@ -263,9 +290,30 @@ def siguiente_numero_proforma(serie='PRO', anio=2026):
             "UPDATE series SET ultimo_numero = ultimo_numero + 1 WHERE serie = ? AND anio = ?",
             (serie, anio)
         )
-        row = conn.execute(
+        n = conn.execute(
             "SELECT ultimo_numero FROM series WHERE serie = ? AND anio = ?",
             (serie, anio)
+        ).fetchone()['ultimo_numero']
+    return _aplicar_formato(cfg, anio, n)
+
+
+def peek_numero_proforma(anio):
+    """Returns what the next number would be without incrementing the counter."""
+    cfg = get_serie_config()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT ultimo_numero FROM series WHERE serie = ? AND anio = ?",
+            (cfg['prefijo'], anio)
         ).fetchone()
-        n = row['ultimo_numero']
-    return f"{serie}-{anio}-{n:04d}"
+    n = (row['ultimo_numero'] if row else 0) + 1
+    return _aplicar_formato(cfg, anio, n)
+
+
+def set_proximo_numero(anio, proximo):
+    """Sets the counter so the next auto-generated number will be `proximo`."""
+    cfg = get_serie_config()
+    with get_db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO series (serie, anio, ultimo_numero) VALUES (?, ?, ?)",
+            (cfg['prefijo'], anio, max(0, int(proximo) - 1))
+        )

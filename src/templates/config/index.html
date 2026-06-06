@@ -6,55 +6,73 @@
   <h1>Configuración</h1>
 </div>
 
-<div class="card" style="max-width:420px; padding:28px 24px; margin-bottom:20px;">
-  <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 8px;">Datos de empresa</h2>
-  <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
-    Nombre, NIF, dirección, teléfono, condiciones de pago y otros datos que aparecen en los PDFs de proforma.
-  </p>
-  <a href="{{ url_for('config_empresa') }}" class="btn btn-primary">Editar datos de empresa</a>
-</div>
+<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px;">
 
-<div class="card" style="max-width:420px; padding:28px 24px; margin-bottom:20px;">
-  <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 12px;">Excel de Hacienda</h2>
-  <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
-    {% if pendientes_excel %}
-    Hay <strong>{{ pendientes_excel }}</strong> proforma(s) pendiente(s) de registrar (el Excel estaba abierto al confirmarlas). Ciérralo y reintenta.
-    {% else %}
-    No hay proformas pendientes de registrar en el Excel.
-    {% endif %}
-  </p>
-  <form method="POST" action="{{ url_for('config_reintentar_excel') }}">
-    <button type="submit" class="btn btn-primary">Reintentar pendientes de Excel</button>
-  </form>
-</div>
+  <div class="card" style="padding:28px 24px;">
+    <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 8px;">Datos de empresa</h2>
+    <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
+      Nombre, NIF, dirección, teléfono, condiciones de pago y otros datos que aparecen en los PDFs de proforma.
+    </p>
+    <a href="{{ url_for('config_empresa') }}" class="btn btn-primary">Editar datos de empresa</a>
+  </div>
 
-<div class="card" style="max-width:420px; padding:28px 24px; margin-bottom:20px;">
-  <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 8px;">Integraciones</h2>
-  <p style="font-size:13px; color:var(--stone); margin-bottom:4px;">
-    Clave DeepSeek: <strong>{{ 'configurada' if deepseek_configurada else 'no configurada' }}</strong>
-  </p>
-  <p style="font-size:12px; color:var(--stone); margin-bottom:16px;">
-    Opcional. Mejora el autocompletado de clientes cuando einforma no extrae el nombre o la dirección.
-    Obtén tu clave en <a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>.
-  </p>
-  <form method="POST" action="{{ url_for('config_integraciones') }}">
-    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-      <input type="password" name="deepseek_api_key" placeholder="sk-…  (déjalo vacío para eliminar)"
-             autocomplete="new-password"
-             style="flex:1; min-width:0; font-size:13px; padding:6px 10px; border:1px solid var(--border); border-radius:4px;">
-      <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+  <div class="card" style="padding:28px 24px;">
+    <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 8px;">Numeración</h2>
+    <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
+      Prefijo, formato y contador de la serie de proformas. Permite cambiar <code>PRO</code>
+      por otro prefijo, usar variables como <code>{serie}</code>, <code>{anio}</code>, <code>{n}</code>,
+      y ajustar el número de inicio.
+    </p>
+    <a href="{{ url_for('config_numeracion') }}" class="btn btn-primary">Configurar numeración</a>
+  </div>
+
+  <div class="card" style="padding:28px 24px;">
+    <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 12px;">Excel de Hacienda</h2>
+    <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
+      {% if pendientes_excel %}
+      Hay <strong>{{ pendientes_excel }}</strong> proforma(s) pendiente(s) de registrar (el Excel estaba abierto al confirmarlas). Ciérralo y reintenta.
+      {% else %}
+      No hay proformas pendientes de registrar en el Excel.
+      {% endif %}
+    </p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <form method="POST" action="{{ url_for('config_reintentar_excel') }}">
+        <button type="submit" class="btn btn-primary">Reintentar pendientes</button>
+      </form>
+      <a href="{{ url_for('config_descargar_excel') }}" class="btn btn-secondary">Descargar Excel</a>
     </div>
-  </form>
-</div>
+  </div>
 
-<div class="card" style="max-width:420px; padding:28px 24px;">
-  <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
-    Reinicia el servidor de la aplicación y limpia la caché de PDF (las proformas se
-    regeneran con la plantilla actual al volver a descargarlas). La página se recargará
-    sola cuando esté lista.
-  </p>
-  <button id="reboot-btn" class="btn btn-danger" onclick="doReboot()">Reiniciar servicio</button>
-  <p id="reboot-status" style="display:none; margin-top:16px; font-size:13px; color:var(--stone);"></p>
+  <div class="card" style="padding:28px 24px;">
+    <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 8px;">Integraciones</h2>
+    <p style="font-size:13px; color:var(--stone); margin-bottom:4px;">
+      Clave DeepSeek: <strong>{{ 'configurada' if deepseek_configurada else 'no configurada' }}</strong>
+    </p>
+    <p style="font-size:12px; color:var(--stone); margin-bottom:16px;">
+      Opcional. Mejora el autocompletado de clientes cuando einforma no extrae el nombre o la dirección.
+      Obtén tu clave en <a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>.
+    </p>
+    <form method="POST" action="{{ url_for('config_integraciones') }}">
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+        <input type="password" name="deepseek_api_key" placeholder="sk-…  (déjalo vacío para eliminar)"
+               autocomplete="new-password"
+               style="flex:1; min-width:0; font-size:13px; padding:6px 10px; border:1px solid var(--hairline); border-radius:4px;">
+        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card" style="padding:28px 24px;">
+    <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin:0 0 8px;">Servicio</h2>
+    <p style="font-size:13px; color:var(--stone); margin-bottom:20px;">
+      Reinicia el servidor de la aplicación y limpia la caché de PDF (las proformas se
+      regeneran con la plantilla actual al volver a descargarlas). La página se recargará
+      sola cuando esté lista.
+    </p>
+    <button id="reboot-btn" class="btn btn-danger" onclick="doReboot()">Reiniciar servicio</button>
+    <p id="reboot-status" style="display:none; margin-top:16px; font-size:13px; color:var(--stone);"></p>
+  </div>
+
 </div>
 
 <script>
