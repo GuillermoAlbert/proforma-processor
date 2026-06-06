@@ -147,8 +147,16 @@ def _build_row(conn, proforma):
         ).fetchall()
     }
 
+    from datetime import date as _date
+    fecha_raw = proforma['fecha']
+    try:
+        fecha_obj = _date.fromisoformat(fecha_raw) if fecha_raw else None
+    except (ValueError, TypeError):
+        fecha_obj = None
+
     return {
         'numero': proforma['numero_proforma'],
+        'fecha': fecha_obj,
         'nif': (cliente['nif_cif'] if cliente else '') or '',
         'trimestre': proforma['trimestre'],
         'agencia': (cliente['nombre_agencia'] if cliente else '') or '',
@@ -166,7 +174,8 @@ def _build_row(conn, proforma):
 def _write_row(ws, n, row):
     """Escribe la fila n con valores, fórmulas y formato de moneda."""
     ws.cell(n, 1, n - 1)               # A  Índice (correlativo de datos)
-    # B  Fecha Factura -> manual (Factusol)
+    if row.get('fecha'):
+        ws.cell(n, 2, row['fecha']).number_format = 'DD/MM/YYYY'  # B  Fecha
     ws.cell(n, 3, row['numero'])       # C  Nº Proforma
     ws.cell(n, 4, row['nif'])          # D  NIF/CIF
     ws.cell(n, 5, row['trimestre'])    # E  Tr

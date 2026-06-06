@@ -477,6 +477,35 @@ const ARTICULOS = {{ articulos_json | safe }};
     }
   });
 
+  // ── Actualización en tiempo real del número de proforma ───────────────────
+  (function() {
+    const numInput = document.getElementById('numero_proforma');
+    let autoValor = numInput.value;
+    let userEditado = false;
+
+    numInput.addEventListener('input', () => { userEditado = (numInput.value !== autoValor); });
+
+    async function actualizarNumero() {
+      if (userEditado) return;
+      const clienteId = document.getElementById('cliente_id').value;
+      const fecha = document.getElementById('fecha').value;
+      const params = new URLSearchParams({ fecha });
+      if (clienteId) params.set('cliente_id', clienteId);
+      try {
+        const res = await fetch('/api/peek-numero?' + params);
+        if (!res.ok) return;
+        const json = await res.json();
+        numInput.value = json.numero;
+        autoValor = json.numero;
+      } catch (_) {}
+    }
+
+    document.getElementById('cliente_id').addEventListener('change', actualizarNumero);
+    document.getElementById('fecha').addEventListener('change', actualizarNumero);
+
+    if (document.getElementById('cliente_id').value) actualizarNumero();
+  })();
+
   // ── Modal cliente ─────────────────────────────────────────────────────────
 
   document.getElementById('btn-nuevo-cliente').addEventListener('click', () => {
@@ -527,6 +556,7 @@ const ARTICULOS = {{ articulos_json | safe }};
       }
       if (!inserted) select.add(new Option(json.nombre_agencia, json.id));
       select.value = json.id;
+      select.dispatchEvent(new Event('change'));
       document.getElementById('modal-cliente').style.display = 'none';
     } catch (_) {
       errEl.textContent = 'Error de conexión.';

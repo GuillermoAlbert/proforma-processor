@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 from contextlib import contextmanager
 
@@ -170,6 +171,13 @@ def _migrate_add_referencia(conn):
         conn.execute("ALTER TABLE proformas ADD COLUMN referencia TEXT")
 
 
+def _migrate_add_numero_secuencial(conn):
+    """Añade proformas.numero_secuencial (entero n usado al crear). Idempotente."""
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(proformas)").fetchall()]
+    if 'numero_secuencial' not in cols:
+        conn.execute("ALTER TABLE proformas ADD COLUMN numero_secuencial INTEGER")
+
+
 def init_db():
     with get_db() as conn:
         conn.executescript(SCHEMA)
@@ -178,6 +186,7 @@ def init_db():
         _migrate_lineas_fecha(conn)
         _migrate_add_suplidos_detalle(conn)
         _migrate_add_referencia(conn)
+        _migrate_add_numero_secuencial(conn)
 
 
 _EMPRESA_DEFAULTS = {
@@ -267,18 +276,60 @@ def set_serie_config(prefijo, formato, digitos):
     set_setting('serie.digitos', str(max(1, min(9, int(digitos or 4)))))
 
 
-def _aplicar_formato(cfg, anio, n):
+_SUFIJOS_EMPRESA = re.compile(
+    r'[\s,.-]*\b(S\.?L\.?U?\.?|S\.?A\.?U?\.?|S\.?C\.?P?\.?|S\.?R\.?L\.?|'
+    r'SLU|SAU|SCP|SRL|SLL|SCA|SC|SL|SA)\s*$',
+    re.IGNORECASE
+)
+
+
+def _sanitizar_agencia(nombre):
+    """Convierte un nombre de agencia en una cadena válida para numeración.
+    Elimina sufijos de forma jurídica (SL, SA, S.L., etc.), quita acentos y
+    convierte espacios en guiones."""
+    import unicodedata
+    if not nombre:
+        return ''
+    s = _SUFIJOS_EMPRESA.sub('', nombre.strip())
+    s = unicodedata.normalize('NFD', s)
+    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+    s = re.sub(r'\s+', '-', s.strip())
+    s = re.sub(r'[^A-Za-z0-9-]', '', s)
+    s = re.sub(r'-+', '-', s).strip('-')
+    return s.upper()
+
+
+_MESES_LARGO = ['enero','febrero','marzo','abril','mayo','junio',
+                'julio','agosto','septiembre','octubre','noviembre','diciembre']
+_MESES_CORTO = ['ene','feb','mar','abr','may','jun',
+                'jul','ago','sep','oct','nov','dic']
+
+
+def _aplicar_formato(cfg, anio, n, fecha=None, agencia=None):
+    from datetime import date as _date
+    hoy = fecha or _date.today()
     n_str = str(n).zfill(cfg['digitos'])
+    mes = str(hoy.month).zfill(2)
+    dd = str(hoy.day).zfill(2)
+    trimestre = str((hoy.month - 1) // 3 + 1)
+    mes_largo = _MESES_LARGO[hoy.month - 1]
+    mes_corto = _MESES_CORTO[hoy.month - 1]
+    agencia_str = _sanitizar_agencia(agencia) if agencia else ''
     try:
         return cfg['formato'].format(
             serie=cfg['prefijo'], prefijo=cfg['prefijo'],
             anio=anio, aa=str(anio)[-2:], n=n_str,
+            mes=mes, mm=mes, dd=dd,
+            trimestre=trimestre, tr=trimestre,
+            mes_largo=mes_largo, mes_corto=mes_corto,
+            agencia=agencia_str,
         )
     except (KeyError, ValueError, IndexError):
         return f"{cfg['prefijo']}-{anio}-{n_str}"
 
 
-def siguiente_numero_proforma(anio):
+def siguiente_numero_proforma(anio, fecha=None, agencia=None):
+    """Incrementa el contador y devuelve (numero_formateado, n)."""
     cfg = get_serie_config()
     serie = cfg['prefijo']
     with get_db() as conn:
@@ -294,10 +345,27 @@ def siguiente_numero_proforma(anio):
             "SELECT ultimo_numero FROM series WHERE serie = ? AND anio = ?",
             (serie, anio)
         ).fetchone()['ultimo_numero']
-    return _aplicar_formato(cfg, anio, n)
+    return _aplicar_formato(cfg, anio, n, fecha=fecha, agencia=agencia), n
 
 
-def peek_numero_proforma(anio):
+def recalcular_contador_serie(serie, anio):
+    """Tras borrar una proforma, recalcula ultimo_numero como el MAX(numero_secuencial)
+    de las proformas restantes del mismo año. Evita que el contador siga subiendo
+    cuando la proforma borrada era la última."""
+    with get_db() as conn:
+        row = conn.execute(
+            """SELECT MAX(numero_secuencial) as mx FROM proformas
+               WHERE strftime('%Y', fecha) = ? AND numero_secuencial IS NOT NULL""",
+            (str(anio),)
+        ).fetchone()
+        mx = row['mx'] if row and row['mx'] is not None else 0
+        conn.execute(
+            "UPDATE series SET ultimo_numero = ? WHERE serie = ? AND anio = ?",
+            (mx, serie, anio)
+        )
+
+
+def peek_numero_proforma(anio, fecha=None, agencia=None):
     """Returns what the next number would be without incrementing the counter."""
     cfg = get_serie_config()
     with get_db() as conn:
@@ -306,7 +374,7 @@ def peek_numero_proforma(anio):
             (cfg['prefijo'], anio)
         ).fetchone()
     n = (row['ultimo_numero'] if row else 0) + 1
-    return _aplicar_formato(cfg, anio, n)
+    return _aplicar_formato(cfg, anio, n, fecha=fecha, agencia=agencia)
 
 
 def set_proximo_numero(anio, proximo):

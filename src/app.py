@@ -7,7 +7,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 
 from db import (get_db, init_db, siguiente_numero_proforma, peek_numero_proforma,
                 get_serie_config, set_serie_config, set_proximo_numero,
-                get_empresa_config, set_empresa_config, get_setting, set_setting)
+                get_empresa_config, set_empresa_config, get_setting, set_setting,
+                recalcular_contador_serie)
 from admin_helpers import require_auth
 from pdf import generar_pdf, PDF_DIR
 import excel
@@ -470,7 +471,7 @@ def index():
 @app.route('/proformas')
 @require_auth
 def proformas_lista():
-    sort = request.args.get('sort', 'fecha')
+    sort = request.args.get('sort', 'numero')
     direction = request.args.get('dir', 'desc')
     try:
         page = max(1, int(request.args.get('page', 1) or 1))
@@ -535,9 +536,23 @@ def proformas_nueva():
         except (IndexError, ValueError):
             trimestre = 1
         anio = int(fecha_str.split('-')[0]) if fecha_str else date.today().year
+        try:
+            fecha_obj = date.fromisoformat(fecha_str) if fecha_str else date.today()
+        except ValueError:
+            fecha_obj = date.today()
+        nombre_agencia = None
+        if cliente_id:
+            with get_db() as conn:
+                row = conn.execute(
+                    "SELECT nombre_agencia FROM clientes WHERE id=?", (int(cliente_id),)
+                ).fetchone()
+                if row:
+                    nombre_agencia = row['nombre_agencia']
         numero_form = request.form.get('numero_proforma', '').strip()
-        numero_auto = siguiente_numero_proforma(anio)
-        numero = numero_form if numero_form else numero_auto
+        numero_auto, n_secuencial = siguiente_numero_proforma(anio, fecha=fecha_obj, agencia=nombre_agencia)
+        cfg_serie = get_serie_config()
+        usa_agencia = '{agencia}' in cfg_serie.get('formato', '')
+        numero = numero_auto if usa_agencia else (numero_form or numero_auto)
         if numero != numero_auto:
             with get_db() as conn:
                 if conn.execute(
@@ -550,10 +565,12 @@ def proformas_nueva():
             conn.execute(
                 """INSERT INTO proformas
                    (numero_proforma, fecha, cliente_id, cuenta_id, estado, base, iva_total,
-                    suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre, referencia)
-                   VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre,
+                    referencia, numero_secuencial)
+                   VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (numero, fecha_str, cliente_id, cuenta_id, base, iva_total,
-                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre, referencia)
+                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre,
+                 referencia, n_secuencial)
             )
             proforma_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             _insertar_guias(conn, proforma_id, guia_ids)
@@ -764,6 +781,7 @@ def proformas_eliminar(id):
             flash('No se puede eliminar una proforma confirmada (ya registrada en Hacienda).', 'error')
             return redirect(url_for('proformas_detalle', id=id))
         ruta_pdf = proforma['ruta_pdf']
+        fecha_proforma = proforma['fecha']
         conn.execute("DELETE FROM proforma_lineas WHERE proforma_id = ?", (id,))
         conn.execute("DELETE FROM proforma_guias WHERE proforma_id = ?", (id,))
         conn.execute("DELETE FROM proformas WHERE id = ?", (id,))
@@ -772,6 +790,11 @@ def proformas_eliminar(id):
             os.remove(ruta_pdf)
         except OSError:
             pass
+    try:
+        anio_borrada = int(fecha_proforma.split('-')[0])
+        recalcular_contador_serie(get_serie_config()['prefijo'], anio_borrada)
+    except Exception:
+        pass
     flash('Proforma eliminada correctamente.', 'success')
     return redirect(url_for('proformas_lista'))
 
@@ -1009,6 +1032,30 @@ def config_numeracion():
         ejemplo=peek_numero_proforma(anio_actual),
         proximo_n=proximo_n,
     )
+
+
+@app.route('/api/peek-numero')
+@require_auth
+def api_peek_numero():
+    """Devuelve el siguiente número de proforma sin incrementar el contador.
+    Parámetros GET: fecha (YYYY-MM-DD), cliente_id (int)."""
+    fecha_str = request.args.get('fecha', str(date.today()))
+    cliente_id = request.args.get('cliente_id') or None
+    try:
+        fecha_obj = date.fromisoformat(fecha_str)
+    except ValueError:
+        fecha_obj = date.today()
+    anio = fecha_obj.year
+    nombre_agencia = None
+    if cliente_id:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT nombre_agencia FROM clientes WHERE id=?", (int(cliente_id),)
+            ).fetchone()
+            if row:
+                nombre_agencia = row['nombre_agencia']
+    numero = peek_numero_proforma(anio, fecha=fecha_obj, agencia=nombre_agencia)
+    return jsonify({'numero': numero})
 
 
 @app.route('/ayuda')
