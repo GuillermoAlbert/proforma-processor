@@ -1064,6 +1064,9 @@ def ayuda():
     return render_template('ayuda.html')
 
 
+from api_orquestador import bp as bp_api_orq
+app.register_blueprint(bp_api_orq)
+
 if __name__ == '__main__':
     init_db()
     excel.drain_pending()  # registra en el Excel cualquier proforma que quedara en cola
