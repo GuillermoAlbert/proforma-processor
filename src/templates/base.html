@@ -116,6 +116,24 @@
     .btn-danger    { background: #b91c1c; color: #fff; }
     .btn-sm { padding: 4px 10px; font-size: 12px; }
 
+    /* Diálogo modal (marcar cobrada) */
+    dialog.dlg {
+      border: none;
+      border-radius: 12px;
+      padding: 0;
+      width: min(360px, 92vw);
+      box-shadow: 0 20px 60px rgba(15, 30, 55, 0.28);
+      color: var(--ink);
+    }
+    dialog.dlg::backdrop { background: rgba(15, 30, 55, 0.45); }
+    .dlg-body { padding: 22px 22px 18px; }
+    .dlg-title { font-family: var(--font-head); font-size: 17px; color: var(--navy); margin: 0 0 4px; }
+    .dlg-sub { font-size: 13px; color: var(--stone); margin: 0 0 16px; font-weight: 600; }
+    .dlg-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; color: var(--stone); text-transform: uppercase; letter-spacing: 0.05em; }
+    .dlg-field input[type=date] { padding: 9px 11px; font-size: 14px; font-family: var(--font-ui); border: 1px solid var(--hairline); border-radius: 8px; color: var(--ink); }
+    .dlg-hint { font-size: 12px; color: var(--stone); margin: 8px 0 0; }
+    .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
     /* Cards */
     .card {
       background: #fff;

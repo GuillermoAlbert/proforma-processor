@@ -1,0 +1,37 @@
+{# Modal único de "Marcar cobrada", reutilizado desde lista y detalle.
+   Los botones que lo abren llevan: data-cobrar-url="..." data-num="..."
+   Requiere la variable `hoy` (fecha ISO) en el contexto. #}
+<dialog id="dlg-cobrar" class="dlg">
+  <form method="POST" id="dlg-cobrar-form" class="dlg-body">
+    <h2 class="dlg-title">Marcar cobrada</h2>
+    <p id="dlg-cobrar-num" class="dlg-sub"></p>
+    <label class="dlg-field">
+      <span>Cobrada el</span>
+      <input type="date" name="fecha_cobro" id="dlg-cobrar-fecha" max="{{ hoy }}" required>
+    </label>
+    <p class="dlg-hint">Por defecto hoy. Cámbiala si te pagaron otro día.</p>
+    <div class="dlg-actions">
+      <button type="button" class="btn btn-secondary" data-dlg-cancel>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Confirmar</button>
+    </div>
+  </form>
+</dialog>
+<script>
+(function () {
+  const dlg   = document.getElementById('dlg-cobrar');
+  const form  = document.getElementById('dlg-cobrar-form');
+  const fecha = document.getElementById('dlg-cobrar-fecha');
+  const numEl = document.getElementById('dlg-cobrar-num');
+  const hoy   = "{{ hoy }}";
+  document.querySelectorAll('[data-cobrar-url]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      form.action      = btn.dataset.cobrarUrl;
+      fecha.value      = hoy;
+      numEl.textContent = btn.dataset.num || '';
+      dlg.showModal();
+    });
+  });
+  dlg.querySelector('[data-dlg-cancel]').addEventListener('click', function () { dlg.close(); });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+})();
+</script>

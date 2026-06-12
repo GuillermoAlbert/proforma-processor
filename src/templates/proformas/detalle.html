@@ -21,13 +21,9 @@
       <button type="submit" class="btn btn-danger">Eliminar</button>
     </form>
     {% elif proforma.estado == 'enviada' %}
-    <form method="POST" action="{{ url_for('proformas_cobrar', id=proforma.id) }}"
-          style="display:flex; align-items:center; gap:6px;">
-      <label style="font-size:12px; color:var(--stone);">Cobrada el</label>
-      <input type="date" name="fecha_cobro" value="{{ hoy }}" max="{{ hoy }}"
-             style="padding:5px 8px; font-size:13px; border:1px solid var(--hairline); border-radius:6px;">
-      <button type="submit" class="btn btn-primary">Marcar cobrada</button>
-    </form>
+    <button type="button" class="btn btn-primary"
+            data-cobrar-url="{{ url_for('proformas_cobrar', id=proforma.id) }}"
+            data-num="{{ proforma.numero_proforma }}">Marcar cobrada</button>
     <form method="POST" action="{{ url_for('proformas_desenviar', id=proforma.id) }}" style="display:contents;"
           onsubmit="return confirm('¿Deshacer el envío de {{ proforma.numero_proforma }}?\n\nSu fila se eliminará del Excel de Hacienda y la proforma volverá a borrador para que puedas editarla y volver a enviarla.');">
       <button type="submit" class="btn btn-secondary">Deshacer envío</button>
@@ -163,4 +159,6 @@
     </table>
   </div>
 </div>
+
+{% include '_modal_cobrar.html' %}
 {% endblock %}

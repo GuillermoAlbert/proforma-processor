@@ -511,6 +511,7 @@ def proformas_lista():
         sort=sort,
         direction=direction,
         total=total,
+        hoy=date.today().isoformat(),
     )
 
 
