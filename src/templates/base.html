@@ -124,6 +124,11 @@
       width: min(360px, 92vw);
       box-shadow: 0 20px 60px rgba(15, 30, 55, 0.28);
       color: var(--ink);
+      /* Centrado: el reset global pone margin:0, así que lo forzamos aquí */
+      position: fixed;
+      inset: 0;
+      margin: auto;
+      height: fit-content;
     }
     dialog.dlg::backdrop { background: rgba(15, 30, 55, 0.45); }
     .dlg-body { padding: 22px 22px 18px; }

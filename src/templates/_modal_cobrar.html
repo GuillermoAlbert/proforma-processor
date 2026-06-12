@@ -32,6 +32,7 @@
     });
   });
   dlg.querySelector('[data-dlg-cancel]').addEventListener('click', function () { dlg.close(); });
-  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+  // No se cierra al clicar fuera (el selector de fecha nativo dispara clics
+  // que cerraban el popup); solo Cancelar/Confirmar o Esc lo cierran.
 })();
 </script>
