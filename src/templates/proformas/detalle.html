@@ -12,18 +12,30 @@
   <div style="display:flex; gap:8px;">
     <a href="{{ url_for('proformas_pdf', id=proforma.id) }}" class="btn btn-terra">Descargar PDF</a>
     <a href="{{ url_for('proformas_editar', id=proforma.id) }}" class="btn btn-secondary">Editar</a>
-    {% if proforma.estado != 'confirmada' %}
-    <form method="POST" action="{{ url_for('proformas_confirmar', id=proforma.id) }}" style="display:contents;">
-      <button type="submit" class="btn btn-primary">Confirmar y registrar en Excel</button>
+    {% if proforma.estado == 'borrador' %}
+    <form method="POST" action="{{ url_for('proformas_enviar', id=proforma.id) }}" style="display:contents;">
+      <button type="submit" class="btn btn-primary">Marcar enviada y registrar en Excel</button>
     </form>
     <form method="POST" action="{{ url_for('proformas_eliminar', id=proforma.id) }}" style="display:contents;"
           onsubmit="return confirm('¿Eliminar {{ proforma.numero_proforma }}? Esta acción no se puede deshacer.');">
       <button type="submit" class="btn btn-danger">Eliminar</button>
     </form>
-    {% else %}
-    <form method="POST" action="{{ url_for('proformas_desconfirmar', id=proforma.id) }}" style="display:contents;"
-          onsubmit="return confirm('¿Desconfirmar {{ proforma.numero_proforma }}?\n\nSu fila se eliminará del Excel de Hacienda y la proforma volverá a estado borrador para que puedas editarla y volver a confirmarla.');">
-      <button type="submit" class="btn btn-secondary">Desconfirmar</button>
+    {% elif proforma.estado == 'enviada' %}
+    <form method="POST" action="{{ url_for('proformas_cobrar', id=proforma.id) }}"
+          style="display:flex; align-items:center; gap:6px;">
+      <label style="font-size:12px; color:var(--stone);">Cobrada el</label>
+      <input type="date" name="fecha_cobro" value="{{ hoy }}" max="{{ hoy }}"
+             style="padding:5px 8px; font-size:13px; border:1px solid var(--hairline); border-radius:6px;">
+      <button type="submit" class="btn btn-primary">Marcar cobrada</button>
+    </form>
+    <form method="POST" action="{{ url_for('proformas_desenviar', id=proforma.id) }}" style="display:contents;"
+          onsubmit="return confirm('¿Deshacer el envío de {{ proforma.numero_proforma }}?\n\nSu fila se eliminará del Excel de Hacienda y la proforma volverá a borrador para que puedas editarla y volver a enviarla.');">
+      <button type="submit" class="btn btn-secondary">Deshacer envío</button>
+    </form>
+    {% elif proforma.estado == 'cobrada' %}
+    <form method="POST" action="{{ url_for('proformas_descobrar', id=proforma.id) }}" style="display:contents;"
+          onsubmit="return confirm('¿Deshacer el cobro de {{ proforma.numero_proforma }}?\n\nSe borrará la fecha de la columna «Cobrado» del Excel y volverá a estado «enviada».');">
+      <button type="submit" class="btn btn-secondary">Deshacer cobro</button>
     </form>
     {% endif %}
     <a href="{{ url_for('proformas_lista') }}" class="btn btn-secondary">Volver</a>
@@ -37,6 +49,9 @@
     <table style="font-size:13px; width:100%; border-collapse:collapse;">
       <tr><td style="padding:4px 0; color:var(--stone); width:120px;">Fecha</td><td style="padding:4px 0; font-weight:500;">{{ proforma.fecha }}</td></tr>
       <tr><td style="padding:4px 0; color:var(--stone);">Trimestre</td><td style="padding:4px 0;">T{{ proforma.trimestre }}</td></tr>
+      {% if proforma.fecha_cobro %}
+      <tr><td style="padding:4px 0; color:var(--stone);">Cobrada el</td><td style="padding:4px 0; font-weight:600; color:#065F46;">{{ proforma.fecha_cobro }}</td></tr>
+      {% endif %}
       <tr><td style="padding:4px 0; color:var(--stone);">Cuenta de cobro</td><td style="padding:4px 0;">{% if cuenta %}{{ cuenta.nombre }}{% if cuenta.iban %} <span style="color:var(--stone);">({{ cuenta.iban }})</span>{% endif %}{% else %}<span style="color:#888;">Valores por defecto</span>{% endif %}</td></tr>
       {% if proforma.referencia %}
       <tr><td style="padding:4px 0; color:var(--stone);">Referencia</td><td style="padding:4px 0; font-weight:500;">{{ proforma.referencia }}</td></tr>

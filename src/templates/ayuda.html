@@ -126,6 +126,8 @@
     font-weight: 600;
   }
   .b-borrador   { background: #E5E7EB; color: #374151; }
+  .b-enviada    { background: #E3E8F0; color: #1f3a5f; }
+  .b-cobrada    { background: #D1FAE5; color: #065F46; }
   .b-confirmada { background: #D1FAE5; color: #065F46; }
   .section-title {
     font-family: var(--font-head);
@@ -140,15 +142,16 @@
 </div>
 
 <!-- Flujo básico -->
-<h2 class="section-title">Cómo crear y confirmar una proforma</h2>
+<h2 class="section-title">Cómo crear, enviar y cobrar una proforma</h2>
 <div class="help-card" style="max-width:680px; margin-bottom:32px;">
   <ol class="steps">
     <li><span><strong>Añade el cliente</strong> en «Clientes» si es la primera vez. Solo necesitas el nombre y el NIF/CIF; el resto es opcional.</span></li>
     <li><span>En «Proformas», pulsa <strong>Nueva proforma</strong>. Selecciona el cliente, la fecha y la cuenta de cobro.</span></li>
     <li><span>Añade las <strong>líneas</strong> (artículo o texto libre, cantidad, precio, IVA). Los totales se calculan solos.</span></li>
     <li><span>Guarda como <span class="badge-inline b-borrador">borrador</span>. Puedes editarla o descargar el PDF para revisarla antes de enviarla.</span></li>
-    <li><span>Cuando esté lista, pulsa <strong>Confirmar y registrar en Excel</strong>. La proforma pasa a <span class="badge-inline b-confirmada">confirmada</span> y se anota automáticamente en el fichero de Hacienda.</span></li>
-    <li><span>Si necesitas corregirla después, pulsa <strong>Desconfirmar</strong> (en el detalle o en la pantalla de edición). La fila del Excel se elimina y la proforma vuelve a <span class="badge-inline b-borrador">borrador</span>. Edita lo que necesites y vuelve a confirmar: se escribirá una fila nueva y actualizada en el Excel.</span></li>
+    <li><span>Cuando esté lista, pulsa <strong>Marcar enviada y registrar en Excel</strong>. La proforma pasa a <span class="badge-inline b-enviada">enviada</span> y se anota automáticamente en el fichero de Hacienda.</span></li>
+    <li><span>Cuando el cliente pague, pulsa <strong>Marcar cobrada</strong> en el detalle. Te propone la <strong>fecha de hoy</strong>, pero puedes cambiarla (por ejemplo si te pagaron ayer) antes de confirmar. La proforma pasa a <span class="badge-inline b-cobrada">cobrada</span> y la fecha se anota en la columna «Cobrado» del Excel.</span></li>
+    <li><span>Si necesitas corregirla después, pulsa <strong>Deshacer envío</strong> (en el detalle o en la pantalla de edición). La fila del Excel se elimina y la proforma vuelve a <span class="badge-inline b-borrador">borrador</span>. Si ya estaba <span class="badge-inline b-cobrada">cobrada</span>, primero pulsa <strong>Deshacer cobro</strong>. Edita lo que necesites y vuelve a enviar: se escribirá una fila nueva y actualizada en el Excel.</span></li>
   </ol>
 </div>
 
@@ -227,17 +230,17 @@
   <h2>Preguntas frecuentes</h2>
 
   <details>
-    <summary>¿Puedo editar una proforma confirmada?</summary>
+    <summary>¿Puedo editar una proforma enviada?</summary>
     <div class="faq-body">
-      <p>Sí, usando el botón <strong>Desconfirmar</strong>. Aparece tanto en la pantalla de detalle como en la pantalla de edición (cuando la proforma está <span class="badge-inline b-confirmada">confirmada</span>).</p>
-      <p>Al desconfirmar ocurren tres cosas a la vez:</p>
+      <p>Sí, usando el botón <strong>Deshacer envío</strong>. Aparece tanto en la pantalla de detalle como en la de edición (cuando la proforma está <span class="badge-inline b-enviada">enviada</span>). Si ya está <span class="badge-inline b-cobrada">cobrada</span>, primero pulsa <strong>Deshacer cobro</strong>.</p>
+      <p>Al deshacer el envío ocurren tres cosas a la vez:</p>
       <ul>
         <li>La fila correspondiente se <strong>elimina del Excel de Hacienda</strong>.</li>
         <li>La proforma vuelve a estado <span class="badge-inline b-borrador">borrador</span>.</li>
         <li>Todos los campos se desbloquean para edición.</li>
       </ul>
-      <p>Una vez editada, pulsa <strong>Confirmar y registrar en Excel</strong>. Se escribirá una fila nueva y actualizada en el fichero.</p>
-      <p><em>Nota: si el Excel estaba abierto en el momento de desconfirmar y no se pudo eliminar la fila, la app te avisa. En ese caso, elimina manualmente la fila antigua antes de volver a confirmar para evitar duplicados.</em></p>
+      <p>Una vez editada, pulsa <strong>Marcar enviada y registrar en Excel</strong>. Se escribirá una fila nueva y actualizada en el fichero.</p>
+      <p><em>Nota: si el Excel estaba abierto al deshacer el envío y no se pudo eliminar la fila, la app te avisa. En ese caso, elimina manualmente la fila antigua antes de volver a enviar para evitar duplicados.</em></p>
     </div>
   </details>
 

@@ -146,9 +146,24 @@
       vertical-align: middle;
     }
     table.data-table tbody td.nowrap { white-space: nowrap; }
+    /* Para celdas con códigos largos (p. ej. número de proforma descriptivo):
+       rompe el texto en vez de ensanchar la tabla y provocar scroll horizontal. */
+    table.data-table tbody td.break { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
     table.data-table tbody tr:last-child td { border-bottom: none; }
     table.data-table tbody tr:hover { background: var(--sand); }
-    .td-actions { display: flex; gap: 6px; flex-wrap: nowrap; align-items: center; }
+    /* flex-wrap: wrap permite que los botones de acción salten de línea en
+       pantallas estrechas en lugar de forzar el ancho de la tabla. */
+    .td-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    /* Variante en rejilla de 2 columnas para listas con varias acciones
+       (proformas: PDF/Editar/Confirmar/Eliminar). Todos los botones quedan
+       del mismo ancho y alineados en una cuadrícula 2×2. */
+    .td-actions.actions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      max-width: 210px;
+    }
+    .td-actions.actions-grid .btn { width: 100%; justify-content: center; }
 
     /* Forms */
     .form-card { max-width: 640px; }
@@ -263,6 +278,7 @@
     }
     .badge-borrador   { background: #E5E7EB; color: #374151; }
     .badge-enviada    { background: var(--navy-pale); color: var(--navy); }
+    .badge-cobrada    { background: #D1FAE5; color: #065F46; }
     .badge-confirmada { background: #D1FAE5; color: #065F46; }
   </style>
 </head>

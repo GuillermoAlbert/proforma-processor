@@ -645,6 +645,7 @@ def proformas_detalle(id):
         guias=guias,
         lineas=lineas,
         suplidos_items=suplidos_items,
+        hoy=date.today().isoformat(),
     )
 
 
@@ -777,8 +778,8 @@ def proformas_eliminar(id):
         if proforma is None:
             flash('Proforma no encontrada.', 'error')
             return redirect(url_for('proformas_lista'))
-        if proforma['estado'] == 'confirmada':
-            flash('No se puede eliminar una proforma confirmada (ya registrada en Hacienda).', 'error')
+        if proforma['estado'] != 'borrador':
+            flash('No se puede eliminar una proforma enviada o cobrada (ya registrada en Hacienda). Deshaz el envío primero.', 'error')
             return redirect(url_for('proformas_detalle', id=id))
         ruta_pdf = proforma['ruta_pdf']
         fecha_proforma = proforma['fecha']
@@ -799,41 +800,43 @@ def proformas_eliminar(id):
     return redirect(url_for('proformas_lista'))
 
 
-@app.route('/proformas/<int:id>/confirmar', methods=['POST'])
+@app.route('/proformas/<int:id>/enviar', methods=['POST'])
 @require_auth
-def proformas_confirmar(id):
+def proformas_enviar(id):
+    """borrador → enviada: marca la proforma como enviada y la registra en el Excel."""
     with get_db() as conn:
         proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
         if proforma is None:
             flash('Proforma no encontrada.', 'error')
             return redirect(url_for('proformas_lista'))
-        if proforma['estado'] != 'confirmada':
-            conn.execute("UPDATE proformas SET estado = 'confirmada' WHERE id = ?", (id,))
+        if proforma['estado'] == 'borrador':
+            conn.execute("UPDATE proformas SET estado = 'enviada' WHERE id = ?", (id,))
 
     resultado = excel.registrar_proforma(id)
     if resultado == excel.OK:
         pendientes = excel.drain_pending()  # el Excel está libre: aprovecha y vacía la cola
         extra = f' (+{pendientes} pendiente{"s" if pendientes != 1 else ""})' if pendientes else ''
-        flash(f'Proforma confirmada y registrada en el Excel de Hacienda{extra}.', 'success')
+        flash(f'Proforma enviada y registrada en el Excel de Hacienda{extra}.', 'success')
     elif resultado == excel.YA_REGISTRADA:
-        flash('Proforma confirmada. Ya estaba registrada en el Excel.', 'success')
+        flash('Proforma enviada. Ya estaba registrada en el Excel.', 'success')
     elif resultado == excel.EN_COLA:
-        flash('Proforma confirmada. El Excel está abierto; se registrará automáticamente al cerrarlo.', 'success')
+        flash('Proforma enviada. El Excel está abierto; se registrará automáticamente al cerrarlo.', 'success')
     else:
-        flash('Proforma confirmada, pero no se pudo registrar en el Excel.', 'error')
+        flash('Proforma enviada, pero no se pudo registrar en el Excel.', 'error')
     return redirect(url_for('proformas_detalle', id=id))
 
 
-@app.route('/proformas/<int:id>/desconfirmar', methods=['POST'])
+@app.route('/proformas/<int:id>/desenviar', methods=['POST'])
 @require_auth
-def proformas_desconfirmar(id):
+def proformas_desenviar(id):
+    """enviada → borrador: deshace el envío y elimina la fila del Excel."""
     with get_db() as conn:
         proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
         if proforma is None:
             flash('Proforma no encontrada.', 'error')
             return redirect(url_for('proformas_lista'))
-        if proforma['estado'] != 'confirmada':
-            flash('La proforma no está confirmada.', 'error')
+        if proforma['estado'] != 'enviada':
+            flash('Solo se puede deshacer el envío de una proforma en estado «enviada». Si está cobrada, deshaz el cobro primero.', 'error')
             return redirect(url_for('proformas_detalle', id=id))
 
         numero = proforma['numero_proforma']
@@ -843,14 +846,82 @@ def proformas_desconfirmar(id):
         )
 
     if resultado is True:
-        flash('Proforma desconfirmada y fila eliminada del Excel de Hacienda. Ya puedes editarla y volver a confirmarla.', 'success')
+        flash('Envío deshecho y fila eliminada del Excel de Hacienda. Ya puedes editarla y volver a enviarla.', 'success')
     elif resultado is None:
-        flash('Proforma desconfirmada, pero el Excel estaba bloqueado y no se pudo eliminar la fila. Elimínala manualmente antes de re-confirmar.', 'warning')
+        flash('Envío deshecho, pero el Excel estaba bloqueado y no se pudo eliminar la fila. Elimínala manualmente antes de re-enviar.', 'warning')
     else:
-        flash('Proforma desconfirmada. No se encontró su fila en el Excel (puede que no estuviera registrada).', 'success')
+        flash('Envío deshecho. No se encontró su fila en el Excel (puede que no estuviera registrada).', 'success')
 
     if request.form.get('next') == 'edit':
         return redirect(url_for('proformas_editar', id=id))
+    return redirect(url_for('proformas_detalle', id=id))
+
+
+@app.route('/proformas/<int:id>/cobrar', methods=['POST'])
+@require_auth
+def proformas_cobrar(id):
+    """enviada → cobrada: registra la fecha de cobro en BD y en la columna «Cobrado»
+    del Excel. La fecha llega del formulario (por defecto hoy, editable)."""
+    fecha_cobro = (request.form.get('fecha_cobro') or '').strip() or date.today().isoformat()
+    try:
+        date.fromisoformat(fecha_cobro)
+    except ValueError:
+        flash('Fecha de cobro no válida.', 'error')
+        return redirect(url_for('proformas_detalle', id=id))
+
+    with get_db() as conn:
+        proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
+        if proforma is None:
+            flash('Proforma no encontrada.', 'error')
+            return redirect(url_for('proformas_lista'))
+        if proforma['estado'] != 'enviada':
+            flash('Solo se puede marcar como cobrada una proforma ya enviada.', 'error')
+            return redirect(url_for('proformas_detalle', id=id))
+        numero = proforma['numero_proforma']
+
+    resultado = excel.marcar_cobrado_excel(numero, fecha_cobro)
+    if resultado is None:
+        flash('El Excel está abierto/bloqueado; no se pudo escribir la fecha de cobro. Ciérralo e inténtalo de nuevo.', 'error')
+        return redirect(url_for('proformas_detalle', id=id))
+
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE proformas SET estado = 'cobrada', cobrado = 1, fecha_cobro = ? WHERE id = ?",
+            (fecha_cobro, id)
+        )
+
+    if resultado is True:
+        flash(f'Proforma marcada como cobrada el {fecha_cobro} y anotada en el Excel.', 'success')
+    else:
+        flash(f'Proforma marcada como cobrada el {fecha_cobro}. No se encontró su fila en el Excel para anotar la fecha.', 'warning')
+    return redirect(url_for('proformas_detalle', id=id))
+
+
+@app.route('/proformas/<int:id>/descobrar', methods=['POST'])
+@require_auth
+def proformas_descobrar(id):
+    """cobrada → enviada: deshace el cobro y vacía la columna «Cobrado» del Excel."""
+    with get_db() as conn:
+        proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
+        if proforma is None:
+            flash('Proforma no encontrada.', 'error')
+            return redirect(url_for('proformas_lista'))
+        if proforma['estado'] != 'cobrada':
+            flash('La proforma no está cobrada.', 'error')
+            return redirect(url_for('proformas_detalle', id=id))
+        numero = proforma['numero_proforma']
+
+    resultado = excel.desmarcar_cobrado_excel(numero)
+    if resultado is None:
+        flash('El Excel está abierto/bloqueado; no se pudo borrar la fecha de cobro. Ciérralo e inténtalo de nuevo.', 'error')
+        return redirect(url_for('proformas_detalle', id=id))
+
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE proformas SET estado = 'enviada', cobrado = 0, fecha_cobro = NULL WHERE id = ?",
+            (id,)
+        )
+    flash('Cobro deshecho. La proforma vuelve a estado «enviada».', 'success')
     return redirect(url_for('proformas_detalle', id=id))
 
 

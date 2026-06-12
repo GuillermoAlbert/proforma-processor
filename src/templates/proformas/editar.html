@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Editar {{ proforma.numero_proforma }}{% endblock %}
 {% block content %}
-{% set locked = proforma.estado == 'confirmada' %}
+{% set locked = proforma.estado != 'borrador' %}
 <script>
 const ARTICULOS = {{ articulos_json | safe }};
 const LOCKED = {{ 'true' if locked else 'false' }};
@@ -25,11 +25,15 @@ const LOCKED = {{ 'true' if locked else 'false' }};
   </div>
   <div style="display:flex; gap:8px;">
     {% if locked %}
-    <form method="POST" action="{{ url_for('proformas_desconfirmar', id=proforma.id) }}" style="display:contents;"
-          onsubmit="return confirm('¿Desconfirmar {{ proforma.numero_proforma }}?\n\nSu fila se eliminará del Excel de Hacienda y la proforma volverá a borrador para que puedas editarla y volver a confirmarla.');">
-      <input type="hidden" name="next" value="edit">
-      <button type="submit" class="btn btn-primary">Desconfirmar para editar</button>
-    </form>
+      {% if proforma.estado == 'enviada' %}
+      <form method="POST" action="{{ url_for('proformas_desenviar', id=proforma.id) }}" style="display:contents;"
+            onsubmit="return confirm('¿Deshacer el envío de {{ proforma.numero_proforma }}?\n\nSu fila se eliminará del Excel de Hacienda y la proforma volverá a borrador para que puedas editarla y volver a enviarla.');">
+        <input type="hidden" name="next" value="edit">
+        <button type="submit" class="btn btn-primary">Deshacer envío para editar</button>
+      </form>
+      {% else %}
+      <a href="{{ url_for('proformas_detalle', id=proforma.id) }}" class="btn btn-secondary">Deshaz el cobro primero</a>
+      {% endif %}
     {% endif %}
     <a href="{{ url_for('proformas_detalle', id=proforma.id) }}" class="btn btn-secondary">Cancelar</a>
   </div>
@@ -38,7 +42,11 @@ const LOCKED = {{ 'true' if locked else 'false' }};
 {% if locked %}
 <div style="background:#fef9ec; border:1px solid #e9c84a; border-radius:8px; padding:12px 16px; margin-bottom:18px; display:flex; align-items:center; gap:10px; font-size:13px; color:#7a5c00;">
   <span style="font-size:16px;">🔒</span>
-  <span>Esta proforma está <strong>confirmada</strong> y registrada en el Excel de Hacienda. Los campos están bloqueados. Pulsa <strong>Desconfirmar para editar</strong> para volver a borrador, hacer cambios y volver a confirmar.</span>
+  {% if proforma.estado == 'enviada' %}
+  <span>Esta proforma está <strong>enviada</strong> y registrada en el Excel de Hacienda. Los campos están bloqueados. Pulsa <strong>Deshacer envío para editar</strong> para volver a borrador, hacer cambios y volver a enviar.</span>
+  {% else %}
+  <span>Esta proforma está <strong>cobrada</strong>. Para editarla, primero <strong>deshaz el cobro</strong> y luego el envío desde la pantalla de detalle.</span>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -53,7 +61,7 @@ const LOCKED = {{ 'true' if locked else 'false' }};
            required>
   </div>
   {% if proforma.estado != 'borrador' %}
-  <p style="margin:18px 0 0; font-size:12px; color:var(--stone);">El número no es editable una vez confirmada la proforma.</p>
+  <p style="margin:18px 0 0; font-size:12px; color:var(--stone);">El número no es editable una vez enviada la proforma.</p>
   {% else %}
   <p style="margin:18px 0 0; font-size:12px; color:var(--stone);">Puedes cambiar el número mientras la proforma esté en borrador.</p>
   {% endif %}
@@ -330,11 +338,15 @@ const LOCKED = {{ 'true' if locked else 'false' }};
     </table>
     <div style="padding:14px;">
       {% if locked %}
-      <form method="POST" action="{{ url_for('proformas_desconfirmar', id=proforma.id) }}"
-            onsubmit="return confirm('¿Desconfirmar {{ proforma.numero_proforma }}?\n\nSu fila se eliminará del Excel de Hacienda y la proforma volverá a borrador.');">
-        <input type="hidden" name="next" value="edit">
-        <button type="submit" class="btn btn-primary" style="width:100%;">Desconfirmar para editar</button>
-      </form>
+        {% if proforma.estado == 'enviada' %}
+        <form method="POST" action="{{ url_for('proformas_desenviar', id=proforma.id) }}"
+              onsubmit="return confirm('¿Deshacer el envío de {{ proforma.numero_proforma }}?\n\nSu fila se eliminará del Excel de Hacienda y la proforma volverá a borrador.');">
+          <input type="hidden" name="next" value="edit">
+          <button type="submit" class="btn btn-primary" style="width:100%;">Deshacer envío para editar</button>
+        </form>
+        {% else %}
+        <a href="{{ url_for('proformas_detalle', id=proforma.id) }}" class="btn btn-secondary" style="width:100%; justify-content:center;">Deshaz el cobro primero</a>
+        {% endif %}
       {% else %}
       <button type="submit" class="btn btn-primary" style="width:100%;">Guardar cambios</button>
       {% endif %}
@@ -572,7 +584,7 @@ const LOCKED = {{ 'true' if locked else 'false' }};
     } catch (_) { errEl.textContent = 'Error de conexión.'; errEl.style.display = 'block'; }
   });
 
-  // ── Modo bloqueado (confirmada) ───────────────────────────────────────────
+  // ── Modo bloqueado (enviada o cobrada) ────────────────────────────────────
   if (LOCKED) {
     document.querySelectorAll('#form-proforma input:not([type="hidden"]), #form-proforma select, #form-proforma textarea').forEach(el => { el.disabled = true; });
     ['btn-add-line', 'btn-add-suplido', 'btn-nuevo-cliente'].forEach(id => {

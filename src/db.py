@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS proformas (
     numero_factura TEXT,
     trimestre INTEGER,
     cobrado INTEGER DEFAULT 0,
+    fecha_cobro TEXT,
     exportada_excel INTEGER DEFAULT 0,
     exportada_factusol INTEGER DEFAULT 0
 );
@@ -178,6 +179,20 @@ def _migrate_add_numero_secuencial(conn):
         conn.execute("ALTER TABLE proformas ADD COLUMN numero_secuencial INTEGER")
 
 
+def _migrate_add_fecha_cobro(conn):
+    """Añade proformas.fecha_cobro (TEXT ISO, fecha de cobro real) si no existe. Idempotente."""
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(proformas)").fetchall()]
+    if 'fecha_cobro' not in cols:
+        conn.execute("ALTER TABLE proformas ADD COLUMN fecha_cobro TEXT")
+
+
+def _migrate_estado_confirmada_a_enviada(conn):
+    """Modelo de 3 estados (borrador → enviada → cobrada): el antiguo
+    'confirmada' pasa a llamarse 'enviada' (misma lógica, registrada en Excel).
+    Idempotente."""
+    conn.execute("UPDATE proformas SET estado = 'enviada' WHERE estado = 'confirmada'")
+
+
 def init_db():
     with get_db() as conn:
         conn.executescript(SCHEMA)
@@ -187,6 +202,8 @@ def init_db():
         _migrate_add_suplidos_detalle(conn)
         _migrate_add_referencia(conn)
         _migrate_add_numero_secuencial(conn)
+        _migrate_add_fecha_cobro(conn)
+        _migrate_estado_confirmada_a_enviada(conn)
 
 
 _EMPRESA_DEFAULTS = {

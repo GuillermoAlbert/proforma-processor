@@ -142,7 +142,7 @@ Ver propuesta completa para el DDL detallado. Resumen:
 | **Fase 1** | ✅ **implementada** (2026-06-04) | BD + catálogo (clientes, artículos, guías) + crear proforma + generar PDF con WeasyPrint |
 | **Fase 2** | ✅ **implementada** (2026-06-05) | Registro automático en Excel Hacienda (`facturas-emitidas.xlsx`) al confirmar una proforma (botón «Confirmar y registrar en Excel»). Patrón robusto: backup + reintentos + cola si el Excel está abierto. Detalle: [`DOCS_ETL_PROFORMAS/fase2-excel-hacienda.md`](./DOCS_ETL_PROFORMAS/fase2-excel-hacienda.md). |
 | **Fase 3** | ⏳ bloqueada | Export fichero importación Factusol. **Requiere** subir `factusol-importacion.pdf` a `DOCS_ETL_PROFORMAS/`. Campo `exportada_factusol` ya existe en el schema. |
-| **Fase 4** | ⏳ pendiente | Flujo de estados (borrador→enviada→confirmada), filtros por estado/cliente/fecha, pulido UI |
+| **Fase 4** | 🟡 parcial (2026-06-12) | ✅ Flujo de 3 estados `borrador→enviada→cobrada` con fecha de cobro al Excel (ver «Estados» arriba). ⏳ Pendiente: filtros por estado/cliente/fecha y pulido UI. |
 
 ### Fase 2 — detalle de columnas Excel que rellena la app
 
@@ -152,6 +152,31 @@ Al confirmar una proforma la app escribe automáticamente: Nº Proforma (col 3),
 - **Fórmulas vs valores**: `Total` y `Total+suplidos` se escriben como fórmulas (`=H+I`, `=J+K`). El `IVA` es fórmula (`=H*tipo`) si la proforma tiene un único tipo de IVA, y valor `iva_total` si mezcla tipos.
 - **Suplidos (col 11)**: la app la rellena con `proforma.suplidos` cuando es > 0 (desviación documentada de la propuesta, que la marcaba «manual»), para que la fórmula de la col 12 cuadre. Si es 0, se deja en blanco.
 
-Columnas que se rellenan a mano después: Fecha Factura (2), Cobrado (13), Nº Factura Factusol (15), y Suplidos (11) cuando se añaden gastos a posteriori.
+Columnas que se rellenan a mano después: Fecha Factura (2), Nº Factura Factusol (15), y Suplidos (11) cuando se añaden gastos a posteriori. **`Cobrado` (13)** ya **no es manual**: la escribe la app al marcar una proforma como cobrada (ver «Estados» abajo).
+
+## Estados de la proforma (modelo de 3 estados)
+
+Flujo lineal **`borrador → enviada → cobrada`** (`proformas.estado`):
+
+| Estado | Significado | Transición | Efecto en Excel |
+|---|---|---|---|
+| `borrador` | En edición, no fiscal | inicial | — |
+| `enviada` | Emitida y registrada en Hacienda | botón **Marcar enviada** (`POST /proformas/<id>/enviar`) | escribe la fila (`registrar_proforma`) |
+| `cobrada` | Cobrada por el cliente | botón **Marcar cobrada** (`POST /proformas/<id>/cobrar`) | escribe la **fecha de cobro** en col `Cobrado` (M) |
+
+- **«Enviada» es el antiguo «confirmada»** (misma lógica de registro en Excel). El renombrado de estado se hizo con la migración idempotente `_migrate_estado_confirmada_a_enviada` en `db.py`.
+- **Marcar cobrada** pide la fecha en el detalle: input `type=date` **prerelleno con hoy y editable** (`fecha_cobro` del form, default `date.today()`). Se guarda en `proformas.fecha_cobro` + `cobrado=1` y se anota en el Excel vía `excel.marcar_cobrado_excel(numero, fecha)`.
+- **Deshacer** es simétrico: `POST /proformas/<id>/descobrar` (cobrada→enviada, vacía col M con `desmarcar_cobrado_excel`) y `POST /proformas/<id>/desenviar` (enviada→borrador, borra la fila). Una proforma cobrada **no** se puede editar/eliminar sin deshacer antes el cobro y el envío.
+- ⚠ **openpyxl gotcha:** `ws.cell(r, c, None)` es un no-op (solo asigna si el valor no es `None`). Para vaciar una celda hay que hacer `ws.cell(r, c).value = None` (ver `desmarcar_cobrado_excel`).
+
+### Integración con CT108 (panel «Hoy») — preparada, conexión pendiente desde el CT108
+
+El orquestador CT108 **no filtra por el string del estado**; decide con los flags
+`exportada_excel`, `cobrado` y `numero_factura` (`escaneo.py`) y con la columna
+`Cobrado` del Excel (`/api/cobros/vencidos`). Por tanto:
+
+- `/api/proformas` ya expone `estado` (`enviada`/`cobrada`) y `fecha_cobro` (devuelve `p.*`), sin cambios.
+- Al **marcar cobrada** se escribe la fecha en col `Cobrado` **y** `cobrado=1`: la proforma desaparece sola de las tareas «cobrar» del panel «Hoy» (la cubre `/api/cobros/vencidos`, que ignora filas con `Cobrado` no vacío). No hace falta tocar CT108 para que deje de reclamarla.
+- La conexión inversa (que CT108/Claude marque cobrada desde el panel) requeriría un endpoint de escritura `POST /api/proformas/<id>/cobrar` en `api_orquestador.py`, **no implementado a propósito** (decisión 2026-06-12: dejarlo preparado, conectar luego desde dentro del CT108).
 
 > **Nota:** la migración multi-guía (`proforma_guias`, eliminación de `proformas.guia_id`) ya está hecha en el schema de la Fase 1 (`db.py: _migrate_to_multi_guia`), no es un pendiente de la Fase 2.

@@ -270,6 +270,60 @@ def registrar_proforma(proforma_id):
     return resultado
 
 
+def _buscar_fila(ws, numero_proforma):
+    """Devuelve el número de fila (1-based) cuya columna C = Nº Proforma, o None."""
+    for row in ws.iter_rows(min_row=2):
+        if row[2].value == numero_proforma:  # columna C = Nº Proforma
+            return row[0].row
+    return None
+
+
+def marcar_cobrado_excel(numero_proforma, fecha_cobro):
+    """Escribe la fecha de cobro en la columna 'Cobrado' (M) de su fila.
+
+    `fecha_cobro` es una fecha ISO (str) o un date. Devuelve True si se escribió,
+    False si no se encontró la fila o no existe el fichero, None si estaba bloqueado.
+    """
+    if not os.path.exists(EXCEL_PATH):
+        return False
+    from datetime import date as _date
+    try:
+        fecha_obj = _date.fromisoformat(fecha_cobro) if isinstance(fecha_cobro, str) else fecha_cobro
+    except (ValueError, TypeError):
+        fecha_obj = None
+    with _file_lock():
+        _backup()
+        wb, ws = _load_or_create_workbook()
+        fila = _buscar_fila(ws, numero_proforma)
+        if fila is None:
+            return False
+        celda = ws.cell(fila, 13, fecha_obj)   # M  Cobrado
+        if fecha_obj is not None:
+            celda.number_format = 'DD/MM/YYYY'
+        if not _save_con_reintentos(wb):
+            return None  # Excel bloqueado
+    return True
+
+
+def desmarcar_cobrado_excel(numero_proforma):
+    """Vacía la columna 'Cobrado' (M) de la fila indicada (deshacer cobro).
+
+    Mismos valores de retorno que marcar_cobrado_excel.
+    """
+    if not os.path.exists(EXCEL_PATH):
+        return False
+    with _file_lock():
+        _backup()
+        wb, ws = _load_or_create_workbook()
+        fila = _buscar_fila(ws, numero_proforma)
+        if fila is None:
+            return False
+        ws.cell(fila, 13).value = None   # M  Cobrado (cell(...,None) sería no-op en openpyxl)
+        if not _save_con_reintentos(wb):
+            return None  # Excel bloqueado
+    return True
+
+
 def eliminar_fila_excel(numero_proforma):
     """Elimina del Excel la fila del número de proforma indicado.
 
@@ -281,11 +335,7 @@ def eliminar_fila_excel(numero_proforma):
     with _file_lock():
         _backup()
         wb, ws = _load_or_create_workbook()
-        fila_a_borrar = None
-        for row in ws.iter_rows(min_row=2):
-            if row[2].value == numero_proforma:  # columna C = Nº Proforma
-                fila_a_borrar = row[0].row
-                break
+        fila_a_borrar = _buscar_fila(ws, numero_proforma)
         if fila_a_borrar is None:
             return False
         ws.delete_rows(fila_a_borrar)
