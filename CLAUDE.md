@@ -1,182 +1,132 @@
-# proforma-admin — CLAUDE.md
+# CLAUDE.md — proforma-admin (CT104)
 
-Pipeline de **salida** de facturas para Guías de Alicante: genera proformas en PDF, registra en Excel para Hacienda y prepara ficheros de importación para Factusol.
+Pipeline de **salida** de facturas de GuíasdeAlicante: crea proformas, genera
+su PDF (WeasyPrint), las registra en el Excel de Hacienda al enviarlas y les
+anota el cobro. **En producción**: Flask + SQLite en CT104, usado a diario.
 
-## Contexto del proyecto
+## ⚠ En CT104 conviven DOS aplicaciones — no las confundas
 
-- **Propuesta completa** (decisiones acordadas, esquema de BD, pantallas): `/mnt/pve/almacenamiento/datos/guillermo/documentacion-servidor/propuesta-facturacion-proforma.html`
-- **Assets de diseño y contexto**: `./DOCS_ETL_PROFORMAS/` (brand kit, plantilla HTML, doc Factusol)
-- **Documentación de infraestructura general**: `/root/documentacion/` (IPs, auditoría, CTs)
-- **PENDIENTE.md del servidor**: `/root/PENDIENTE.md`
-- **Este workspace vive en**: `/mnt/pve/almacenamiento/datos/empresa/proforma-admin/` (NAS, accesible desde el PC por Samba y desde CT-104 en `/mnt/empresa/proforma-admin/`)
+| | **proforma-admin (ESTE repo)** | factura-processor (el otro) |
+|---|---|---|
+| Qué hace | **Salida**: proformas → PDF → Excel Hacienda | **Entrada**: facturas recibidas por Gmail → IA → BD/Excel |
+| Código | NAS: `/mnt/pve/almacenamiento/datos/empresa/proforma-admin` (host) = `/mnt/empresa/proforma-admin` (CT) | Dentro del CT: `/opt/factura-processor` |
+| GitHub | `GuillermoAlbert/proforma-processor` ← ojo, el repo NO se llama proforma-admin | `GuillermoAlbert/factura-processor` |
+| Servicio | `proforma-admin.service` · puerto **5114** (0.0.0.0) · HTTPS tailnet `https://factura-processor.tail9d9dc4.ts.net:8443` | `factura-admin.service` · **5104** loopback tras nginx **:8080** · HTTPS tailnet `:443` · + cron pipeline cada hora |
+| BD | `/mnt/empresa/proformas.db` | `/mnt/empresa/facturas.db` |
+| Excel | `facturas-emitidas.xlsx` (emitidas) | `facturas.xlsx` (recibidas) |
+| Instrucciones | Este `CLAUDE.md` | Su `AGENTS.md` (fichero maestro, opencode) |
 
-## Arquitectura: dónde vive cada cosa
+**Regla:** desde este workspace el factura-processor se puede *leer* como
+referencia, pero **no se toca** (ni su código ni su cron ni su BD).
 
-| Elemento | Ubicación |
-|---|---|
-| **Código de la app** | `./src/` en este repo (= CT-104 `/mnt/empresa/proforma-admin/src/`) |
-| **Base de datos** | `/mnt/empresa/proformas.db` (= NAS `empresa/proformas.db`) |
-| **PDFs generados** | `/mnt/empresa/proformas-pdf/` |
-| **Excel Hacienda** | `/mnt/empresa/facturas-emitidas.xlsx` |
-| **Import Factusol** | `/mnt/empresa/factusol-import/` |
-| **Assets / brand kit** | `./DOCS_ETL_PROFORMAS/` (logotipo SVG, plantilla HTML, doc Factusol) |
-| **Logotipo JPG** | `/mnt/pve/almacenamiento/datos/empresa/logotipo guiasdealicante.jpg` |
-| **Workspace Claude Code** | Este directorio (`/mnt/pve/almacenamiento/datos/empresa/proforma-admin/`) |
+## Cómo se trabaja en este repo (peculiar — leer antes de nada)
 
-El NAS (`/mnt/pve/almacenamiento/datos/empresa`) ya está montado dentro de CT-104 en `/mnt/empresa` — es el mismo directorio físico, no hay copia.
+- Las sesiones de Claude Code corren **en el host Proxmox** con cwd en la ruta
+  NAS de arriba (`claude` no está instalado en CT104). Por eso los comandos de
+  servicio van con `pct exec 104 -- …`.
+- **Editar aquí es editar producción en vivo**: el servicio ejecuta `src/`
+  directamente del NAS, y WeasyPrint relee la plantilla en cada PDF. Un cambio
+  a medias en `src/` puede tumbar el panel → cambios atómicos, commit antes de
+  cambios grandes, y `/verify` SIEMPRE después de tocar `src/`.
+- Estado vivo del proyecto: **`docs/estado.md`** (mantenerlo al día es parte de
+  cada tarea; se actualiza en el mismo commit).
+- Skills: **`/verify`** (tras cada cambio) · **`/cierre-sesion`** (al terminar).
+- Docs de infraestructura del host: `/root/documentacion/` (leer
+  `auditoria-cambios.md` antes de cambios de red/config y añadir entrada después).
 
-## Cómo trabajar
+## Reglas innegociables
 
-El código vive en `./src/` (este repo, en el NAS). Dentro de CT-104 se monta en `/mnt/empresa/proforma-admin/src/`. No hay que copiar ficheros — editar aquí es editar dentro del CT.
+1. **Estabilidad.** Producción diaria. No interrumpir `proforma-admin` sin
+   necesidad (un restart de ~3 s tras cambios verificados sí es normal).
+2. **El Excel de Hacienda es fiscal.** `facturas-emitidas.xlsx`: no cambiar el
+   orden/significado de columnas ni escribir columnas manuales (Fecha Factura,
+   Nº Factusol) sin confirmación explícita del usuario.
+3. **Todo lo generado va al NAS** (`/mnt/empresa/`): BD, PDFs, backups, colas.
+   Nunca al rootfs del CT (8 GB).
+4. **factura-processor no se toca** desde aquí.
+5. **Cambios de schema** solo con el patrón del repo: funciones `_migrate_*`
+   idempotentes en `src/db.py` que corren en el arranque (mira
+   `_migrate_estado_confirmada_a_enviada` o `_migrate_to_multi_guia`).
+6. La escritura desde CT108 (`POST /api/proformas/<id>/cobrar` etc.) está
+   **no implementada a propósito** (decisión 2026-06-12) — la única excepción
+   ya acordada es `POST /api/proformas/borrador` (siempre crea en estado
+   `borrador`, nunca confirma ni toca el Excel). No añadir más escritura por
+   `/api` sin confirmación.
+
+## Operación
 
 ```bash
-# Arrancar sesión Claude Code en este proyecto (desde el host PVE)
-cd /mnt/pve/almacenamiento/datos/empresa/proforma-admin && claude
-
-# Estado del servicio en CT-104
-pct exec 104 -- systemctl status proforma-admin
-
-# Logs en tiempo real
-pct exec 104 -- journalctl -u proforma-admin -f
-
-# Reiniciar el servicio tras cambios en src/
-pct exec 104 -- systemctl restart proforma-admin
-
-# Instalar dependencias Python dentro del CT
-pct exec 104 -- bash -c "cd /mnt/empresa/proforma-admin && pip install -r src/requirements.txt"
+pct exec 104 -- systemctl status proforma-admin      # estado
+pct exec 104 -- journalctl -u proforma-admin -n 50   # logs
+pct exec 104 -- systemctl restart proforma-admin     # tras cambios en src/
+pct exec 104 -- bash -c 'curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5114/'   # 401 = vivo (Basic Auth)
+pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_gen.py'     # smoke PDFs → /tmp
 ```
 
-## Servicio web
+- Acceso: solo Tailscale — `http://100.87.188.5:5114` o HTTPS
+  `https://factura-processor.tail9d9dc4.ts.net:8443` + HTTP Basic Auth.
+- Variables del unit systemd (todas con default sensato): `DB_PATH`, `PDF_DIR`,
+  `TEMPLATE_DIR`, `ADMIN_USER`/`ADMIN_PASS`, `EXCEL_PATH`, `EXCEL_BACKUP_DIR`
+  (rotación 30 días), `EXCEL_PENDING_FILE` (cola si el Excel está abierto),
+  `EXCEL_LOCK_FILE`.
+- No hay suite pytest: la verificación es `test_pdf_gen.py` + smoke HTTP + el
+  flujo manual en el panel (ver `/verify`).
 
-- **Puerto**: `5114` (Flask, systemd `proforma-admin`)
-- **Acceso**: solo Tailscale (`http://100.87.188.5:5114`) + HTTP Basic Auth
-- **Serie de proformas**: `PRO-YYYY-NNNN` (reinicia cada año)
-
-## Stack técnico
-
-| Pieza | Tecnología | Notas |
-|---|---|---|
-| Web | Flask | Mismo patrón que `factura-processor` |
-| Plantillas | Jinja2 | HTML de proforma → datos inyectados |
-| PDF | WeasyPrint | Librería Python pura. Plantilla: `DOCS_ETL_PROFORMAS/plantilla-proforma.html`. Contexto Jinja2: `proforma`, `cliente`, `empresa`, `proforma.lineas` (cada una: `descripcion`, `cantidad`, `precio`, `porcentaje_iva`, `importe`). Serie: `PRO-YYYY-NNNN`. **Sin variable `guia` — los guías no van al PDF.** |
-| BD | SQLite (WAL) | `proformas.db` en el NAS, no en el rootfs del CT |
-| Excel | openpyxl | Patrón con backup + reintentos del processor |
-| Auth | HTTP Basic | `admin_helpers.py` del processor reutilizable |
-
-## Estructura de `src/` (Fases 1–2 implementadas)
+## Mapa de `src/`
 
 | Archivo | Qué hace |
 |---|---|
-| `app.py` | Flask app + rutas (CRUD clientes/artículos/guías/cuentas, proformas, PDF, **confirmar→Excel**) |
-| `db.py` | Context manager SQLite WAL, schema DDL, `siguiente_numero_proforma()` |
-| `pdf.py` | Generación PDF con WeasyPrint + Jinja2. Datos empresa hardcodeados aquí. |
-| `excel.py` | **Fase 2.** Registro en `facturas-emitidas.xlsx`: backup + lock + reintentos + cola. `registrar_proforma()`, `drain_pending()`, `contar_pendientes()`. |
-| `admin_helpers.py` | Decorator `@require_auth` HTTP Basic Auth |
-| `requirements.txt` | flask, weasyprint, openpyxl |
-| `INSTALL.md` | Comandos `pct exec 104` para instalar en CT-104 |
-| `templates/base.html` | Layout nav + CSS brand kit completo |
-| `templates/clientes/` | lista.html + form.html |
-| `templates/articulos/` | lista.html + form.html |
-| `templates/guias/lista.html` | CRUD inline |
-| `templates/cuentas/` | lista.html + form.html — CRUD de cuentas bancarias de cobro (una `predeterminada`) |
-| `templates/proformas/lista.html` | Listado con enlace a PDF + botón Confirmar |
-| `templates/proformas/nueva.html` | Form con líneas dinámicas (JS vanilla) + totales en tiempo real + selector de cuenta de cobro |
-| `templates/proformas/detalle.html` | Vista + descarga PDF + Confirmar y registrar en Excel |
-| `templates/config/index.html` | Reiniciar servicio + reintentar pendientes de Excel |
+| `app.py` | Flask monolítico (~1.300 líneas): rutas CRUD (clientes, artículos, guías, cuentas), proformas, estados, PDF, Excel. Registra el blueprint de `api_orquestador`. |
+| `api_orquestador.py` | Blueprint `/api/*` para CT108: lectura (proformas, clientes, cobros vencidos) + `POST /api/proformas/borrador` (única escritura; siempre `borrador`). |
+| `db.py` | Context manager SQLite WAL + schema DDL + migraciones `_migrate_*` idempotentes + `siguiente_numero_proforma()` + config de empresa/serie (`get_empresa_config`, `get_serie_config` — los datos de empresa viven en BD, ya no hardcodeados). |
+| `pdf.py` | PDF con WeasyPrint + Jinja2 (filtros `fecha_es`, `iban_format`; `numero_corto` PREFIJO-AA-NNNN en cabecera). Plantilla: `DOCS_ETL_PROFORMAS/plantilla-proforma.html`. **Sin variable `guia`: los guías nunca van al PDF.** El bloque de pago sale de la cuenta asignada (tabla `cuentas`); fallback a la config de empresa. |
+| `excel.py` | Registro en `facturas-emitidas.xlsx`: backup + lock + reintentos + cola (patrón del processor). `registrar_proforma()`, `marcar_cobrado_excel()`, `drain_pending()`. |
+| `clientes_lookup.py` / `admin_helpers.py` | Búsqueda de clientes / `@require_auth` Basic Auth. |
+| `templates/` | Jinja2 del panel (base + clientes/, articulos/, guias/, cuentas/, proformas/, config/). |
+| `test_pdf_gen.py` | Script manual (no pytest): genera 3 PDFs de prueba en `/tmp` sin BD. |
+| `INSTALL.md` | Comandos `pct exec 104` de instalación. |
 
-**Datos de empresa** (NIF, dirección, condiciones de pago, IBAN por defecto): editar en `src/pdf.py` (dict `EMPRESA`). **El IBAN/entidad/titular del PDF se toma de la cuenta seleccionada en la proforma** (tabla `cuentas`, gestionada en la pantalla **Cuentas**); el `EMPRESA['iban']`/`['banco']` solo se usan como fallback cuando la proforma no tiene cuenta asignada.
+Assets de marca y plantillas: `DOCS_ETL_PROFORMAS/` (brand kit, plantilla
+proforma, plantilla documento, logotipo SVG, doc Factusol pendiente).
 
-**Variables de entorno del servicio** (en el unit systemd):
-- `DB_PATH` — default `/mnt/empresa/proformas.db`
-- `PDF_DIR` — default `/mnt/empresa/proformas-pdf`
-- `TEMPLATE_DIR` — default `/mnt/empresa/proforma-admin/DOCS_ETL_PROFORMAS`
-- `ADMIN_USER` / `ADMIN_PASS` — credenciales Basic Auth
-- `EXCEL_PATH` — default `/mnt/empresa/facturas-emitidas.xlsx` (Excel Hacienda, Fase 2)
-- `EXCEL_BACKUP_DIR` — default `/mnt/empresa/backups-proformas` (copias con rotación 30 días)
-- `EXCEL_PENDING_FILE` — default `/mnt/empresa/proforma-admin-pending-excel.json` (cola si el Excel está abierto)
-- `EXCEL_LOCK_FILE` — default `/mnt/empresa/.proforma-excel.lock`
+## Modelo de datos (SQLite `proformas.db`)
 
-Todas las de Excel tienen default, así que el servicio funciona sin declararlas.
+`clientes` · `articulos` · `guias` · `cuentas` (bancarias, una `predeterminada`)
+· `proformas` (cabecera; `cuenta_id` nullable; **sin `guia_id`**) ·
+`proforma_guias` (N:M — los guías van solo al Excel col 16, concatenados) ·
+`proforma_lineas` · `series` (contador por serie y año, `PRO-YYYY-NNNN`).
 
-## DOCS_ETL_PROFORMAS — assets que el usuario sube
+## Estados de la proforma (flujo lineal)
 
-Ruta en el host / desde el PC (Samba): `empresa/proforma-admin/DOCS_ETL_PROFORMAS/`
-Ruta dentro del CT: `/mnt/empresa/proforma-admin/DOCS_ETL_PROFORMAS/`
+`borrador → enviada → cobrada` (`proformas.estado`):
 
-Aquí el usuario deja los ficheros de referencia para el diseño y la implementación:
-
-| Fichero | Estado | Para qué |
+| Transición | Ruta | Efecto en Excel |
 |---|---|---|
-| `plantilla-proforma.html` | ✅ listo | Jinja2 → WeasyPrint. Variables: `proforma.*`, `cliente.*`, `empresa.*`, `proforma.lineas`. **`guia` eliminado del contexto PDF — los guías no aparecen en el PDF.** Ver sección "PDF" abajo. |
-| `brand-kit-documentos.md` | ✅ listo | Colores, tipografías e instrucciones de diseño (Design System v1.0) |
-| `plantilla-documento.html` | ✅ listo | Plantilla base de documentos (tarifas, resúmenes) — mismos patrones CSS que la proforma |
-| `logotipo-guiasdealicante.svg` | ✅ listo | Logo vectorial (paths terracota + navy; renderizar en blanco sobre fondos oscuros) |
-| `factusol-importacion.pdf` | ⏳ pendiente | Documentación técnica de importación de tu versión de Factusol (necesaria para Fase 3) |
+| → `enviada` | `POST /proformas/<id>/enviar` | escribe la fila (`registrar_proforma`) |
+| → `cobrada` | `POST /proformas/<id>/cobrar` (fecha editable, default hoy) | fecha en col `Cobrado` (M) |
+| deshacer | `/descobrar` y `/desenviar` (simétricos) | vacía col M / borra la fila |
 
-## Modelo de datos (tablas SQLite)
+- Una proforma cobrada no se edita/elimina sin deshacer antes cobro y envío.
+- ⚠ Gotcha openpyxl: `ws.cell(r, c, None)` es no-op; para vaciar una celda:
+  `ws.cell(r, c).value = None`.
+- CT108 no filtra por el string `estado`: usa `exportada_excel`, `cobrado`,
+  `numero_factura` y la col `Cobrado` del Excel (`/api/cobros/vencidos`). Al
+  marcar cobrada, la tarea del panel «Hoy» desaparece sola.
 
-Ver propuesta completa para el DDL detallado. Resumen:
+### Columnas del Excel que escribe la app (al enviar)
 
-- `clientes` — agencias/clientes reutilizables (NIF, dirección, código Factusol)
-- `articulos` — catálogo de servicios con precio e IVA por defecto
-- `guias` — nombres de guías (columna "Guía" del Excel de Hacienda)
-- `cuentas` — cuentas bancarias de cobro (nombre/alias, titular, iban, banco, bic, `predeterminada`). La cuenta elegida define el bloque de pago del PDF. Solo una `predeterminada` a la vez; se preselecciona en proformas nuevas.
-- `proforma_guias` — tabla puente muchos-a-muchos: una proforma puede tener varios guías. **Los guías solo van al Excel (col 16, todos concatenados con coma), nunca al PDF.**
-- `proformas` — cabecera: cliente, `cuenta_id` (cuenta de cobro, FK → cuentas, nullable), totales, estado, ruta PDF. **No tiene `guia_id` — la relación es a través de `proforma_guias`.**
-- `proforma_lineas` — líneas de cada proforma
-- `series` — contador de numeración por serie y año
+Nº Proforma (3), NIF/CIF (4), Trimestre (5), Agencia (6), Provincia (7),
+Base (8), IVA (9, fórmula si un solo tipo), Total (10) y Total+suplidos (12)
+como fórmulas, Suplidos (11, solo si > 0), Comentarios (14), Guía (16, todos
+concatenados con `, `). **Manuales** (no tocar): Fecha Factura (2), Nº Factura
+Factusol (15). `Cobrado` (13) la escribe la app al marcar cobrada.
 
-## Reglas de trabajo
+## Convenciones
 
-1. **El factura-processor (CT-104 puerto 8080) no se toca.** El cron horario sigue corriendo. Proyectos totalmente independientes.
-2. **Toda la BD y los ficheros generados van al NAS** (`/mnt/empresa/`), nunca al rootfs del CT (8 GB limitado).
-3. **El código vive en el NAS** (`./src/`). Editar aquí es editar en producción — hacer commit antes de cambios grandes.
-4. **Antes de cualquier cambio de red o config**, leer `/root/documentacion/auditoria-cambios.md` y añadir entrada tras el cambio.
-5. **RAM CT-104**: 1 GB (subido desde 512 MB el 2026-06-04). Si hay problemas de memoria en el host, este CT es el primero en bajar.
-6. **Rollback**: `systemctl stop proforma-admin && systemctl disable proforma-admin`. El processor queda intacto.
-
-## Estado de implementación por fases
-
-| Fase | Estado | Contenido |
-|---|---|---|
-| **Fase 1** | ✅ **implementada** (2026-06-04) | BD + catálogo (clientes, artículos, guías) + crear proforma + generar PDF con WeasyPrint |
-| **Fase 2** | ✅ **implementada** (2026-06-05) | Registro automático en Excel Hacienda (`facturas-emitidas.xlsx`) al confirmar una proforma (botón «Confirmar y registrar en Excel»). Patrón robusto: backup + reintentos + cola si el Excel está abierto. Detalle: [`DOCS_ETL_PROFORMAS/fase2-excel-hacienda.md`](./DOCS_ETL_PROFORMAS/fase2-excel-hacienda.md). |
-| **Fase 3** | ⏳ bloqueada | Export fichero importación Factusol. **Requiere** subir `factusol-importacion.pdf` a `DOCS_ETL_PROFORMAS/`. Campo `exportada_factusol` ya existe en el schema. |
-| **Fase 4** | 🟡 parcial (2026-06-12) | ✅ Flujo de 3 estados `borrador→enviada→cobrada` con fecha de cobro al Excel (ver «Estados» arriba). ⏳ Pendiente: filtros por estado/cliente/fecha y pulido UI. |
-
-### Fase 2 — detalle de columnas Excel que rellena la app
-
-Al confirmar una proforma la app escribe automáticamente: Nº Proforma (col 3), NIF/CIF (4), Trimestre (5), Agencia (6), Provincia (7), Base (8), IVA (9), Total (10), Total+suplidos (12), Comentarios (14), Guía (16).
-
-- **Guía (col 16)**: todos los guías asignados a la proforma, concatenados con `, ` (coma + espacio). Si no hay ninguno, la celda queda vacía. Los guías **no aparecen en el PDF** en ningún caso.
-- **Fórmulas vs valores**: `Total` y `Total+suplidos` se escriben como fórmulas (`=H+I`, `=J+K`). El `IVA` es fórmula (`=H*tipo`) si la proforma tiene un único tipo de IVA, y valor `iva_total` si mezcla tipos.
-- **Suplidos (col 11)**: la app la rellena con `proforma.suplidos` cuando es > 0 (desviación documentada de la propuesta, que la marcaba «manual»), para que la fórmula de la col 12 cuadre. Si es 0, se deja en blanco.
-
-Columnas que se rellenan a mano después: Fecha Factura (2), Nº Factura Factusol (15), y Suplidos (11) cuando se añaden gastos a posteriori. **`Cobrado` (13)** ya **no es manual**: la escribe la app al marcar una proforma como cobrada (ver «Estados» abajo).
-
-## Estados de la proforma (modelo de 3 estados)
-
-Flujo lineal **`borrador → enviada → cobrada`** (`proformas.estado`):
-
-| Estado | Significado | Transición | Efecto en Excel |
-|---|---|---|---|
-| `borrador` | En edición, no fiscal | inicial | — |
-| `enviada` | Emitida y registrada en Hacienda | botón **Marcar enviada** (`POST /proformas/<id>/enviar`) | escribe la fila (`registrar_proforma`) |
-| `cobrada` | Cobrada por el cliente | botón **Marcar cobrada** (`POST /proformas/<id>/cobrar`) | escribe la **fecha de cobro** en col `Cobrado` (M) |
-
-- **«Enviada» es el antiguo «confirmada»** (misma lógica de registro en Excel). El renombrado de estado se hizo con la migración idempotente `_migrate_estado_confirmada_a_enviada` en `db.py`.
-- **Marcar cobrada** pide la fecha en el detalle: input `type=date` **prerelleno con hoy y editable** (`fecha_cobro` del form, default `date.today()`). Se guarda en `proformas.fecha_cobro` + `cobrado=1` y se anota en el Excel vía `excel.marcar_cobrado_excel(numero, fecha)`.
-- **Deshacer** es simétrico: `POST /proformas/<id>/descobrar` (cobrada→enviada, vacía col M con `desmarcar_cobrado_excel`) y `POST /proformas/<id>/desenviar` (enviada→borrador, borra la fila). Una proforma cobrada **no** se puede editar/eliminar sin deshacer antes el cobro y el envío.
-- ⚠ **openpyxl gotcha:** `ws.cell(r, c, None)` es un no-op (solo asigna si el valor no es `None`). Para vaciar una celda hay que hacer `ws.cell(r, c).value = None` (ver `desmarcar_cobrado_excel`).
-
-### Integración con CT108 (panel «Hoy») — preparada, conexión pendiente desde el CT108
-
-El orquestador CT108 **no filtra por el string del estado**; decide con los flags
-`exportada_excel`, `cobrado` y `numero_factura` (`escaneo.py`) y con la columna
-`Cobrado` del Excel (`/api/cobros/vencidos`). Por tanto:
-
-- `/api/proformas` ya expone `estado` (`enviada`/`cobrada`) y `fecha_cobro` (devuelve `p.*`), sin cambios.
-- Al **marcar cobrada** se escribe la fecha en col `Cobrado` **y** `cobrado=1`: la proforma desaparece sola de las tareas «cobrar» del panel «Hoy» (la cubre `/api/cobros/vencidos`, que ignora filas con `Cobrado` no vacío). No hace falta tocar CT108 para que deje de reclamarla.
-- La conexión inversa (que CT108/Claude marque cobrada desde el panel) requeriría un endpoint de escritura `POST /api/proformas/<id>/cobrar` en `api_orquestador.py`, **no implementado a propósito** (decisión 2026-06-12: dejarlo preparado, conectar luego desde dentro del CT108).
-
-> **Nota:** la migración multi-guía (`proforma_guias`, eliminación de `proformas.guia_id`) ya está hecha en el schema de la Fase 1 (`db.py: _migrate_to_multi_guia`), no es un pendiente de la Fase 2.
+- Python simple; leer el módulo entero antes de editarlo.
+- Commits estilo del log: `feat(proformas): …` / `fix(pdf): …`, en español.
+  Push a `main` (`origin` = GitHub `proforma-processor`).
+- Brand kit en `DOCS_ETL_PROFORMAS/brand-kit-documentos.md` — leerlo antes de
+  tocar plantillas o generar documentos nuevos.
+- Referencias de contexto: propuesta completa en
+  `/mnt/pve/almacenamiento/datos/guillermo/documentacion-servidor/propuesta-facturacion-proforma.html`.

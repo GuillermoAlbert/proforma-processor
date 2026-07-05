@@ -2,5 +2,43 @@
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Read(//mnt/pve/almacenamiento/datos/empresa/proforma-admin/**)",
+      "Read(//root/documentacion/**)",
+      "Bash(pct exec 104 -- systemctl status *)",
+      "Bash(pct exec 104 -- systemctl is-active *)",
+      "Bash(pct exec 104 -- systemctl cat *)",
+      "Bash(pct exec 104 -- systemctl restart proforma-admin)",
+      "Bash(pct exec 104 -- journalctl *)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(ls *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(wc *)"
+    ],
+    "deny": [
+      "Edit(//opt/factura-processor/**)",
+      "Write(//opt/factura-processor/**)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /mnt/pve/almacenamiento/datos/empresa/proforma-admin/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
   }
 }

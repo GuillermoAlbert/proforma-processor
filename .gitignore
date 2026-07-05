@@ -11,3 +11,10 @@ venv/
 *.egg-info/
 dist/
 .DS_Store
+
+# Claude Code: versionar settings/skills/hooks, no lo local
+.claude/*
+!.claude/settings.json
+!.claude/skills/
+!.claude/hooks/
+*.bak*
