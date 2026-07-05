@@ -450,6 +450,61 @@ def _insertar_guias(conn, proforma_id, guia_ids):
         )
 
 
+def _crear_proforma(fecha_str, cliente_id, cuenta_id, lineas, suplidos, suplidos_detalle,
+                    comentarios, referencia, numero_form=None, guia_ids=()):
+    """Crea una proforma en estado 'borrador' con sus líneas y guías.
+
+    Lógica compartida por el formulario /proformas/nueva y el API del orquestador
+    (/api/proformas/borrador). Numera con la serie configurada; si `numero_form`
+    viene y la serie no usa {agencia}, se respeta el número manual (ValueError si
+    ya está en uso). Devuelve (proforma_id, numero). Nunca confirma ni toca el Excel.
+    """
+    base, iva_total, total, total_suplidos = _calcular_totales(lineas, suplidos)
+    try:
+        trimestre = (int(fecha_str.split('-')[1]) - 1) // 3 + 1
+    except (IndexError, ValueError):
+        trimestre = 1
+    anio = int(fecha_str.split('-')[0]) if fecha_str else date.today().year
+    try:
+        fecha_obj = date.fromisoformat(fecha_str) if fecha_str else date.today()
+    except ValueError:
+        fecha_obj = date.today()
+    nombre_agencia = None
+    if cliente_id:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT nombre_agencia FROM clientes WHERE id=?", (int(cliente_id),)
+            ).fetchone()
+            if row:
+                nombre_agencia = row['nombre_agencia']
+    numero_auto, n_secuencial = siguiente_numero_proforma(anio, fecha=fecha_obj, agencia=nombre_agencia)
+    cfg_serie = get_serie_config()
+    usa_agencia = '{agencia}' in cfg_serie.get('formato', '')
+    numero = numero_auto if usa_agencia else (numero_form or numero_auto)
+    if numero != numero_auto:
+        with get_db() as conn:
+            if conn.execute(
+                "SELECT 1 FROM proformas WHERE numero_proforma=?", (numero,)
+            ).fetchone():
+                raise ValueError(f'El número «{numero}» ya está en uso.')
+
+    with get_db() as conn:
+        conn.execute(
+            """INSERT INTO proformas
+               (numero_proforma, fecha, cliente_id, cuenta_id, estado, base, iva_total,
+                suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre,
+                referencia, numero_secuencial)
+               VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (numero, fecha_str, cliente_id, cuenta_id, base, iva_total,
+             suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre,
+             referencia, n_secuencial)
+        )
+        proforma_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        _insertar_guias(conn, proforma_id, guia_ids)
+        _insertar_lineas(conn, proforma_id, lineas)
+    return proforma_id, numero
+
+
 def _form_context(conn):
     """Carga las listas necesarias para los formularios de proforma."""
     return {
@@ -531,51 +586,15 @@ def proformas_nueva():
         referencia  = request.form.get('referencia', '').strip() or None
 
         lineas = _parse_lineas(request.form)
-        base, iva_total, total, total_suplidos = _calcular_totales(lineas, suplidos)
-        try:
-            trimestre = (int(fecha_str.split('-')[1]) - 1) // 3 + 1
-        except (IndexError, ValueError):
-            trimestre = 1
-        anio = int(fecha_str.split('-')[0]) if fecha_str else date.today().year
-        try:
-            fecha_obj = date.fromisoformat(fecha_str) if fecha_str else date.today()
-        except ValueError:
-            fecha_obj = date.today()
-        nombre_agencia = None
-        if cliente_id:
-            with get_db() as conn:
-                row = conn.execute(
-                    "SELECT nombre_agencia FROM clientes WHERE id=?", (int(cliente_id),)
-                ).fetchone()
-                if row:
-                    nombre_agencia = row['nombre_agencia']
         numero_form = request.form.get('numero_proforma', '').strip()
-        numero_auto, n_secuencial = siguiente_numero_proforma(anio, fecha=fecha_obj, agencia=nombre_agencia)
-        cfg_serie = get_serie_config()
-        usa_agencia = '{agencia}' in cfg_serie.get('formato', '')
-        numero = numero_auto if usa_agencia else (numero_form or numero_auto)
-        if numero != numero_auto:
-            with get_db() as conn:
-                if conn.execute(
-                    "SELECT 1 FROM proformas WHERE numero_proforma=?", (numero,)
-                ).fetchone():
-                    flash(f'El número «{numero}» ya está en uso.', 'error')
-                    return redirect(url_for('proformas_nueva'))
-
-        with get_db() as conn:
-            conn.execute(
-                """INSERT INTO proformas
-                   (numero_proforma, fecha, cliente_id, cuenta_id, estado, base, iva_total,
-                    suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre,
-                    referencia, numero_secuencial)
-                   VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (numero, fecha_str, cliente_id, cuenta_id, base, iva_total,
-                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre,
-                 referencia, n_secuencial)
+        try:
+            proforma_id, numero = _crear_proforma(
+                fecha_str, cliente_id, cuenta_id, lineas, suplidos, suplidos_detalle,
+                comentarios, referencia, numero_form=numero_form, guia_ids=guia_ids,
             )
-            proforma_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-            _insertar_guias(conn, proforma_id, guia_ids)
-            _insertar_lineas(conn, proforma_id, lineas)
+        except ValueError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('proformas_nueva'))
 
         flash(f'Proforma {numero} creada correctamente.', 'success')
         return redirect(url_for('proformas_detalle', id=proforma_id))
@@ -969,6 +988,109 @@ def api_clientes_nuevo():
         )
         cli_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     return jsonify({'id': cli_id, 'nombre_agencia': nombre})
+
+
+@app.route('/api/proformas/borrador', methods=['POST'])
+@require_auth
+def api_proformas_borrador():
+    """Crea una proforma EN BORRADOR desde el orquestador de CT108 (pieza 4).
+
+    Pensado para que el asistente operativo cree proformas automáticamente a
+    partir de una guía/servicio detectado, SIN pedir confirmación al usuario:
+    el resultado queda siempre en estado 'borrador' (nunca se envía ni se
+    toca el Excel) y se puede revisar/editar después desde el panel.
+
+    Body JSON esperado:
+      {
+        "cliente_id": int,                 # opcional
+        "cliente": {                       # opcional, alternativa a cliente_id
+          "nombre_agencia": str, "nif_cif": str, "email": str, "telefono": str
+        },
+        "fecha_servicio": "YYYY-MM-DD",
+        "concepto": str,
+        "importe": number,                 # opcional
+        "notas": str,                       # opcional
+        "origen_ref": str                   # opcional, referencia del origen en CT108
+      }
+    """
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'El cuerpo debe ser un JSON con un objeto.'}), 400
+
+    fecha_servicio = str(data.get('fecha_servicio') or '').strip()
+    concepto = str(data.get('concepto') or '').strip()
+    if not fecha_servicio or not concepto:
+        return jsonify({'error': 'fecha_servicio y concepto son obligatorios.'}), 400
+    try:
+        date.fromisoformat(fecha_servicio)
+    except ValueError:
+        return jsonify({'error': 'fecha_servicio debe tener formato YYYY-MM-DD.'}), 400
+
+    importe_raw = data.get('importe')
+    importe = 0.0
+    if importe_raw is not None:
+        try:
+            importe = float(importe_raw)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'importe debe ser numérico.'}), 400
+
+    cliente_id = data.get('cliente_id') or None
+    cliente_data = data.get('cliente') or {}
+
+    with get_db() as conn:
+        if cliente_id:
+            row = conn.execute("SELECT id FROM clientes WHERE id=?", (cliente_id,)).fetchone()
+            if row is None:
+                return jsonify({'error': f'No existe el cliente {cliente_id}.'}), 404
+        elif isinstance(cliente_data, dict) and cliente_data.get('nombre_agencia'):
+            nombre = str(cliente_data.get('nombre_agencia')).strip()
+            row = conn.execute(
+                "SELECT id FROM clientes WHERE nombre_agencia = ? COLLATE NOCASE", (nombre,)
+            ).fetchone()
+            if row:
+                cliente_id = row['id']
+            else:
+                nif_cif = str(cliente_data.get('nif_cif') or '').strip()
+                email = str(cliente_data.get('email') or '').strip()
+                telefono = str(cliente_data.get('telefono') or '').strip()
+                conn.execute(
+                    "INSERT INTO clientes (nombre_agencia, nif_cif, email, telefono) VALUES (?, ?, ?, ?)",
+                    (nombre, nif_cif, email, telefono)
+                )
+                cliente_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        cuenta_row = conn.execute(
+            "SELECT id FROM cuentas ORDER BY predeterminada DESC, nombre LIMIT 1"
+        ).fetchone()
+        cuenta_id = cuenta_row['id'] if cuenta_row else None
+
+    lineas = [{
+        'descripcion': concepto,
+        'cantidad': 1.0,
+        'precio': importe,
+        'porcentaje_iva': 21.0,
+        'importe': importe * 1.21,
+        'articulo_id': None,
+        'fecha': fecha_servicio,
+    }]
+
+    comentarios = str(data.get('notas') or '').strip()
+    origen_ref = data.get('origen_ref')
+    if origen_ref:
+        tag = f'[origen CT108: {origen_ref}]'
+        comentarios = f'{comentarios}\n{tag}' if comentarios else tag
+
+    proforma_id, numero = _crear_proforma(
+        fecha_servicio, cliente_id, cuenta_id, lineas,
+        suplidos=0.0, suplidos_detalle=None,
+        comentarios=comentarios, referencia=None,
+    )
+
+    return jsonify({
+        'id': proforma_id,
+        'numero_proforma': numero,
+        'url': f'/proformas/{proforma_id}/editar',
+    }), 201
 
 
 @app.route('/config')
