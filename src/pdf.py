@@ -2,10 +2,34 @@ import json
 import os
 import jinja2
 import weasyprint
-from db import get_db, get_empresa_config
+from db import get_db, get_empresa_config, get_serie_config
 
 TEMPLATE_DIR = os.environ.get('TEMPLATE_DIR', '/mnt/empresa/proforma-admin/DOCS_ETL_PROFORMAS')
 PDF_DIR = os.environ.get('PDF_DIR', '/mnt/empresa/proformas-pdf')
+
+
+def _numero_corto(proforma):
+    """Forma corta del número para el PDF: PREFIJO-AA-NNNN.
+
+    Usa el contador secuencial y el año de la fecha de la proforma, ignorando
+    la parte descriptiva (agencia/mes) del numero_proforma. Si falta el
+    secuencial, intenta deducirlo de los tres primeros segmentos del número
+    largo; si no, devuelve el número largo tal cual."""
+    cfg = get_serie_config()
+    n = proforma.get('numero_secuencial')
+    fecha = proforma.get('fecha') or ''
+    aa = ''
+    try:
+        aa = fecha.split('-')[0][-2:]
+    except (AttributeError, IndexError):
+        aa = ''
+    if n is not None and aa:
+        return f"{cfg['prefijo']}-{aa}-{str(n).zfill(cfg['digitos'])}"
+    # Fallback: primeros tres segmentos del número largo (PREFIJO-AA-NNNN)
+    partes = (proforma.get('numero_proforma') or '').split('-')
+    if len(partes) >= 3:
+        return '-'.join(partes[:3])
+    return proforma.get('numero_proforma') or ''
 
 
 def generar_pdf(proforma_id):
@@ -35,6 +59,10 @@ def generar_pdf(proforma_id):
 
     proforma_dict = dict(proforma)
     proforma_dict['lineas'] = [dict(l) for l in lineas]
+
+    # Número corto para el PDF (cabecera y pie): solo PREFIJO-AA-NNNN, sin la
+    # parte descriptiva (agencia/mes) que sí lleva numero_proforma en la UI/Excel.
+    proforma_dict['numero_corto'] = _numero_corto(proforma_dict)
 
     raw = proforma_dict.get('suplidos_detalle')
     if raw:

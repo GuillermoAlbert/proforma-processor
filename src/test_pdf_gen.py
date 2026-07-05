@@ -71,6 +71,10 @@ def generar(numero, n_lineas, comentarios=''):
         loader=jinja2.FileSystemLoader(TEMPLATE_DIR),
         autoescape=jinja2.select_autoescape(['html'])
     )
+    # Mismos filtros que registra pdf.py — la plantilla los necesita.
+    env.filters['fecha_es'] = lambda v: '/'.join(reversed(v.split('-'))) if v else ''
+    env.filters['iban_format'] = lambda v: ' '.join(
+        v.replace(' ', '').upper()[i:i+4] for i in range(0, len(v.replace(' ', '')), 4)) if v else ''
     template = env.get_template('plantilla-proforma.html')
     html = template.render(
         proforma=proforma_data(numero, n_lineas, comentarios),

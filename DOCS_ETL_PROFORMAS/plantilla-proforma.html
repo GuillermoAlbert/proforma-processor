@@ -89,6 +89,10 @@
     display: flex;
     align-items: center;
     gap: 14px;
+    /* flex:0 0 auto -> el bloque de marca nunca se encoge, así el nombre de la
+       empresa siempre cabe en una sola línea. El nombre es un valor de config
+       estable; el elemento de ancho variable es el número (a la derecha). */
+    flex: 0 0 auto;
   }
 
   .header-logo {
@@ -99,7 +103,7 @@
 
   .header-company-name {
     font-family: var(--font-head);
-    font-size: 17pt;
+    font-size: 15pt;
     font-weight: 600;
     color: var(--navy);
     line-height: 1.2;
@@ -118,7 +122,12 @@
 
   .header-doc {
     text-align: right;
-    flex-shrink: 0;
+    /* Permite que la columna del documento se encoja y ocupe como mucho la
+       mitad de la cabecera; min-width:0 habilita el wrap del número largo
+       dentro de un contenedor flex. */
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 46%;
     padding-left: 20px;
     border-left: 0.5pt solid var(--hairline);
   }
@@ -142,12 +151,18 @@
   .doc-number {
     display: block;
     font-family: var(--font-head);
-    font-size: 19pt;
+    font-size: 14pt;
     font-weight: 600;
     color: var(--navy);
-    line-height: 1.1;
+    line-height: 1.2;
     letter-spacing: -0.01em;
-    white-space: nowrap;
+    /* Los números de serie pueden ser largos y descriptivos
+       (p. ej. PROFORMA-26-042-TRADITIONAL-TOURS-jun_26). En vez de desbordar
+       la cabecera, se permite el salto de línea: rompe de forma natural por
+       los guiones y, en última instancia, por cualquier carácter. */
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .doc-date {
@@ -191,7 +206,7 @@
   .billing-wrap {
     display: flex;
     gap: 16px;
-    margin-bottom: 10px;
+    margin-bottom: 18px;
   }
 
   .billing-col {
@@ -574,7 +589,7 @@
 
     <div class="header-doc">
       <div class="badge-tipo">Factura Proforma</div>
-      <span class="doc-number">{{ proforma.numero_proforma }}</span>
+      <span class="doc-number">{{ proforma.numero_corto | default(proforma.numero_proforma) }}</span>
       <span class="doc-date">{{ proforma.fecha }}</span>
       <div>
         {% if proforma.estado == 'borrador' %}
@@ -765,7 +780,7 @@
     <div class="payment-col">
       <div class="pago-label">Condiciones de pago</div>
       <div class="pago-value">{{ empresa.condiciones_pago | default('30 días desde fecha de factura') }}</div>
-      <div class="pago-note">Referencia: {{ proforma.numero_proforma }}</div>
+      <div class="pago-note">Referencia: {{ proforma.numero_corto | default(proforma.numero_proforma) }}</div>
     </div>
   </div>
 
@@ -781,7 +796,7 @@
        ══════════════════════════════════════════════════════ -->
   <footer class="doc-footer">
     <span style="word-break:normal; overflow-wrap:break-word; hyphens:none;">{{ empresa.tagline }}</span>
-    <span class="footer-mid">{{ proforma.numero_proforma }} &middot; {{ proforma.fecha }}</span>
+    <span class="footer-mid">{{ proforma.numero_corto | default(proforma.numero_proforma) }} &middot; {{ proforma.fecha }}</span>
     <span style="text-align:right; white-space:nowrap;">{{ empresa.email | default('info@guiasdealicante.es') }} &middot; {{ empresa.telefono | default('+34 661 639 964') }}</span>
   </footer>
 
