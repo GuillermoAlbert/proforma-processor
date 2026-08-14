@@ -86,6 +86,22 @@ def generar_pdf(proforma_id):
             empresa['banco'] = cuenta['banco']
         empresa['titular'] = cuenta['titular'] or ''
 
+    html_rendered = render_proforma_html(proforma_dict, cliente_dict, empresa)
+
+    pdf_path = os.path.join(PDF_DIR, f"{proforma_dict['numero_proforma']}.pdf")
+    weasyprint.HTML(string=html_rendered, base_url=TEMPLATE_DIR).write_pdf(pdf_path)
+
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE proformas SET ruta_pdf = ? WHERE id = ?",
+            (pdf_path, proforma_id)
+        )
+
+    return pdf_path
+
+
+def render_proforma_html(proforma_dict, cliente_dict, empresa):
+    """Renderiza la plantilla Jinja2 de la proforma y devuelve el HTML."""
     def _fecha_es(value):
         """Convierte YYYY-MM-DD a DD/MM/YYYY para el PDF."""
         if not value:
@@ -110,19 +126,8 @@ def generar_pdf(proforma_id):
     env.filters['fecha_es'] = _fecha_es
     env.filters['iban_format'] = _iban_format
     template = env.get_template('plantilla-proforma.html')
-    html_rendered = template.render(
+    return template.render(
         proforma=proforma_dict,
         cliente=cliente_dict,
         empresa=empresa,
     )
-
-    pdf_path = os.path.join(PDF_DIR, f"{proforma_dict['numero_proforma']}.pdf")
-    weasyprint.HTML(string=html_rendered, base_url=TEMPLATE_DIR).write_pdf(pdf_path)
-
-    with get_db() as conn:
-        conn.execute(
-            "UPDATE proformas SET ruta_pdf = ? WHERE id = ?",
-            (pdf_path, proforma_id)
-        )
-
-    return pdf_path

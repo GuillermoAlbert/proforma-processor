@@ -53,11 +53,13 @@
       {# ── Dirección ───────────────────────────────────────────── #}
       <div class="full" style="padding:16px 0 4px; border-top:1px solid var(--hairline); display:flex; justify-content:space-between; align-items:center;">
         <span style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">Dirección</span>
-        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:400; color:var(--ink);">
-          <input type="checkbox" name="mostrar_direccion" value="1"
-                 {% if empresa.mostrar_direccion != '0' %}checked{% endif %}
-                 style="width:15px; height:15px; cursor:pointer; accent-color:var(--navy);">
-          Mostrar en el PDF
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:400; color:var(--ink);">
+          En el PDF:
+          <select name="direccion_modo" style="font-size:13px; padding:4px 8px; cursor:pointer;">
+            <option value="completa"{% if empresa.direccion_modo == 'completa' %} selected{% endif %}>Dirección completa</option>
+            <option value="poblacion"{% if empresa.direccion_modo == 'poblacion' %} selected{% endif %}>Solo C.P. y población</option>
+            <option value="oculta"{% if empresa.direccion_modo == 'oculta' %} selected{% endif %}>No mostrar</option>
+          </select>
         </label>
       </div>
 

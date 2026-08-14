@@ -1154,7 +1154,9 @@ def config_empresa():
             'web': request.form.get('web', '').strip(),
             'condiciones_pago': request.form.get('condiciones_pago', '').strip(),
             'tagline': request.form.get('tagline', '').strip(),
-            'mostrar_direccion': '1' if request.form.get('mostrar_direccion') else '0',
+            'direccion_modo': request.form.get('direccion_modo')
+                if request.form.get('direccion_modo') in ('completa', 'poblacion', 'oculta')
+                else 'completa',
             'aviso_legal': request.form.get('aviso_legal', '').strip(),
         }
         set_empresa_config(fields)

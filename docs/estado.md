@@ -31,6 +31,12 @@
 
 ## Historial
 
+- **2026-08-14** — modo de dirección de la empresa en el PDF:
+  `empresa.direccion_modo` (`completa` / `poblacion` / `oculta`) sustituye al
+  checkbox binario `mostrar_direccion` (migración idempotente
+  `_migrate_mostrar_direccion_a_modo`; `'0'` → `oculta`). Selector en
+  Config → Empresa, render extraído a `pdf.render_proforma_html()` y primera
+  suite pytest del repo: `src/test_direccion_modo.py` (10 tests, TDD).
 - **2026-07-05** — `e9a432d` número corto en el PDF + cabecera sin desbordes
   (consolidado de una sesión anterior) y `test_pdf_gen.py` reparado (filtros
   jinja). `6cb0feb` `POST /api/proformas/borrador` para la pieza 4 de CT108

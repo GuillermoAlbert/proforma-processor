@@ -23,6 +23,7 @@ EMPRESA = {
     'iban': 'ES00 0000 0000 0000 0000 0000',
     'banco': 'Entidad bancaria',
     'condiciones_pago': '30 días desde fecha de factura',
+    'direccion_modo': 'completa',
 }
 
 CLIENTE = {

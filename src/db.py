@@ -193,6 +193,26 @@ def _migrate_estado_confirmada_a_enviada(conn):
     conn.execute("UPDATE proformas SET estado = 'enviada' WHERE estado = 'confirmada'")
 
 
+def _migrate_mostrar_direccion_a_modo(conn):
+    """El checkbox binario empresa.mostrar_direccion ('0'/'1') pasa a ser el
+    modo de tres valores empresa.direccion_modo (completa/poblacion/oculta).
+    Solo '0' necesita conservarse (→ 'oculta'); '1' era el default y lo cubre
+    el default 'completa'. Si ya hay un modo elegido, se respeta. Idempotente."""
+    row = conn.execute(
+        "SELECT valor FROM config WHERE clave = 'empresa.mostrar_direccion'"
+    ).fetchone()
+    if row is None:
+        return
+    tiene_modo = conn.execute(
+        "SELECT 1 FROM config WHERE clave = 'empresa.direccion_modo'"
+    ).fetchone()
+    if row[0] == '0' and tiene_modo is None:
+        conn.execute(
+            "INSERT INTO config (clave, valor) VALUES ('empresa.direccion_modo', 'oculta')"
+        )
+    conn.execute("DELETE FROM config WHERE clave = 'empresa.mostrar_direccion'")
+
+
 def init_db():
     with get_db() as conn:
         conn.executescript(SCHEMA)
@@ -204,6 +224,7 @@ def init_db():
         _migrate_add_numero_secuencial(conn)
         _migrate_add_fecha_cobro(conn)
         _migrate_estado_confirmada_a_enviada(conn)
+        _migrate_mostrar_direccion_a_modo(conn)
 
 
 _EMPRESA_DEFAULTS = {
@@ -220,7 +241,7 @@ _EMPRESA_DEFAULTS = {
     'banco': 'Entidad bancaria',
     'condiciones_pago': '30 días desde fecha de factura',
     'tagline': 'Guías oficiales de la Comunidad Valenciana desde 1992',
-    'mostrar_direccion': '1',
+    'direccion_modo': 'completa',  # completa | poblacion | oculta
     'aviso_legal': 'Este documento es una FACTURA PROFORMA y no tiene validez fiscal. No sustituye a la factura oficial. La factura legal (Verifactu) se emitirá desde Factusol una vez confirmado el servicio.',
 }
 

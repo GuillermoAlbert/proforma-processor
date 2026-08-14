@@ -617,13 +617,15 @@
         <span class="detail-key">NIF</span>
         <span class="detail-val">{{ empresa.nif | default('[NIF empresa]') }}</span>
       </div>
-      {% if empresa.mostrar_direccion != '0' %}
+      {% if empresa.direccion_modo != 'oculta' %}
+      {% if empresa.direccion_modo != 'poblacion' %}
       <div class="detail-row">
         <span class="detail-key">Dirección</span>
         <span class="detail-val">{{ empresa.direccion | default('[Dirección empresa]') }}</span>
       </div>
+      {% endif %}
       <div class="detail-row">
-        <span class="detail-key"></span>
+        <span class="detail-key">{% if empresa.direccion_modo == 'poblacion' %}Dirección{% endif %}</span>
         <span class="detail-val">{{ empresa.cp | default('') }} {{ empresa.poblacion | default('Alicante') }}{% if empresa.provincia %} ({{ empresa.provincia }}){% endif %}</span>
       </div>
       {% endif %}
