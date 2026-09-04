@@ -415,6 +415,14 @@ def peek_numero_proforma(anio, fecha=None, agencia=None):
     return _aplicar_formato(cfg, anio, n, fecha=fecha, agencia=agencia)
 
 
+def formatear_numero_proforma(anio, n, fecha=None, agencia=None):
+    """Reconstruye el número de una proforma YA numerada con su mismo secuencial.
+
+    No toca el contador: sirve para rehacer el número cuando cambian los datos
+    que lo componen (cliente, fecha) sin consumir un número nuevo."""
+    return _aplicar_formato(get_serie_config(), anio, n, fecha=fecha, agencia=agencia)
+
+
 def set_proximo_numero(anio, proximo):
     """Sets the counter so the next auto-generated number will be `proximo`."""
     cfg = get_serie_config()

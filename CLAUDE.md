@@ -69,8 +69,8 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
   `TEMPLATE_DIR`, `ADMIN_USER`/`ADMIN_PASS`, `EXCEL_PATH`, `EXCEL_BACKUP_DIR`
   (rotación 30 días), `EXCEL_PENDING_FILE` (cola si el Excel está abierto),
   `EXCEL_LOCK_FILE`.
-- Verificación: `python3 -m pytest src/test_direccion_modo.py` (única suite
-  pytest, aislada en /tmp) + `test_pdf_gen.py` + smoke HTTP + el flujo manual
+- Verificación: `python3 -m pytest src/test_direccion_modo.py src/test_numeracion_agencia.py`
+  (suites pytest, aisladas en /tmp) + `test_pdf_gen.py` + smoke HTTP + el flujo manual
   en el panel (ver `/verify`).
 
 ## Mapa de `src/`
@@ -86,6 +86,7 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
 | `templates/` | Jinja2 del panel (base + clientes/, articulos/, guias/, cuentas/, proformas/, config/). |
 | `test_pdf_gen.py` | Script manual (no pytest): genera 3 PDFs de prueba en `/tmp` sin BD. |
 | `test_direccion_modo.py` | Suite pytest de `empresa.direccion_modo` (completa/poblacion/oculta): config, migración, render y formulario. BD y PDFs en `/tmp`. |
+| `test_numeracion_agencia.py` | Suite pytest de la numeración cuando la serie depende del cliente o la fecha (`{agencia}`, `{mes_corto}`): alta sin cliente, `peek-numero`, renumerado al editar un borrador y campo `readonly` en el alta. BD en `/tmp`. |
 | `INSTALL.md` | Comandos `pct exec 104` de instalación. |
 
 Assets de marca y plantillas: `DOCS_ETL_PROFORMAS/` (brand kit, plantilla

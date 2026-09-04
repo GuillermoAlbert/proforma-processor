@@ -8,7 +8,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 from db import (get_db, init_db, siguiente_numero_proforma, peek_numero_proforma,
                 get_serie_config, set_serie_config, set_proximo_numero,
                 get_empresa_config, set_empresa_config, get_setting, set_setting,
-                recalcular_contador_serie)
+                recalcular_contador_serie, formatear_numero_proforma)
 from admin_helpers import require_auth
 from pdf import generar_pdf, PDF_DIR
 import excel
@@ -469,14 +469,7 @@ def _crear_proforma(fecha_str, cliente_id, cuenta_id, lineas, suplidos, suplidos
         fecha_obj = date.fromisoformat(fecha_str) if fecha_str else date.today()
     except ValueError:
         fecha_obj = date.today()
-    nombre_agencia = None
-    if cliente_id:
-        with get_db() as conn:
-            row = conn.execute(
-                "SELECT nombre_agencia FROM clientes WHERE id=?", (int(cliente_id),)
-            ).fetchone()
-            if row:
-                nombre_agencia = row['nombre_agencia']
+    nombre_agencia = _nombre_agencia(cliente_id)
     numero_auto, n_secuencial = siguiente_numero_proforma(anio, fecha=fecha_obj, agencia=nombre_agencia)
     cfg_serie = get_serie_config()
     usa_agencia = '{agencia}' in cfg_serie.get('formato', '')
@@ -503,6 +496,49 @@ def _crear_proforma(fecha_str, cliente_id, cuenta_id, lineas, suplidos, suplidos
         _insertar_guias(conn, proforma_id, guia_ids)
         _insertar_lineas(conn, proforma_id, lineas)
     return proforma_id, numero
+
+
+def _nombre_agencia(cliente_id):
+    """Nombre de agencia del cliente, o None si no hay cliente."""
+    try:
+        cliente_id = int(cliente_id)
+    except (TypeError, ValueError):
+        return None
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT nombre_agencia FROM clientes WHERE id=?", (cliente_id,)
+        ).fetchone()
+    return row['nombre_agencia'] if row else None
+
+
+def _renumerar_borrador(proforma, fecha_str, cliente_id):
+    """Rehace el número de una proforma en borrador con su mismo secuencial.
+
+    El formato de serie puede incluir {agencia}, {mes_corto}, etc.: si la
+    proforma se creó sin cliente (el asistente de CT108 lo permite) o cambia la
+    fecha, el número guardado se queda obsoleto — con el hueco de la agencia
+    vacío, por ejemplo. Devuelve el número reconstruido, o None si no procede
+    tocarlo (proforma ya enviada, sin secuencial, fecha inválida o número ya
+    ocupado por otra proforma).
+    """
+    if proforma['estado'] != 'borrador' or not proforma['numero_secuencial']:
+        return None
+    try:
+        fecha_obj = date.fromisoformat(fecha_str)
+    except (TypeError, ValueError):
+        return None
+    numero = formatear_numero_proforma(
+        fecha_obj.year, proforma['numero_secuencial'],
+        fecha=fecha_obj, agencia=_nombre_agencia(cliente_id)
+    )
+    if numero == proforma['numero_proforma']:
+        return None
+    with get_db() as conn:
+        ocupado = conn.execute(
+            "SELECT 1 FROM proformas WHERE numero_proforma=? AND id!=?",
+            (numero, proforma['id'])
+        ).fetchone()
+    return None if ocupado else numero
 
 
 def _form_context(conn):
@@ -615,6 +651,7 @@ def proformas_nueva():
         cuenta_predeterminada_id=cuenta_predeterminada_id,
         hoy=str(date.today()),
         numero_sugerido=peek_numero_proforma(anio_hoy),
+        serie_usa_agencia='{agencia}' in get_serie_config().get('formato', ''),
     )
 
 
@@ -687,6 +724,12 @@ def proformas_editar(id):
         comentarios = request.form.get('comentarios', '').strip()
         referencia  = request.form.get('referencia', '').strip() or None
         numero_nuevo = request.form.get('numero_proforma', '').strip() or proforma['numero_proforma']
+
+        # Número intacto + borrador → se reconstruye con el cliente y la fecha de
+        # ahora (mismo secuencial). Así se rellena el hueco {agencia} de las
+        # proformas que el asistente crea sin cliente.
+        if numero_nuevo == proforma['numero_proforma']:
+            numero_nuevo = _renumerar_borrador(proforma, fecha_str, cliente_id) or numero_nuevo
 
         if numero_nuevo != proforma['numero_proforma']:
             with get_db() as conn:
@@ -1254,20 +1297,28 @@ def api_peek_numero():
     Parámetros GET: fecha (YYYY-MM-DD), cliente_id (int)."""
     fecha_str = request.args.get('fecha', str(date.today()))
     cliente_id = request.args.get('cliente_id') or None
+    proforma_id = request.args.get('proforma_id') or None
     try:
         fecha_obj = date.fromisoformat(fecha_str)
     except ValueError:
         fecha_obj = date.today()
     anio = fecha_obj.year
-    nombre_agencia = None
-    if cliente_id:
+    nombre_agencia = _nombre_agencia(cliente_id)
+
+    # Con proforma_id se previsualiza el número de una proforma ya numerada
+    # (mismo secuencial); sin él, el que tocaría a la siguiente.
+    secuencial = None
+    if proforma_id:
         with get_db() as conn:
             row = conn.execute(
-                "SELECT nombre_agencia FROM clientes WHERE id=?", (int(cliente_id),)
+                "SELECT numero_secuencial FROM proformas WHERE id=?", (proforma_id,)
             ).fetchone()
-            if row:
-                nombre_agencia = row['nombre_agencia']
-    numero = peek_numero_proforma(anio, fecha=fecha_obj, agencia=nombre_agencia)
+        secuencial = row['numero_secuencial'] if row else None
+
+    if secuencial:
+        numero = formatear_numero_proforma(anio, secuencial, fecha=fecha_obj, agencia=nombre_agencia)
+    else:
+        numero = peek_numero_proforma(anio, fecha=fecha_obj, agencia=nombre_agencia)
     return jsonify({'numero': numero})
 
 

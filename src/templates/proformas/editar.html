@@ -647,9 +647,43 @@ const LOCKED = {{ 'true' if locked else 'false' }};
       }
       if (!inserted) select.add(new Option(json.nombre_agencia, json.id));
       select.value = json.id;
+      select.dispatchEvent(new Event('change'));
       document.getElementById('modal-cliente').style.display = 'none';
     } catch (_) { errEl.textContent = 'Error de conexión.'; errEl.style.display = 'block'; }
   });
+
+  // ── Actualización en tiempo real del número de proforma ───────────────────
+  // Solo en borrador: el número se rehace con el cliente y la fecha elegidos
+  // (mismo secuencial). El servidor hace lo mismo al guardar.
+  {% if proforma.estado == 'borrador' %}
+  (function() {
+    const numInput = document.getElementById('numero_proforma');
+    let autoValor = numInput.value;
+    let userEditado = false;
+
+    numInput.addEventListener('input', () => { userEditado = (numInput.value !== autoValor); });
+
+    async function actualizarNumero() {
+      if (userEditado) return;
+      const params = new URLSearchParams({
+        fecha: document.getElementById('fecha').value,
+        proforma_id: '{{ proforma.id }}',
+      });
+      const clienteId = document.getElementById('cliente_id').value;
+      if (clienteId) params.set('cliente_id', clienteId);
+      try {
+        const res = await fetch('/api/peek-numero?' + params);
+        if (!res.ok) return;
+        const json = await res.json();
+        numInput.value = json.numero;
+        autoValor = json.numero;
+      } catch (_) {}
+    }
+
+    document.getElementById('cliente_id').addEventListener('change', actualizarNumero);
+    document.getElementById('fecha').addEventListener('change', actualizarNumero);
+  })();
+  {% endif %}
 
   // ── Modal guía ────────────────────────────────────────────────────────────
   function anadirCheckboxGuia(id, nombre) {

@@ -25,6 +25,7 @@ import test_pdf_gen  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def bd_limpia():
+    db.DB_PATH = TEST_DB  # el módulo db se importa una vez por proceso
     for sufijo in ('', '-wal', '-shm'):
         try:
             os.remove(TEST_DB + sufijo)

@@ -34,6 +34,21 @@
 
 ## Historial
 
+- **2026-09-04** — `b080f75`→ el número de proforma se rehace solo cuando cambia
+  lo que lo compone. Con series tipo `{serie}-{aa}-{n}-{agencia}-{mes_corto}_{aa}`,
+  un borrador creado sin cliente (lo permite `POST /api/proformas/borrador` del
+  asistente) nacía con el hueco de la agencia vacío y ya no se arreglaba nunca:
+  `/proformas/<id>/editar` conservaba el número tal cual. Ahora:
+  `db.formatear_numero_proforma()` reconstruye un número con **su mismo
+  secuencial**; al guardar una edición en borrador con el número intacto se
+  renumera con el cliente y la fecha de ese momento (`_renumerar_borrador`, que
+  no toca proformas enviadas/cobradas ni pisa un número ya usado);
+  `/api/peek-numero?proforma_id=` previsualiza el de una proforma existente y
+  `editar.html` lo refresca en vivo como ya hacía `nueva.html`; en el alta, si
+  la serie usa `{agencia}` el campo va `readonly` (el número escrito a mano se
+  descartaba en silencio). Suite nueva: `src/test_numeracion_agencia.py`
+  (15 tests). Las dos suites fijan `db.DB_PATH` en su fixture y ya se pueden
+  correr juntas.
 - **2026-09-04** — `bec067c` alta rápida de guía desde el formulario de proforma:
   `POST /api/guias` (rechaza vacío y duplicado `COLLATE NOCASE`) + modal
   «Nuevo guía» con el mismo patrón que el de cliente, en `nueva.html` y
