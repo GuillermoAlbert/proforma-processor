@@ -990,6 +990,23 @@ def api_clientes_nuevo():
     return jsonify({'id': cli_id, 'nombre_agencia': nombre})
 
 
+@app.route('/api/guias', methods=['POST'])
+@require_auth
+def api_guias_nuevo():
+    nombre = request.form.get('nombre', '').strip()
+    if not nombre:
+        return jsonify({'error': 'El nombre es obligatorio.'}), 400
+    with get_db() as conn:
+        existe = conn.execute(
+            "SELECT id FROM guias WHERE nombre = ? COLLATE NOCASE", (nombre,)
+        ).fetchone()
+        if existe:
+            return jsonify({'error': 'Ya existe una guía con ese nombre.'}), 400
+        conn.execute("INSERT INTO guias (nombre) VALUES (?)", (nombre,))
+        guia_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    return jsonify({'id': guia_id, 'nombre': nombre})
+
+
 @app.route('/api/proformas/borrador', methods=['POST'])
 @require_auth
 def api_proformas_borrador():

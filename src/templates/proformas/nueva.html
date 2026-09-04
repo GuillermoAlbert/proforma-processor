@@ -39,8 +39,12 @@ const ARTICULOS = {{ articulos_json | safe }};
   </div>
 
   <div class="form-group">
-    <label>Guías <span style="font-weight:400; color:var(--stone);">(solo Excel)</span></label>
-    <div style="border:1px solid #ddd; border-radius:6px; padding:6px 10px; max-height:110px; overflow-y:auto; background:#fff;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+      <label style="margin:0;">Guías <span style="font-weight:400; color:var(--stone);">(solo Excel)</span></label>
+      <button type="button" id="btn-nueva-guia" class="btn btn-secondary btn-sm"
+              title="Crear nueva guía" style="flex-shrink:0; white-space:nowrap;">+ Nueva</button>
+    </div>
+    <div id="guias-box" style="border:1px solid #ddd; border-radius:6px; padding:6px 10px; max-height:110px; overflow-y:auto; background:#fff;">
       {% if guias %}
         {% for g in guias %}
         <label style="display:flex; align-items:center; gap:8px; padding:3px 0; font-size:13px; font-weight:400; cursor:pointer;">
@@ -49,7 +53,7 @@ const ARTICULOS = {{ articulos_json | safe }};
         </label>
         {% endfor %}
       {% else %}
-        <span style="color:#888; font-size:12px;">Sin guías. <a href="{{ url_for('guias_lista') }}">Crear guías</a></span>
+        <span id="guias-vacio" style="color:#888; font-size:12px;">Sin guías. <a href="{{ url_for('guias_lista') }}">Crear guías</a></span>
       {% endif %}
     </div>
   </div>
@@ -280,6 +284,24 @@ const ARTICULOS = {{ articulos_json | safe }};
         <input type="email" id="cli-email" style="width:100%;">
       </div>
       <button type="button" id="btn-guardar-cliente" class="btn btn-primary" style="width:100%; margin-top:4px;">Crear cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Nueva guía ─────────────────────────────────────────────────── -->
+<div id="modal-guia" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:10px; padding:24px; width:360px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+      <strong style="font-size:15px; color:var(--navy);">Nueva guía</strong>
+      <button type="button" id="close-modal-guia" style="background:none; border:none; cursor:pointer; font-size:22px; color:#888; line-height:1; padding:0 4px;">×</button>
+    </div>
+    <div id="modal-guia-error" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:12px; padding:8px 10px; background:#fef2f2; border-radius:4px;"></div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="form-group" style="margin:0;">
+        <label>Nombre *</label>
+        <input type="text" id="guia-nombre" style="width:100%;">
+      </div>
+      <button type="button" id="btn-guardar-guia" class="btn btn-primary" style="width:100%; margin-top:4px;">Crear guía</button>
     </div>
   </div>
 </div>
@@ -563,6 +585,77 @@ const ARTICULOS = {{ articulos_json | safe }};
       errEl.style.display = 'block';
     }
   });
+
+  // ── Modal guía ────────────────────────────────────────────────────────────
+
+  function anadirCheckboxGuia(id, nombre) {
+    const box = document.getElementById('guias-box');
+    const vacio = document.getElementById('guias-vacio');
+    if (vacio) vacio.remove();
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex; align-items:center; gap:8px; padding:3px 0; font-size:13px; font-weight:400; cursor:pointer;';
+    label.innerHTML = '<input type="checkbox" name="guia_ids[]" value="' + id + '" checked style="cursor:pointer; flex-shrink:0;">';
+    label.appendChild(document.createTextNode(nombre));
+    // Insertar en orden alfabético (mismo orden que sirve el servidor)
+    const siguiente = Array.from(box.querySelectorAll('label')).find(
+      l => l.textContent.trim().localeCompare(nombre, 'es', {sensitivity: 'base'}) > 0
+    );
+    box.insertBefore(label, siguiente || null);
+    label.scrollIntoView({ block: 'nearest' });
+  }
+
+  document.getElementById('btn-nueva-guia').addEventListener('click', () => {
+    document.getElementById('guia-nombre').value = '';
+    document.getElementById('modal-guia-error').style.display = 'none';
+    document.getElementById('modal-guia').style.display = 'flex';
+    setTimeout(() => document.getElementById('guia-nombre').focus(), 50);
+  });
+
+  document.getElementById('close-modal-guia').addEventListener('click', () => {
+    document.getElementById('modal-guia').style.display = 'none';
+  });
+
+  document.getElementById('btn-guardar-guia').addEventListener('click', async function() {
+    const errEl = document.getElementById('modal-guia-error');
+    errEl.style.display = 'none';
+    const nombre = document.getElementById('guia-nombre').value.trim();
+    if (!nombre) {
+      errEl.textContent = 'El nombre es obligatorio.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const data = new FormData();
+    data.append('nombre', nombre);
+    try {
+      const res = await fetch('/api/guias', { method: 'POST', body: data });
+      const json = await res.json();
+      if (!res.ok) {
+        errEl.textContent = json.error || 'Error al crear la guía.';
+        errEl.style.display = 'block';
+        return;
+      }
+      anadirCheckboxGuia(json.id, json.nombre);
+      document.getElementById('modal-guia').style.display = 'none';
+    } catch (_) {
+      errEl.textContent = 'Error de conexión.';
+      errEl.style.display = 'block';
+    }
+  });
+
+  // ── Aviso al salir con cambios sin guardar ────────────────────────────────
+  (function() {
+    const form = document.getElementById('form-proforma');
+    const estado = () => new URLSearchParams(new FormData(form)).toString();
+    const inicial = estado();
+    let enviando = false;
+
+    form.addEventListener('submit', () => { enviando = true; });
+    window.addEventListener('beforeunload', e => {
+      if (enviando || estado() === inicial) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+  })();
 
 })();
 </script>

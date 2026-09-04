@@ -1,6 +1,6 @@
 # Estado del proyecto — proforma-admin
 
-> **Última actualización: 2026-07-05.** Fuente de verdad del estado. Se
+> **Última actualización: 2026-09-04.** Fuente de verdad del estado. Se
 > actualiza **en el mismo commit** de cada pieza: lo terminado pasa a
 > «Historial» (fecha + commit), «Pendiente» refleja lo que queda.
 
@@ -8,6 +8,9 @@
 
 - Catálogo completo (clientes, artículos, guías, cuentas bancarias de cobro) y
   creación de proformas con líneas dinámicas y totales en vivo.
+- Alta rápida sin salir del formulario de proforma (modales + `/api/*`):
+  cliente, artículo y guía. El navegador avisa si se abandona la página con
+  cambios sin guardar.
 - PDF con WeasyPrint (plantilla del brand kit, número corto `PREFIJO-AA-NNNN`
   en cabecera, bloque de pago según la cuenta asignada, guías nunca en el PDF).
 - Flujo de 3 estados `borrador → enviada → cobrada` con deshacer simétrico;
@@ -31,6 +34,13 @@
 
 ## Historial
 
+- **2026-09-04** — alta rápida de guía desde el formulario de proforma:
+  `POST /api/guias` (rechaza vacío y duplicado `COLLATE NOCASE`) + modal
+  «Nueva guía» con el mismo patrón que el de cliente, en `nueva.html` y
+  `editar.html`; la guía creada se inserta marcada y en orden alfabético en la
+  lista de checkboxes. Añadido además el aviso `beforeunload` al salir del
+  formulario con cambios sin guardar (compara un snapshot `FormData` del
+  formulario, así que detecta también líneas añadidas, borradas o reordenadas).
 - **2026-08-14** — modo de dirección de la empresa en el PDF:
   `empresa.direccion_modo` (`completa` / `poblacion` / `oculta`) sustituye al
   checkbox binario `mostrar_direccion` (migración idempotente
