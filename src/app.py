@@ -29,6 +29,17 @@ def inject_empresa():
 
 # ── Clientes ────────────────────────────────────────────────────────────────
 
+def _ya_existe(tabla, columna, valor, excluir_id=None):
+    """¿Hay ya una fila con ese nombre? (sin distinguir mayúsculas ni acentos ASCII)"""
+    sql = f"SELECT 1 FROM {tabla} WHERE {columna} = ? COLLATE NOCASE"
+    params = [valor]
+    if excluir_id:
+        sql += " AND id != ?"
+        params.append(excluir_id)
+    with get_db() as conn:
+        return conn.execute(sql, params).fetchone() is not None
+
+
 @app.route('/clientes')
 @require_auth
 def clientes_lista():
@@ -63,6 +74,10 @@ def clientes_lista():
 @require_auth
 def clientes_nuevo():
     if request.method == 'POST':
+        nombre = request.form.get('nombre_agencia', '').strip()
+        if _ya_existe('clientes', 'nombre_agencia', nombre):
+            flash(f'Ya existe un cliente llamado «{nombre}».', 'error')
+            return render_template('clientes/form.html', cliente=None, valores=request.form)
         with get_db() as conn:
             conn.execute(
                 """INSERT INTO clientes
@@ -241,7 +256,9 @@ def guias_lista():
 @require_auth
 def guias_nuevo():
     nombre = request.form.get('nombre', '').strip()
-    if nombre:
+    if nombre and _ya_existe('guias', 'nombre', nombre):
+        flash(f'Ya existe un guía llamado «{nombre}».', 'error')
+    elif nombre:
         with get_db() as conn:
             conn.execute("INSERT INTO guias (nombre) VALUES (?)", (nombre,))
         flash('Guía creado.', 'success')
@@ -498,6 +515,9 @@ def _crear_proforma(fecha_str, cliente_id, cuenta_id, lineas, suplidos, suplidos
     return proforma_id, numero
 
 
+ESTADOS_PROFORMA = ('borrador', 'enviada', 'cobrada')
+
+
 def _nombre_agencia(cliente_id):
     """Nombre de agencia del cliente, o None si no hay cliente."""
     try:
@@ -578,8 +598,29 @@ def proformas_lista():
     sort_col = sort_map.get(sort, 'p.fecha')
     sort_dir = 'ASC' if direction == 'asc' else 'DESC'
 
+    # Filtros: estado, cliente y texto libre (número, agencia o comentarios).
+    estado = request.args.get('estado', '').strip()
+    cliente_id = request.args.get('cliente_id', '').strip()
+    q = request.args.get('q', '').strip()
+    condiciones, params = [], []
+    if estado in ESTADOS_PROFORMA:
+        condiciones.append("p.estado = ?")
+        params.append(estado)
+    if cliente_id.isdigit():
+        condiciones.append("p.cliente_id = ?")
+        params.append(int(cliente_id))
+    if q:
+        condiciones.append("(p.numero_proforma LIKE ? OR IFNULL(c.nombre_agencia,'') LIKE ?"
+                           " OR IFNULL(p.comentarios,'') LIKE ?)")
+        params += [f'%{q}%'] * 3
+    filtro = ('WHERE ' + ' AND '.join(condiciones)) if condiciones else ''
+
     with get_db() as conn:
-        total = conn.execute("SELECT COUNT(*) FROM proformas").fetchone()[0]
+        total = conn.execute(
+            f"""SELECT COUNT(*) FROM proformas p
+                LEFT JOIN clientes c ON p.cliente_id = c.id {filtro}""",
+            params
+        ).fetchone()[0]
         proformas = conn.execute(
             f"""SELECT p.*, c.nombre_agencia,
                       GROUP_CONCAT(g.nombre, ', ') as guia_nombre
@@ -587,22 +628,28 @@ def proformas_lista():
                LEFT JOIN clientes c ON p.cliente_id = c.id
                LEFT JOIN proforma_guias pg ON p.id = pg.proforma_id
                LEFT JOIN guias g ON pg.guia_id = g.id
+               {filtro}
                GROUP BY p.id
                ORDER BY {sort_col} {sort_dir}, p.id {sort_dir}
                LIMIT ? OFFSET ?""",
-            (per_page, (page - 1) * per_page)
+            params + [per_page, (page - 1) * per_page]
         ).fetchall()
+        clientes = conn.execute("SELECT id, nombre_agencia FROM clientes ORDER BY nombre_agencia").fetchall()
 
     total_pages = max(1, (total + per_page - 1) // per_page)
     return render_template(
         'proformas/lista.html',
         proformas=proformas,
+        clientes=clientes,
         page=page,
         total_pages=total_pages,
         sort=sort,
         direction=direction,
         total=total,
         hoy=date.today().isoformat(),
+        estados=ESTADOS_PROFORMA,
+        # solo los activos: así los enlaces de orden y paginación salen limpios
+        filtros={k: v for k, v in (('estado', estado), ('cliente_id', cliente_id), ('q', q)) if v},
     )
 
 
@@ -807,6 +854,45 @@ def proformas_editar(id):
         articulos_json=articulos_json,
         guia_ids_actuales=guia_ids_actuales,
     )
+
+
+@app.route('/proformas/<int:id>/duplicar', methods=['POST'])
+@require_auth
+def proformas_duplicar(id):
+    """Crea un borrador nuevo copiando una proforma existente.
+
+    Copia cliente, cuenta, guías, líneas, suplidos, comentarios y referencia.
+    La fecha es la de hoy y el número lo asigna la serie; las fechas de servicio
+    de las líneas se dejan vacías a propósito, para que no se cuele el mes
+    anterior en la copia.
+    """
+    with get_db() as conn:
+        origen = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
+        if origen is None:
+            flash('Proforma no encontrada.', 'error')
+            return redirect(url_for('proformas_lista'))
+        lineas = [
+            {'descripcion': l['descripcion'], 'cantidad': l['cantidad'], 'precio': l['precio'],
+             'porcentaje_iva': l['porcentaje_iva'], 'importe': l['importe'],
+             'articulo_id': l['articulo_id'], 'fecha': None}
+            for l in conn.execute(
+                "SELECT * FROM proforma_lineas WHERE proforma_id = ? ORDER BY id", (id,)
+            ).fetchall()
+        ]
+        guia_ids = [
+            r['guia_id'] for r in conn.execute(
+                "SELECT guia_id FROM proforma_guias WHERE proforma_id = ?", (id,)
+            ).fetchall()
+        ]
+
+    nuevo_id, numero = _crear_proforma(
+        str(date.today()), origen['cliente_id'], origen['cuenta_id'], lineas,
+        origen['suplidos'] or 0, origen['suplidos_detalle'],
+        origen['comentarios'], origen['referencia'], guia_ids=guia_ids,
+    )
+    flash(f'Copia de {origen["numero_proforma"]} creada como {numero} (borrador). '
+          'Revisa las fechas de las líneas.', 'success')
+    return redirect(url_for('proformas_editar', id=nuevo_id))
 
 
 @app.route('/proformas/<int:id>/pdf')
@@ -1021,6 +1107,8 @@ def api_clientes_nuevo():
     nombre = request.form.get('nombre_agencia', '').strip()
     if not nombre:
         return jsonify({'error': 'El nombre es obligatorio.'}), 400
+    if _ya_existe('clientes', 'nombre_agencia', nombre):
+        return jsonify({'error': 'Ya existe un cliente con ese nombre.'}), 400
     nif_cif = request.form.get('nif_cif', '').strip()
     email = request.form.get('email', '').strip()
     telefono = request.form.get('telefono', '').strip()
@@ -1039,12 +1127,9 @@ def api_guias_nuevo():
     nombre = request.form.get('nombre', '').strip()
     if not nombre:
         return jsonify({'error': 'El nombre es obligatorio.'}), 400
+    if _ya_existe('guias', 'nombre', nombre):
+        return jsonify({'error': 'Ya existe un guía con ese nombre.'}), 400
     with get_db() as conn:
-        existe = conn.execute(
-            "SELECT id FROM guias WHERE nombre = ? COLLATE NOCASE", (nombre,)
-        ).fetchone()
-        if existe:
-            return jsonify({'error': 'Ya existe un guía con ese nombre.'}), 400
         conn.execute("INSERT INTO guias (nombre) VALUES (?)", (nombre,))
         guia_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     return jsonify({'id': guia_id, 'nombre': nombre})

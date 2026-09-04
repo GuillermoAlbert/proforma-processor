@@ -26,14 +26,26 @@
 - **Fase 3 · Export Factusol** — bloqueada: falta `factusol-importacion.pdf`
   en `DOCS_ETL_PROFORMAS/` (🧍 Guillermo). El campo `exportada_factusol` ya
   existe en el schema.
-- **Fase 4 · restos**: filtros por estado/cliente/fecha en el listado y pulido
-  de UI (parcial desde 2026-06-12).
+- **Fase 4 · restos**: filtros del listado hechos (estado, cliente y buscador,
+  2026-09-04); queda el filtro por rango de fechas y pulido suelto de UI.
 - Decisión aparcada (2026-06-12, no reabrir sin preguntar): endpoint de
   escritura `POST /api/proformas/<id>/cobrar` para que CT108 marque cobradas —
   preparado pero **no implementado a propósito**.
 
 ## Historial
 
+- **2026-09-04** — tres mejoras pequeñas pedidas tras el arreglo de numeración:
+  (1) **Duplicar proforma** (`POST /proformas/<id>/duplicar`, botón en listado y
+  detalle): crea un borrador con cliente, cuenta, guías, líneas, suplidos,
+  comentarios y referencia; fecha de hoy, número nuevo de la serie y **fechas de
+  servicio de las líneas en blanco** a propósito. (2) **Filtros del listado** por
+  estado y cliente + buscador (número, agencia o comentarios); los macros
+  `sort_th`/`pagination_bar` aceptan `extra` para conservarlos al ordenar y
+  paginar. (3) Pulido: modales con Escape / clic fuera / Enter, alta de guía y
+  de cliente sin duplicados también desde el catálogo y desde `/api/clientes`
+  (helper `_ya_existe`), y el aviso de cambios sin guardar movido a `base.html`
+  (`<form data-avisar-cambios>`), aplicado también a los formularios de cliente,
+  cuenta y artículo. Suite nueva `src/test_duplicar_y_filtros.py` (13 tests).
 - **2026-09-04** — `b080f75`→ el número de proforma se rehace solo cuando cambia
   lo que lo compone. Con series tipo `{serie}-{aa}-{n}-{agencia}-{mes_corto}_{aa}`,
   un borrador creado sin cliente (lo permite `POST /api/proformas/borrador` del

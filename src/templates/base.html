@@ -334,5 +334,22 @@
   {% block content %}{% endblock %}
 </div>
 
+<script>
+// Aviso al abandonar un formulario con cambios sin guardar. Se activa poniendo
+// data-avisar-cambios en el <form>. Compara un snapshot de los campos, así que
+// detecta también filas añadidas, borradas o reordenadas, y no salta al enviar.
+document.querySelectorAll('form[data-avisar-cambios]').forEach(form => {
+  const estado = () => new URLSearchParams(new FormData(form)).toString();
+  const inicial = estado();
+  let enviando = false;
+  form.addEventListener('submit', () => { enviando = true; });
+  window.addEventListener('beforeunload', e => {
+    if (enviando || estado() === inicial) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
+});
+</script>
+
 </body>
 </html>

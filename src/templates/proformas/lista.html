@@ -10,16 +10,47 @@
   </div>
 </div>
 
+<form method="get" class="card" style="padding:12px 14px; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <input type="hidden" name="dir" value="{{ direction }}">
+  <div class="form-group" style="flex:0 0 150px;">
+    <label for="f-estado">Estado</label>
+    <select id="f-estado" name="estado">
+      <option value="">— Todos —</option>
+      {% for e in estados %}
+      <option value="{{ e }}" {% if filtros.estado == e %}selected{% endif %}>{{ e|capitalize }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group" style="flex:1 1 220px; min-width:0;">
+    <label for="f-cliente">Cliente</label>
+    <select id="f-cliente" name="cliente_id">
+      <option value="">— Todos —</option>
+      {% for c in clientes %}
+      <option value="{{ c.id }}" {% if filtros.cliente_id == c.id|string %}selected{% endif %}>{{ c.nombre_agencia }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group" style="flex:1 1 220px; min-width:0;">
+    <label for="f-q">Buscar</label>
+    <input type="search" id="f-q" name="q" value="{{ filtros.q }}" placeholder="Número, agencia o comentarios">
+  </div>
+  <button type="submit" class="btn btn-secondary">Filtrar</button>
+  {% if filtros.estado or filtros.cliente_id or filtros.q %}
+  <a href="{{ url_for('proformas_lista') }}" class="btn btn-secondary">Quitar filtros</a>
+  {% endif %}
+</form>
+
 <div class="card">
   <div class="table-wrap">
     <table class="data-table">
       <thead>
         <tr>
-          {{ sort_th('numero', 'Número',  sort, direction, 'proformas_lista') }}
-          {{ sort_th('fecha',  'Fecha',   sort, direction, 'proformas_lista') }}
+          {{ sort_th('numero', 'Número',  sort, direction, 'proformas_lista', extra=filtros) }}
+          {{ sort_th('fecha',  'Fecha',   sort, direction, 'proformas_lista', extra=filtros) }}
           <th>Cliente</th>
           <th>Guía</th>
-          {{ sort_th('total',  'Total',   sort, direction, 'proformas_lista', align='right') }}
+          {{ sort_th('total',  'Total',   sort, direction, 'proformas_lista', align='right', extra=filtros) }}
           <th>Estado</th>
           <th>Acciones</th>
         </tr>
@@ -37,6 +68,9 @@
             <div class="td-actions actions-grid">
               <a href="{{ url_for('proformas_pdf', id=p.id) }}" class="btn btn-terra btn-sm">PDF</a>
               <a href="{{ url_for('proformas_editar', id=p.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+              <form method="POST" action="{{ url_for('proformas_duplicar', id=p.id) }}" style="display:contents;">
+                <button type="submit" class="btn btn-secondary btn-sm" title="Crear un borrador nuevo con los mismos datos">Duplicar</button>
+              </form>
               {% if p.estado == 'borrador' %}
               <form method="POST" action="{{ url_for('proformas_enviar', id=p.id) }}" style="display:contents;">
                 <button type="submit" class="btn btn-primary btn-sm">Enviar</button>
@@ -56,14 +90,19 @@
         {% else %}
         <tr>
           <td colspan="7" style="text-align:center; color:#888; padding:24px;">
+            {% if filtros.estado or filtros.cliente_id or filtros.q %}
+            Ninguna proforma coincide con el filtro.
+            <a href="{{ url_for('proformas_lista') }}">Quitar filtros</a>.
+            {% else %}
             No hay proformas. <a href="{{ url_for('proformas_nueva') }}">Crea la primera.</a>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {{ pagination_bar(page, total_pages, total, sort, direction, 'proformas_lista', 'proforma') }}
+  {{ pagination_bar(page, total_pages, total, sort, direction, 'proformas_lista', 'proforma', extra=filtros) }}
 </div>
 
 {% include '_modal_cobrar.html' %}

@@ -13,6 +13,12 @@ import sys
 TEST_DB = '/tmp/test_direccion_modo.db'
 os.environ['DB_PATH'] = TEST_DB
 os.environ['PDF_DIR'] = '/tmp/test_direccion_modo_pdf'
+# excel.py fija su ruta al importarse: apuntarla a /tmp por si esta suite es la
+# primera en importar `app` al correr todas juntas (`pytest src/`).
+os.environ['EXCEL_PATH'] = '/tmp/test_direccion_modo.xlsx'
+os.environ['EXCEL_BACKUP_DIR'] = '/tmp/test_direccion_modo_bak'
+os.environ['EXCEL_PENDING_FILE'] = '/tmp/test_direccion_modo_pendientes.json'
+os.environ['EXCEL_LOCK_FILE'] = '/tmp/test_direccion_modo.lock'
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

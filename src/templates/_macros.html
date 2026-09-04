@@ -1,8 +1,8 @@
-{% macro sort_th(col, label, current_sort, current_dir, endpoint, align='left') %}
+{% macro sort_th(col, label, current_sort, current_dir, endpoint, align='left', extra={}) %}
   {% set active = (current_sort == col) %}
   {% set new_dir = 'asc' if (active and current_dir == 'desc') else 'desc' %}
   <th style="text-align:{{ align }};">
-    <a href="{{ url_for(endpoint, sort=col, dir=new_dir, page=1) }}"
+    <a href="{{ url_for(endpoint, sort=col, dir=new_dir, page=1, **extra) }}"
        class="sort-link{% if active %} sort-active{% endif %}">
       {{ label }}
       {% if active %}
@@ -14,13 +14,13 @@
   </th>
 {% endmacro %}
 
-{% macro pagination_bar(page, total_pages, total, sort, direction, endpoint, item_name='elemento') %}
+{% macro pagination_bar(page, total_pages, total, sort, direction, endpoint, item_name='elemento', extra={}) %}
   {% if total_pages > 1 or total > 0 %}
   <div class="pagination">
     <span>{{ total }} {{ item_name }}{{ 's' if total != 1 }}</span>
     <div class="pagination-pages">
       {% if page > 1 %}
-        <a href="{{ url_for(endpoint, sort=sort, dir=direction, page=page-1) }}" class="page-link">‹</a>
+        <a href="{{ url_for(endpoint, sort=sort, dir=direction, page=page-1, **extra) }}" class="page-link">‹</a>
       {% else %}
         <span class="page-link disabled">‹</span>
       {% endif %}
@@ -31,14 +31,14 @@
           {% if ns.prev > 0 and p > ns.prev + 1 %}
             <span class="page-ellipsis">…</span>
           {% endif %}
-          <a href="{{ url_for(endpoint, sort=sort, dir=direction, page=p) }}"
+          <a href="{{ url_for(endpoint, sort=sort, dir=direction, page=p, **extra) }}"
              class="page-link{% if p == page %} current{% endif %}">{{ p }}</a>
           {% set ns.prev = p %}
         {% endif %}
       {% endfor %}
 
       {% if page < total_pages %}
-        <a href="{{ url_for(endpoint, sort=sort, dir=direction, page=page+1) }}" class="page-link">›</a>
+        <a href="{{ url_for(endpoint, sort=sort, dir=direction, page=page+1, **extra) }}" class="page-link">›</a>
       {% else %}
         <span class="page-link disabled">›</span>
       {% endif %}

@@ -12,6 +12,9 @@
   <div style="display:flex; gap:8px;">
     <a href="{{ url_for('proformas_pdf', id=proforma.id) }}" class="btn btn-terra">Descargar PDF</a>
     <a href="{{ url_for('proformas_editar', id=proforma.id) }}" class="btn btn-secondary">Editar</a>
+    <form method="POST" action="{{ url_for('proformas_duplicar', id=proforma.id) }}" style="display:contents;">
+      <button type="submit" class="btn btn-secondary" title="Crear un borrador nuevo con los mismos datos">Duplicar</button>
+    </form>
     {% if proforma.estado == 'borrador' %}
     <form method="POST" action="{{ url_for('proformas_enviar', id=proforma.id) }}" style="display:contents;">
       <button type="submit" class="btn btn-primary">Marcar enviada y registrar en Excel</button>

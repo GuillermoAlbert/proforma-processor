@@ -50,7 +50,8 @@ const LOCKED = {{ 'true' if locked else 'false' }};
 </div>
 {% endif %}
 
-<form method="post" id="form-proforma" class="{{ 'form-locked' if locked }}" onsubmit="{{ 'return false;' if locked }}">
+<form method="post" id="form-proforma" class="{{ 'form-locked' if locked }}"
+      onsubmit="{{ 'return false;' if locked }}" data-avisar-cambios>
 <div style="margin-bottom:16px; display:flex; align-items:center; gap:16px;">
   <div class="form-group" style="margin:0; flex:0 0 auto;">
     <label for="numero_proforma" style="margin-bottom:4px; display:block;">Número de proforma</label>
@@ -582,7 +583,7 @@ const LOCKED = {{ 'true' if locked else 'false' }};
   document.getElementById('close-modal-articulo').addEventListener('click', () => {
     document.getElementById('modal-articulo').style.display = 'none';
   });
-  document.getElementById('btn-guardar-articulo').addEventListener('click', async function() {
+  async function guardarArticulo() {
     const errEl = document.getElementById('modal-art-error');
     errEl.style.display = 'none';
     const descripcion = document.getElementById('art-descripcion').value.trim();
@@ -601,7 +602,9 @@ const LOCKED = {{ 'true' if locked else 'false' }};
       if (activeRow) { activeRow.querySelector('.sel-articulo').value = json.id; activeRow.querySelector('.sel-articulo').dispatchEvent(new Event('change')); }
       document.getElementById('modal-articulo').style.display = 'none';
     } catch (_) { errEl.textContent = 'Error de conexión.'; errEl.style.display = 'block'; }
-  });
+  }
+
+  document.getElementById('btn-guardar-articulo').addEventListener('click', guardarArticulo);
 
   // ── Modo bloqueado (enviada o cobrada) ────────────────────────────────────
   if (LOCKED) {
@@ -623,7 +626,7 @@ const LOCKED = {{ 'true' if locked else 'false' }};
   document.getElementById('close-modal-cliente').addEventListener('click', () => {
     document.getElementById('modal-cliente').style.display = 'none';
   });
-  document.getElementById('btn-guardar-cliente').addEventListener('click', async function() {
+  async function guardarCliente() {
     const errEl = document.getElementById('modal-cli-error');
     errEl.style.display = 'none';
     const nombre = document.getElementById('cli-nombre').value.trim();
@@ -650,7 +653,9 @@ const LOCKED = {{ 'true' if locked else 'false' }};
       select.dispatchEvent(new Event('change'));
       document.getElementById('modal-cliente').style.display = 'none';
     } catch (_) { errEl.textContent = 'Error de conexión.'; errEl.style.display = 'block'; }
-  });
+  }
+
+  document.getElementById('btn-guardar-cliente').addEventListener('click', guardarCliente);
 
   // ── Actualización en tiempo real del número de proforma ───────────────────
   // Solo en borrador: el número se rehace con el cliente y la fecha elegidos
@@ -709,7 +714,7 @@ const LOCKED = {{ 'true' if locked else 'false' }};
   document.getElementById('close-modal-guia').addEventListener('click', () => {
     document.getElementById('modal-guia').style.display = 'none';
   });
-  document.getElementById('btn-guardar-guia').addEventListener('click', async function() {
+  async function guardarGuia() {
     const errEl = document.getElementById('modal-guia-error');
     errEl.style.display = 'none';
     const nombre = document.getElementById('guia-nombre').value.trim();
@@ -723,22 +728,29 @@ const LOCKED = {{ 'true' if locked else 'false' }};
       anadirCheckboxGuia(json.id, json.nombre);
       document.getElementById('modal-guia').style.display = 'none';
     } catch (_) { errEl.textContent = 'Error de conexión.'; errEl.style.display = 'block'; }
-  });
+  }
 
-  // ── Aviso al salir con cambios sin guardar ────────────────────────────────
-  (function() {
-    const form = document.getElementById('form-proforma');
-    const estado = () => new URLSearchParams(new FormData(form)).toString();
-    const inicial = estado();
-    let enviando = false;
+  document.getElementById('btn-guardar-guia').addEventListener('click', guardarGuia);
 
-    form.addEventListener('submit', () => { enviando = true; });
-    window.addEventListener('beforeunload', e => {
-      if (enviando || estado() === inicial) return;
-      e.preventDefault();
-      e.returnValue = '';
+  // ── Comportamiento común de los modales ───────────────────────────────────
+  // Cerrar con Escape o con un clic fuera; guardar con Enter desde cualquier campo.
+  function bindModal(id, guardar) {
+    const modal = document.getElementById(id);
+    const cerrar = () => { modal.style.display = 'none'; };
+    modal.addEventListener('mousedown', e => { if (e.target === modal) cerrar(); });
+    modal.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); guardar(); }
+      });
     });
-  })();
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && modal.style.display !== 'none') cerrar();
+    });
+  }
+
+  bindModal('modal-articulo', guardarArticulo);
+  bindModal('modal-cliente', guardarCliente);
+  bindModal('modal-guia', guardarGuia);
 
 })();
 </script>
