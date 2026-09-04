@@ -34,7 +34,7 @@
 
 ## Historial
 
-- **2026-09-04** — alta rápida de guía desde el formulario de proforma:
+- **2026-09-04** — `bec067c` alta rápida de guía desde el formulario de proforma:
   `POST /api/guias` (rechaza vacío y duplicado `COLLATE NOCASE`) + modal
   «Nueva guía» con el mismo patrón que el de cliente, en `nueva.html` y
   `editar.html`; la guía creada se inserta marcada y en orden alfabético en la
