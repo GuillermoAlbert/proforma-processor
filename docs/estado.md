@@ -36,11 +36,14 @@
 
 - **2026-09-04** — `bec067c` alta rápida de guía desde el formulario de proforma:
   `POST /api/guias` (rechaza vacío y duplicado `COLLATE NOCASE`) + modal
-  «Nueva guía» con el mismo patrón que el de cliente, en `nueva.html` y
-  `editar.html`; la guía creada se inserta marcada y en orden alfabético en la
+  «Nuevo guía» con el mismo patrón que el de cliente, en `nueva.html` y
+  `editar.html`; el guía creado se inserta marcado y en orden alfabético en la
   lista de checkboxes. Añadido además el aviso `beforeunload` al salir del
   formulario con cambios sin guardar (compara un snapshot `FormData` del
   formulario, así que detecta también líneas añadidas, borradas o reordenadas).
+  Repaso de copy: **«guía» es masculino en toda la app** («el guía», «Guía
+  creado»), y los botones «+ Nuevo» de cliente y de guía van los dos en la fila
+  del encabezado del campo, no pegados al desplegable.
 - **2026-08-14** — modo de dirección de la empresa en el PDF:
   `empresa.direccion_modo` (`completa` / `poblacion` / `oculta`) sustituye al
   checkbox binario `mostrar_direccion` (migración idempotente

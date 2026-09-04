@@ -244,7 +244,7 @@ def guias_nuevo():
     if nombre:
         with get_db() as conn:
             conn.execute("INSERT INTO guias (nombre) VALUES (?)", (nombre,))
-        flash('Guía creada.', 'success')
+        flash('Guía creado.', 'success')
     return redirect(url_for('guias_lista'))
 
 
@@ -255,7 +255,7 @@ def guias_editar(id):
     if nombre:
         with get_db() as conn:
             conn.execute("UPDATE guias SET nombre = ? WHERE id = ?", (nombre, id))
-        flash('Guía actualizada.', 'success')
+        flash('Guía actualizado.', 'success')
     return redirect(url_for('guias_lista'))
 
 
@@ -267,10 +267,10 @@ def guias_eliminar(id):
             "SELECT COUNT(*) FROM proforma_guias WHERE guia_id = ?", (id,)
         ).fetchone()[0]
         if en_uso > 0:
-            flash('No se puede eliminar: la guía tiene proformas asociadas.', 'error')
+            flash('No se puede eliminar: el guía tiene proformas asociadas.', 'error')
         else:
             conn.execute("DELETE FROM guias WHERE id = ?", (id,))
-            flash('Guía eliminada.', 'success')
+            flash('Guía eliminado.', 'success')
     return redirect(url_for('guias_lista'))
 
 
@@ -1001,7 +1001,7 @@ def api_guias_nuevo():
             "SELECT id FROM guias WHERE nombre = ? COLLATE NOCASE", (nombre,)
         ).fetchone()
         if existe:
-            return jsonify({'error': 'Ya existe una guía con ese nombre.'}), 400
+            return jsonify({'error': 'Ya existe un guía con ese nombre.'}), 400
         conn.execute("INSERT INTO guias (nombre) VALUES (?)", (nombre,))
         guia_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     return jsonify({'id': guia_id, 'nombre': nombre})

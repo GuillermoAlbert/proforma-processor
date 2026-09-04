@@ -25,24 +25,24 @@ const ARTICULOS = {{ articulos_json | safe }};
 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
 
   <div class="form-group">
-    <label for="cliente_id">Cliente *</label>
-    <div style="display:flex; gap:6px; align-items:center;">
-      <select id="cliente_id" name="cliente_id" required style="flex:1; min-width:0;">
-        <option value="">— Seleccionar cliente —</option>
-        {% for c in clientes %}
-        <option value="{{ c.id }}">{{ c.nombre_agencia }}</option>
-        {% endfor %}
-      </select>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+      <label for="cliente_id" style="margin:0;">Cliente *</label>
       <button type="button" id="btn-nuevo-cliente" class="btn btn-secondary btn-sm"
               title="Crear nuevo cliente" style="flex-shrink:0; white-space:nowrap;">+ Nuevo</button>
     </div>
+    <select id="cliente_id" name="cliente_id" required>
+      <option value="">— Seleccionar cliente —</option>
+      {% for c in clientes %}
+      <option value="{{ c.id }}">{{ c.nombre_agencia }}</option>
+      {% endfor %}
+    </select>
   </div>
 
   <div class="form-group">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
       <label style="margin:0;">Guías <span style="font-weight:400; color:var(--stone);">(solo Excel)</span></label>
-      <button type="button" id="btn-nueva-guia" class="btn btn-secondary btn-sm"
-              title="Crear nueva guía" style="flex-shrink:0; white-space:nowrap;">+ Nueva</button>
+      <button type="button" id="btn-nuevo-guia" class="btn btn-secondary btn-sm"
+              title="Crear nuevo guía" style="flex-shrink:0; white-space:nowrap;">+ Nuevo</button>
     </div>
     <div id="guias-box" style="border:1px solid #ddd; border-radius:6px; padding:6px 10px; max-height:110px; overflow-y:auto; background:#fff;">
       {% if guias %}
@@ -288,11 +288,11 @@ const ARTICULOS = {{ articulos_json | safe }};
   </div>
 </div>
 
-<!-- ── Modal: Nueva guía ─────────────────────────────────────────────────── -->
+<!-- ── Modal: Nuevo guía ─────────────────────────────────────────────────── -->
 <div id="modal-guia" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:10px; padding:24px; width:360px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-      <strong style="font-size:15px; color:var(--navy);">Nueva guía</strong>
+      <strong style="font-size:15px; color:var(--navy);">Nuevo guía</strong>
       <button type="button" id="close-modal-guia" style="background:none; border:none; cursor:pointer; font-size:22px; color:#888; line-height:1; padding:0 4px;">×</button>
     </div>
     <div id="modal-guia-error" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:12px; padding:8px 10px; background:#fef2f2; border-radius:4px;"></div>
@@ -604,7 +604,7 @@ const ARTICULOS = {{ articulos_json | safe }};
     label.scrollIntoView({ block: 'nearest' });
   }
 
-  document.getElementById('btn-nueva-guia').addEventListener('click', () => {
+  document.getElementById('btn-nuevo-guia').addEventListener('click', () => {
     document.getElementById('guia-nombre').value = '';
     document.getElementById('modal-guia-error').style.display = 'none';
     document.getElementById('modal-guia').style.display = 'flex';
@@ -630,7 +630,7 @@ const ARTICULOS = {{ articulos_json | safe }};
       const res = await fetch('/api/guias', { method: 'POST', body: data });
       const json = await res.json();
       if (!res.ok) {
-        errEl.textContent = json.error || 'Error al crear la guía.';
+        errEl.textContent = json.error || 'Error al crear el guía.';
         errEl.style.display = 'block';
         return;
       }

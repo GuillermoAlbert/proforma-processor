@@ -29,7 +29,7 @@
             </td>
             <td class="td-actions">
               <form method="post" action="{{ url_for('guias_eliminar', id=g.id) }}"
-                    onsubmit="return confirm('¿Eliminar la guía {{ g.nombre }}?')">
+                    onsubmit="return confirm('¿Eliminar al guía {{ g.nombre }}?')">
                 <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
               </form>
             </td>
@@ -45,11 +45,11 @@
   </div>
 
   <div class="card" style="padding:20px;">
-    <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin-bottom:16px;">Nueva guía</h2>
+    <h2 style="font-family:var(--font-head); font-size:16px; color:var(--navy); margin-bottom:16px;">Nuevo guía</h2>
     <form method="post" action="{{ url_for('guias_nuevo') }}">
       <div class="form-group" style="margin-bottom:12px;">
         <label for="nombre">Nombre</label>
-        <input type="text" id="nombre" name="nombre" required placeholder="Nombre de la guía">
+        <input type="text" id="nombre" name="nombre" required placeholder="Nombre del guía">
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;">Añadir guía</button>
     </form>
