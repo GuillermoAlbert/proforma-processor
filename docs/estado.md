@@ -34,6 +34,14 @@
 
 ## Historial
 
+- **2026-09-08** — **BIC/SWIFT en el PDF y en la lista de cuentas.** El campo
+  `bic` ya existía en el formulario y en la BD (las dos cuentas lo tenían
+  guardado), pero `pdf.py` no lo pasaba a la plantilla y
+  `plantilla-proforma.html` no lo pintaba. Ahora la cuenta seleccionada aporta
+  también `empresa.bic` y el bloque de pago muestra «BIC / SWIFT: …» bajo la
+  entidad (solo si hay valor). La lista de cuentas tiene columna BIC / SWIFT.
+  `test_pdf_gen.py` incluye el BIC en los datos de prueba. 38 tests OK.
+
 - **2026-09-04** — tres mejoras pequeñas pedidas tras el arreglo de numeración:
   (1) **Duplicar proforma** (`POST /proformas/<id>/duplicar`, botón en listado y
   detalle): crea un borrador con cliente, cuenta, guías, líneas, suplidos,

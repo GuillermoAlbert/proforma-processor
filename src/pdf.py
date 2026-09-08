@@ -84,6 +84,8 @@ def generar_pdf(proforma_id):
             empresa['iban'] = cuenta['iban']
         if cuenta['banco']:
             empresa['banco'] = cuenta['banco']
+        if cuenta['bic']:
+            empresa['bic'] = cuenta['bic']
         empresa['titular'] = cuenta['titular'] or ''
 
     html_rendered = render_proforma_html(proforma_dict, cliente_dict, empresa)

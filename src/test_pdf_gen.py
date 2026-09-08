@@ -22,6 +22,7 @@ EMPRESA = {
     'web': 'guiasdealicante.es',
     'iban': 'ES00 0000 0000 0000 0000 0000',
     'banco': 'Entidad bancaria',
+    'bic': 'BBVAESMM',
     'condiciones_pago': '30 días desde fecha de factura',
     'direccion_modo': 'completa',
 }

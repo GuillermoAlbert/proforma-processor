@@ -13,6 +13,7 @@
         <tr>
           <th>Nombre</th>
           <th>IBAN</th>
+          <th>BIC / SWIFT</th>
           <th>Entidad</th>
           <th>Titular</th>
           <th>Acciones</th>
@@ -28,6 +29,7 @@
             {% endif %}
           </td>
           <td style="font-variant-numeric:tabular-nums;">{{ c.iban or '—' }}</td>
+          <td>{{ c.bic or '—' }}</td>
           <td>{{ c.banco or '—' }}</td>
           <td>{{ c.titular or '—' }}</td>
           <td class="td-actions">
