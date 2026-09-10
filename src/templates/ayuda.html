@@ -148,8 +148,8 @@
     <li><span><strong>Añade el cliente</strong> en «Clientes» si es la primera vez. Solo necesitas el nombre y el NIF/CIF; el resto es opcional.</span></li>
     <li><span>En «Proformas», pulsa <strong>Nueva proforma</strong>. Selecciona el cliente, la fecha y la cuenta de cobro.</span></li>
     <li><span>Añade las <strong>líneas</strong> (artículo o texto libre, cantidad, precio, IVA). Los totales se calculan solos.</span></li>
-    <li><span>Guarda como <span class="badge-inline b-borrador">borrador</span>. Puedes editarla o descargar el PDF para revisarla antes de enviarla.</span></li>
-    <li><span>Cuando esté lista, pulsa <strong>Marcar enviada y registrar en Excel</strong>. La proforma pasa a <span class="badge-inline b-enviada">enviada</span> y se anota automáticamente en el fichero de Hacienda.</span></li>
+    <li><span>Guarda como <span class="badge-inline b-borrador">borrador</span>. Mientras lo esté, el PDF que descargues es una <strong>vista previa</strong>: sale con una marca de agua «BORRADOR · SIN VALIDEZ» cruzada, para que no se confunda con el bueno.</span></li>
+    <li><span>Cuando esté lista, pulsa <strong>Descargar PDF y marcar enviada</strong>. Ese botón hace las tres cosas de una vez: genera el PDF definitivo (ya sin marca de agua), pasa la proforma a <span class="badge-inline b-enviada">enviada</span> y escribe su fila en el fichero de Hacienda. <strong>Ese es el PDF que hay que mandar al cliente.</strong></span></li>
     <li><span>Cuando el cliente pague, pulsa <strong>Marcar cobrada</strong> en el detalle. Te propone la <strong>fecha de hoy</strong>, pero puedes cambiarla (por ejemplo si te pagaron ayer) antes de confirmar. La proforma pasa a <span class="badge-inline b-cobrada">cobrada</span> y la fecha se anota en la columna «Cobrado» del Excel.</span></li>
     <li><span>Si necesitas corregirla después, pulsa <strong>Deshacer envío</strong> (en el detalle o en la pantalla de edición). La fila del Excel se elimina y la proforma vuelve a <span class="badge-inline b-borrador">borrador</span>. Si ya estaba <span class="badge-inline b-cobrada">cobrada</span>, primero pulsa <strong>Deshacer cobro</strong>. Edita lo que necesites y vuelve a enviar: se escribirá una fila nueva y actualizada en el Excel.</span></li>
   </ol>
@@ -160,6 +160,14 @@
     solo tienes que repasar las fechas. Y en el listado tienes
     <strong>filtros</strong> por estado y cliente, y un buscador por número,
     agencia o comentarios.
+  </p>
+  <p style="font-size:13px; color:var(--stone); line-height:1.7; margin:14px 0 0;">
+    <strong>Si se te pasa marcar alguna:</strong> arriba del listado de
+    proformas aparece un aviso amarillo con los borradores cuyo PDF ya te has
+    descargado — los que probablemente ya están en el correo de la agencia pero
+    todavía no tienen fila en el Excel de Hacienda. Cada uno lleva su botón
+    <strong>Marcar enviada</strong>. El número que ves en rojo junto a
+    «Proformas», en el menú de arriba, es cuántos quedan.
   </p>
 </div>
 

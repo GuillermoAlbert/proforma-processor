@@ -2,6 +2,7 @@ import os
 import re
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
 
 DB_PATH = os.environ.get('DB_PATH', '/mnt/empresa/proformas.db')
 
@@ -186,6 +187,42 @@ def _migrate_add_fecha_cobro(conn):
         conn.execute("ALTER TABLE proformas ADD COLUMN fecha_cobro TEXT")
 
 
+def _migrate_add_pdf_previsualizado_en(conn):
+    """Añade proformas.pdf_previsualizado_en (TEXT ISO): cuándo se descargó por
+    primera vez el PDF de esta proforma estando en borrador.
+
+    Es la señal de la bandeja «¿la enviaste?» del listado: si alguien se ha
+    bajado el PDF de un borrador, lo más probable es que ya esté en el correo de
+    la agencia y que falte marcarla enviada — y con ella, su fila en el Excel de
+    Hacienda.
+
+    Al crear la columna se sellan de una vez los borradores que ya tenían un PDF
+    cacheado de antes (ruta_pdf != NULL), con la fecha del propio fichero: son
+    justo los que se quedaron sin registrar cuando esto no existía. El sellado
+    escribe SOLO esta columna nueva — no toca estado, ni número, ni importes, ni
+    el Excel: esas proformas siguen en borrador exactamente igual. Idempotente:
+    si la columna ya existe, no hace nada.
+    """
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(proformas)").fetchall()]
+    if 'pdf_previsualizado_en' in cols:
+        return
+    conn.execute("ALTER TABLE proformas ADD COLUMN pdf_previsualizado_en TEXT")
+
+    legadas = conn.execute(
+        "SELECT id, ruta_pdf FROM proformas "
+        "WHERE estado = 'borrador' AND ruta_pdf IS NOT NULL"
+    ).fetchall()
+    for fila in legadas:
+        try:
+            marca = datetime.fromtimestamp(os.path.getmtime(fila['ruta_pdf']))
+        except OSError:
+            marca = datetime.now()
+        conn.execute(
+            "UPDATE proformas SET pdf_previsualizado_en = ? WHERE id = ?",
+            (marca.isoformat(timespec='seconds'), fila['id'])
+        )
+
+
 def _migrate_estado_confirmada_a_enviada(conn):
     """Modelo de 3 estados (borrador → enviada → cobrada): el antiguo
     'confirmada' pasa a llamarse 'enviada' (misma lógica, registrada en Excel).
@@ -223,6 +260,7 @@ def init_db():
         _migrate_add_referencia(conn)
         _migrate_add_numero_secuencial(conn)
         _migrate_add_fecha_cobro(conn)
+        _migrate_add_pdf_previsualizado_en(conn)
         _migrate_estado_confirmada_a_enviada(conn)
         _migrate_mostrar_direccion_a_modo(conn)
 

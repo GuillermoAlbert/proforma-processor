@@ -2,7 +2,7 @@ import os
 import json
 import subprocess
 import threading
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 
@@ -23,9 +23,31 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'proforma-admin-secret-2026')
 
 
+def pendientes_de_envio(conn):
+    """Borradores cuyo PDF ya se ha descargado: probablemente ya están en el
+    correo de la agencia y falta marcarlos enviados (y con ello, su fila en el
+    Excel de Hacienda). Los más antiguos primero."""
+    return conn.execute("""
+        SELECT p.id, p.numero_proforma, p.fecha, p.total_suplidos,
+               p.pdf_previsualizado_en, c.nombre_agencia
+          FROM proformas p
+          LEFT JOIN clientes c ON c.id = p.cliente_id
+         WHERE p.estado = 'borrador' AND p.pdf_previsualizado_en IS NOT NULL
+         ORDER BY p.fecha ASC, p.id ASC
+    """).fetchall()
+
+
 @app.context_processor
 def inject_empresa():
-    return {'empresa_config': get_empresa_config()}
+    try:
+        with get_db() as conn:
+            n_pendientes = conn.execute(
+                "SELECT COUNT(*) FROM proformas "
+                "WHERE estado = 'borrador' AND pdf_previsualizado_en IS NOT NULL"
+            ).fetchone()[0]
+    except Exception:
+        n_pendientes = 0          # nunca romper el render del panel por el contador
+    return {'empresa_config': get_empresa_config(), 'n_pendientes_envio': n_pendientes}
 
 
 # ── Clientes ────────────────────────────────────────────────────────────────
@@ -636,6 +658,7 @@ def proformas_lista():
             params + [per_page, (page - 1) * per_page]
         ).fetchall()
         clientes = conn.execute("SELECT id, nombre_agencia FROM clientes ORDER BY nombre_agencia").fetchall()
+        pendientes = pendientes_de_envio(conn)
 
     total_pages = max(1, (total + per_page - 1) // per_page)
     return render_template(
@@ -651,6 +674,7 @@ def proformas_lista():
         estados=ESTADOS_PROFORMA,
         # solo los activos: así los enlaces de orden y paginación salen limpios
         filtros={k: v for k, v in (('estado', estado), ('cliente_id', cliente_id), ('q', q)) if v},
+        pendientes=pendientes,
     )
 
 
@@ -905,6 +929,23 @@ def _filtros_de(datos):
     return {k: datos[k] for k in _FILTROS_LISTA if datos.get(k)}
 
 
+def _sellar_previsualizado(id):
+    """Anota que el PDF de este borrador ya se ha descargado (solo la primera
+    vez). Es la señal de la bandeja «¿la enviaste?».
+
+    Silencioso a propósito: si esto falla, la descarga tiene que salir igual.
+    """
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE proformas SET pdf_previsualizado_en = ? "
+                "WHERE id = ? AND pdf_previsualizado_en IS NULL",
+                (datetime.now().isoformat(timespec='seconds'), id)
+            )
+    except Exception:
+        pass
+
+
 def _borrar_pdf_cacheado(ruta_pdf):
     """Borra el PDF cacheado del NAS, si existe. Nunca lanza."""
     if ruta_pdf and os.path.exists(ruta_pdf):
@@ -938,6 +979,7 @@ def proformas_pdf(id):
         except Exception as e:
             flash(f'Error al generar la vista previa: {e}', 'error')
             return redirect(url_for('proformas_detalle', id=id))
+        _sellar_previsualizado(id)
         return send_file(BytesIO(datos), mimetype='application/pdf',
                          as_attachment=True, download_name=nombre)
 
@@ -1051,6 +1093,43 @@ def proformas_enviar(id):
     if request.form.get('next') == 'lista':
         return redirect(url_for('proformas_lista', **_filtros_de(request.form)))
     return redirect(url_for('proformas_detalle', id=id))
+
+
+@app.route('/proformas/<int:id>/enviar-y-descargar', methods=['POST'])
+@require_auth
+def proformas_enviar_y_descargar(id):
+    """El botón principal de un borrador: bajarse el PDF definitivo para
+    mandarlo por correo.
+
+    Ese es el momento en que la proforma se envía de verdad, así que es el que
+    la pasa a «enviada» y la mete en el Excel de Hacienda, en un solo clic. Sin
+    esto, las proformas se creaban, se descargaban y se mandaban sin llegar
+    nunca al Excel (8 de 8 en agosto y septiembre de 2026).
+
+    La transición NO va en el GET del PDF a propósito: un GET no debe cambiar
+    estado (recargas, prefetch del navegador). Se redirige al detalle con
+    ?descargar=1 y allí se lanza la descarga, de modo que lo que diga el Excel
+    se vea en pantalla en vez de perderse.
+    """
+    with get_db() as conn:
+        proforma = conn.execute(
+            "SELECT estado, cliente_id FROM proformas WHERE id = ?", (id,)
+        ).fetchone()
+    if proforma is None:
+        flash('Proforma no encontrada.', 'error')
+        return redirect(url_for('proformas_lista'))
+
+    # Sin cliente, la fila del Excel saldría sin agencia ni NIF.
+    if proforma['estado'] == 'borrador' and not proforma['cliente_id']:
+        flash('Esta proforma no tiene cliente asignado. Asígnalo antes de enviarla: '
+              'su fila del Excel de Hacienda saldría sin agencia ni NIF.', 'error')
+        return redirect(url_for('proformas_editar', id=id))
+
+    categoria, mensaje = _transicion_enviar(id)
+    flash(mensaje, categoria)
+    if categoria == 'error':
+        return redirect(url_for('proformas_detalle', id=id))
+    return redirect(url_for('proformas_detalle', id=id, descargar=1))
 
 
 @app.route('/proformas/<int:id>/desenviar', methods=['POST'])

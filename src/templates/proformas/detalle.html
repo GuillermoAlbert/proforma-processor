@@ -10,14 +10,29 @@
     {% endif %}
   </div>
   <div style="display:flex; gap:8px;">
+    {% if proforma.estado == 'borrador' %}
+    {# El botón principal es el que la usuaria pulsa de verdad: bajarse el PDF
+       para mandarlo por correo. Ese clic es el que la marca enviada y la mete
+       en el Excel de Hacienda. #}
+    <form method="POST" action="{{ url_for('proformas_enviar_y_descargar', id=proforma.id) }}"
+          style="display:contents;" data-una-vez>
+      <button type="submit" class="btn btn-terra"
+              title="Genera el PDF definitivo (sin marca de agua), marca la proforma como enviada y escribe su fila en el Excel de Hacienda">Descargar PDF y marcar enviada</button>
+    </form>
+    <a href="{{ url_for('proformas_pdf', id=proforma.id) }}" class="btn btn-secondary"
+       title="PDF con marca de agua para revisarla. No cambia el estado ni toca el Excel.">Vista previa</a>
+    {% else %}
     <a href="{{ url_for('proformas_pdf', id=proforma.id) }}" class="btn btn-terra">Descargar PDF</a>
+    {% endif %}
     <a href="{{ url_for('proformas_editar', id=proforma.id) }}" class="btn btn-secondary">Editar</a>
     <form method="POST" action="{{ url_for('proformas_duplicar', id=proforma.id) }}" style="display:contents;">
       <button type="submit" class="btn btn-secondary" title="Crear un borrador nuevo con los mismos datos">Duplicar</button>
     </form>
     {% if proforma.estado == 'borrador' %}
-    <form method="POST" action="{{ url_for('proformas_enviar', id=proforma.id) }}" style="display:contents;">
-      <button type="submit" class="btn btn-primary">Marcar enviada y registrar en Excel</button>
+    <form method="POST" action="{{ url_for('proformas_enviar', id=proforma.id) }}"
+          style="display:contents;" data-una-vez>
+      <button type="submit" class="btn btn-primary"
+              title="Marca enviada y registra en el Excel, pero sin descargar el PDF (por si ya lo mandaste)">Marcar enviada sin descargar</button>
     </form>
     <form method="POST" action="{{ url_for('proformas_eliminar', id=proforma.id) }}" style="display:contents;"
           onsubmit="return confirm('¿Eliminar {{ proforma.numero_proforma }}? Esta acción no se puede deshacer.');">
@@ -162,6 +177,28 @@
     </table>
   </div>
 </div>
+
+{% if request.args.get('descargar') %}
+<div class="card" id="aviso-descarga"
+     style="margin-top:20px; padding:14px 18px; border-left:4px solid var(--terra);">
+  Descargando el PDF definitivo de <strong>{{ proforma.numero_proforma }}</strong>…
+  Si no empieza sola,
+  <a href="{{ url_for('proformas_pdf', id=proforma.id) }}">púlsalo aquí</a>.
+</div>
+<script>
+// Descarga del PDF después de marcar la proforma como enviada.
+// Navegación normal, NO un iframe oculto: si el servidor contesta con un error
+// y redirige, la usuaria lo ve en pantalla en vez de que desaparezca dentro de
+// un marco invisible. replaceState quita el ?descargar=1 para que un F5 no
+// vuelva a descargar.
+(function () {
+  history.replaceState(null, '', window.location.pathname);
+  setTimeout(function () {
+    window.location.href = {{ url_for('proformas_pdf', id=proforma.id) | tojson }};
+  }, 500);
+})();
+</script>
+{% endif %}
 
 {% include '_modal_cobrar.html' %}
 {% endblock %}

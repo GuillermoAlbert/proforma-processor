@@ -63,6 +63,13 @@ const LOCKED = {{ 'true' if locked else 'false' }};
   </div>
   {% if proforma.estado != 'borrador' %}
   <p style="margin:18px 0 0; font-size:12px; color:var(--stone);">El número no es editable una vez enviada la proforma.</p>
+  {% elif proforma.pdf_previsualizado_en %}
+  <p style="margin:14px 0 0; font-size:12px; color:#7A5A12; background:#FFF8E6;
+            border:1px solid #E8C878; border-radius:6px; padding:7px 10px; max-width:420px;">
+    <strong>El PDF de esta proforma ya se descargó</strong> (el {{ proforma.pdf_previsualizado_en[:10] }}).
+    Si ya se lo mandaste a la agencia, ten en cuenta que cambiar el cliente o la
+    fecha le cambiará también el número, y el que tienen ellos dejará de coincidir.
+  </p>
   {% else %}
   <p style="margin:18px 0 0; font-size:12px; color:var(--stone);">Puedes cambiar el número mientras la proforma esté en borrador.</p>
   {% endif %}
