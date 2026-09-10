@@ -207,21 +207,35 @@
     margin-top: 4px;
   }
 
-  .estado-badge {
-    display: inline-block;
+  /* ── Marca de agua de vista previa ──────────────────────────
+     Solo cuando pdf.py pide preview=True. NO depende de proforma.estado: el
+     estado interno (borrador/enviada/cobrada) no se imprime nunca, el cliente
+     no tiene por qué verlo. position:fixed hace que WeasyPrint la repita en
+     todas las páginas sin añadir ninguna.
+     ──────────────────────────────────────────────────────── */
+  .watermark {
+    position: fixed;
+    top: 44%;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    transform: rotate(-30deg);
     font-family: var(--font-ui);
-    font-size: 8pt;
+    font-size: 44pt;
     font-weight: 600;
-    padding: 3px 9px;
-    border-radius: 4px;
-    letter-spacing: 0.04em;
-    margin-top: 7px;
+    letter-spacing: 0.08em;
+    line-height: 1.15;
+    color: rgba(200, 64, 42, 0.15);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .estado-borrador   { background: var(--sand-dark); color: var(--stone-dark); }
-  .estado-enviada    { background: var(--navy-pale); color: var(--navy); }
-  .estado-confirmada { background: var(--success-bg); color: var(--success); }
+
+  .watermark small {
+    display: block;
+    font-size: 15pt;
+    letter-spacing: 0.22em;
+    margin-top: 6px;
+  }
 
   /* ── Separador de sección ───────────────────────────────── */
   .section-label {
@@ -576,6 +590,7 @@
 </style>
 </head>
 <body>
+{% if borrador_preview %}<div class="watermark">BORRADOR<small>SIN VALIDEZ</small></div>{% endif %}
 <div class="page">
 
   <!-- ══════════════════════════════════════════════════════
@@ -625,15 +640,6 @@
       <div class="badge-tipo">Factura Proforma</div>
       <span class="doc-number">{{ proforma.numero_corto | default(proforma.numero_proforma) }}</span>
       <span class="doc-date">{{ proforma.fecha }}</span>
-      <div>
-        {% if proforma.estado == 'borrador' %}
-          <span class="estado-badge estado-borrador">Borrador</span>
-        {% elif proforma.estado == 'enviada' %}
-          <span class="estado-badge estado-enviada">Enviada</span>
-        {% elif proforma.estado == 'confirmada' %}
-          <span class="estado-badge estado-confirmada">✓ Confirmada</span>
-        {% endif %}
-      </div>
     </div>
 
   </header>
