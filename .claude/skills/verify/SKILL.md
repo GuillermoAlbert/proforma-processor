@@ -7,7 +7,7 @@ description: Verificar un cambio de proforma-admin de verdad — smoke de PDFs, 
 
 Recuerda: la sesión corre en el **host** y el servicio ejecuta `src/` del NAS
 **en vivo** — lo que acabas de editar ya es lo que producción va a ejecutar.
-No hay suite pytest; la verificación es funcional. En orden:
+La verificación es pytest **más** comprobación funcional. En orden:
 
 ## 1. Sintaxis / imports
 
@@ -15,13 +15,31 @@ No hay suite pytest; la verificación es funcional. En orden:
 pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 -m py_compile app.py db.py pdf.py excel.py api_orquestador.py'
 ```
 
-## 2. Smoke de PDFs (si tocaste `pdf.py` o la plantilla)
+## 2. Suite pytest
+
+```bash
+pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin && python3 -m pytest src/ -q'
+```
+
+Cuatro suites, **51 tests**, todas con BD y Excel aislados en `/tmp`. Cazan
+sobre todo errores de sintaxis Jinja en las plantillas (que tumban el panel) y
+regresiones del flujo de estados y del Excel. Si tocaste plantillas, esto es lo
+primero que tiene que pasar.
+
+## 2b. Smoke de PDFs (si tocaste `pdf.py` o la plantilla)
 
 ```bash
 pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_gen.py'
 ```
 
-Debe generar 3 PDFs en `/tmp` del CT sin traceback. Si cambiaste el diseño,
+Debe generar 3 PDFs en `/tmp` del CT sin traceback. Comprueba además:
+
+```bash
+pct exec 104 -- bash -c 'for f in /tmp/TEST-*.pdf; do pdfinfo "$f" | grep ^Pages; pdffonts "$f" | tail -n +3; done'
+```
+
+Las fuentes **Lora e Inter tienen que aparecer embebidas**: si no, el
+`@font-face` local se ha roto y las proformas salen en Georgia/Arial sin avisar. Si cambiaste el diseño,
 pide a Guillermo que abra los PDFs (o descárgalos con `pct pull`) antes de dar
 el visual por bueno.
 

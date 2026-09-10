@@ -69,7 +69,7 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
   `TEMPLATE_DIR`, `ADMIN_USER`/`ADMIN_PASS`, `EXCEL_PATH`, `EXCEL_BACKUP_DIR`
   (rotación 30 días), `EXCEL_PENDING_FILE` (cola si el Excel está abierto),
   `EXCEL_LOCK_FILE`.
-- Verificación: `python3 -m pytest src/` (tres suites)
+- Verificación: `python3 -m pytest src/` (cuatro suites, 51 tests)
   (suites pytest, aisladas en /tmp) + `test_pdf_gen.py` + smoke HTTP + el flujo manual
   en el panel (ver `/verify`).
 
@@ -80,13 +80,14 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
 | `app.py` | Flask monolítico (~1.300 líneas): rutas CRUD (clientes, artículos, guías, cuentas), proformas, estados, PDF, Excel. Registra el blueprint de `api_orquestador`. |
 | `api_orquestador.py` | Blueprint `/api/*` para CT108: lectura (proformas, clientes, cobros vencidos) + `POST /api/proformas/borrador` (única escritura; siempre `borrador`). |
 | `db.py` | Context manager SQLite WAL + schema DDL + migraciones `_migrate_*` idempotentes + `siguiente_numero_proforma()` + config de empresa/serie (`get_empresa_config`, `get_serie_config` — los datos de empresa viven en BD, ya no hardcodeados). |
-| `pdf.py` | PDF con WeasyPrint + Jinja2 (filtros `fecha_es`, `iban_format`; `numero_corto` PREFIJO-AA-NNNN en cabecera). Plantilla: `DOCS_ETL_PROFORMAS/plantilla-proforma.html`. **Sin variable `guia`: los guías nunca van al PDF.** El bloque de pago sale de la cuenta asignada (tabla `cuentas`); fallback a la config de empresa. |
+| `pdf.py` | PDF con WeasyPrint + Jinja2 (filtros `fecha_es`, `iban_format`; `numero_corto` PREFIJO-AA-NNNN en cabecera). Plantilla: `DOCS_ETL_PROFORMAS/plantilla-proforma.html`, con las fuentes en `DOCS_ETL_PROFORMAS/fuentes/` (nunca volver al `<link>` remoto). **Sin variable `guia`: los guías nunca van al PDF.** El bloque de pago sale de la cuenta asignada (tabla `cuentas`); fallback a la config de empresa. `_render_ajustado()` reintenta compactando si el PDF se pasa de una hoja (las reglas necesitan `!important`, ver abajo). `generar_pdf_preview()` da la vista previa con marca de agua **en memoria**, sin tocar `ruta_pdf`. |
 | `excel.py` | Registro en `facturas-emitidas.xlsx`: backup + lock + reintentos + cola (patrón del processor). `registrar_proforma()`, `marcar_cobrado_excel()`, `drain_pending()`. |
 | `clientes_lookup.py` / `admin_helpers.py` | Búsqueda de clientes / `@require_auth` Basic Auth. |
 | `templates/` | Jinja2 del panel (base + clientes/, articulos/, guias/, cuentas/, proformas/, config/). |
 | `test_pdf_gen.py` | Script manual (no pytest): genera 3 PDFs de prueba en `/tmp` sin BD. |
 | `test_direccion_modo.py` | Suite pytest de `empresa.direccion_modo` (completa/poblacion/oculta): config, migración, render y formulario. BD y PDFs en `/tmp`. |
 | `test_duplicar_y_filtros.py` | Suite pytest del duplicado de proformas, los filtros/buscador del listado y las comprobaciones de duplicados de clientes y guías. BD en `/tmp`. |
+| `test_envio_y_vista_previa.py` | Suite pytest del flujo de envío: vista previa que no cachea, sellado de `pdf_previsualizado_en`, `/enviar-y-descargar`, bandeja de pendientes y **el Excel a prueba de doble clic** (incluido un test que fuerza el solape de dos escrituras). BD y Excel en `/tmp`. |
 | `test_numeracion_agencia.py` | Suite pytest de la numeración cuando la serie depende del cliente o la fecha (`{agencia}`, `{mes_corto}`): alta sin cliente, `peek-numero`, renumerado al editar un borrador y campo `readonly` en el alta. BD en `/tmp`. |
 | `INSTALL.md` | Comandos `pct exec 104` de instalación. |
 
@@ -106,11 +107,29 @@ proforma, plantilla documento, logotipo SVG, doc Factusol pendiente).
 
 | Transición | Ruta | Efecto en Excel |
 |---|---|---|
+| → `enviada` (**principal**) | `POST /proformas/<id>/enviar-y-descargar` | escribe la fila y descarga el PDF definitivo |
 | → `enviada` | `POST /proformas/<id>/enviar` | escribe la fila (`registrar_proforma`) |
 | → `cobrada` | `POST /proformas/<id>/cobrar` (fecha editable, default hoy) | fecha en col `Cobrado` (M) |
 | deshacer | `/descobrar` y `/desenviar` (simétricos) | vacía col M / borra la fila |
 
 - Una proforma cobrada no se edita/elimina sin deshacer antes cobro y envío.
+- **Un borrador nunca produce un PDF limpio**: `GET /pdf` sobre un borrador
+  devuelve siempre la vista previa con marca de agua, ignorando `ruta_pdf` (eso
+  neutraliza los PDF antiguos cacheados con el sello «Borrador» impreso). El
+  definitivo solo sale de una proforma ya enviada.
+- `enviar` y `desenviar` **invalidan `ruta_pdf`** y borran el fichero, para que
+  no se sirva nunca un PDF con el estado rancio.
+- ⚠ El servicio es **multihilo** (`app.run(threaded=True)` por defecto): toda
+  escritura al Excel tiene que ser idempotente. La transición va con
+  `UPDATE … WHERE estado='borrador'` + `rowcount`, y `excel._intentar_escribir`
+  comprueba y marca `exportada_excel` **dentro** del `_file_lock()`. Sin eso, un
+  doble clic escribía dos filas de la misma proforma en el Excel fiscal.
+- ⚠ `_purgar_cache_pdf()` pone `ruta_pdf = NULL` a **todas** las proformas, y lo
+  llama no solo `/config/reboot` sino **guardar Configuración → Empresa**. Por
+  eso la bandeja de pendientes usa `pdf_previsualizado_en`, no `ruta_pdf`.
+- ⚠ WeasyPrint 69: las hojas de `HTML.render(stylesheets=[…])` se insertan
+  **antes** del `<style>` del documento, así que a igualdad de especificidad
+  pierden la cascada. Las reglas del ajuste automático llevan `!important`.
 - ⚠ Gotcha openpyxl: `ws.cell(r, c, None)` es no-op; para vaciar una celda:
   `ws.cell(r, c).value = None`.
 - CT108 no filtra por el string `estado`: usa `exportada_excel`, `cobrado`,

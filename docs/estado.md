@@ -1,6 +1,6 @@
 # Estado del proyecto — proforma-admin
 
-> **Última actualización: 2026-09-04.** Fuente de verdad del estado. Se
+> **Última actualización: 2026-09-10.** Fuente de verdad del estado. Se
 > actualiza **en el mismo commit** de cada pieza: lo terminado pasa a
 > «Historial» (fecha + commit), «Pendiente» refleja lo que queda.
 
@@ -13,6 +13,13 @@
   cambios sin guardar.
 - PDF con WeasyPrint (plantilla del brand kit, número corto `PREFIJO-AA-NNNN`
   en cabecera, bloque de pago según la cuenta asignada, guías nunca en el PDF).
+  Fuentes **locales** (`DOCS_ETL_PROFORMAS/fuentes/`) y **ajuste automático a
+  una hoja** cuando el contenido se desborda. El estado interno **no** se
+  imprime; un borrador solo produce vista previa con marca de agua.
+- **Descargar el PDF de un borrador es enviarlo**: el botón principal
+  (`/enviar-y-descargar`) genera el definitivo, marca `enviada`, escribe la fila
+  del Excel y descarga. Bandeja «¿las enviaste?» en el listado + contador en el
+  nav para los borradores cuyo PDF ya se descargó.
 - Flujo de 3 estados `borrador → enviada → cobrada` con deshacer simétrico;
   registro automático en el Excel de Hacienda al enviar y fecha de cobro en la
   col `Cobrado` al cobrar (backup + lock + reintentos + cola).
@@ -33,6 +40,56 @@
   preparado pero **no implementado a propósito**.
 
 ## Historial
+
+- **2026-09-10** — `c474617`→`0f576f3` **el flujo de envío arreglado, la 26-054
+  en una hoja y las fuentes en local.** Cuatro cosas, en este orden:
+
+  1. **Fuentes locales** (`c474617`). WeasyPrint bajaba Lora e Inter de
+     `fonts.googleapis.com` en CADA render: 1,39 s por PDF, 1,05 s de descarga,
+     y sin red el PDF salía en Georgia/Arial sin avisar. Ahora los cuatro woff2
+     (latin + latin-ext, variables) viven en `DOCS_ETL_PROFORMAS/fuentes/` con
+     `@font-face`. **0,50 s por PDF.** `pdffonts` confirma que se embeben.
+  2. **El estado interno fuera del PDF** (`e542626`). Siete de los ocho PDF que
+     había en `proformas-pdf/` llevaban impresa la palabra «Borrador» — y son
+     los que se mandaron a las agencias. Fuera el sello (y su rama muerta
+     `confirmada`); en su lugar, marca de agua «BORRADOR · SIN VALIDEZ» que
+     depende de **cómo se pide** el PDF (`borrador_preview`), no del estado.
+  3. **Ajuste automático + vista previa + fix del Excel** (`4b50e02`).
+     La 26-054 se iba a dos páginas: le faltaban ~90 px de los 1069,6 útiles y
+     `.payment-box` (con `break-inside: avoid`) saltaba entera. `pdf.py`
+     renderiza normal y **solo si sale a más de una página** reintenta con
+     peldaños de compactación del espaciado (y la tipografía −6 % como último
+     recurso). Las 14 proformas reales caben ya en una hoja; las que cabían no
+     cambian. ⚠ Las hojas de `render(stylesheets=)` van **antes** del `<style>`
+     del documento: necesitan `!important` o no hacen nada (WeasyPrint 69).
+     `generar_pdf_preview()` devuelve el PDF **en memoria** y no toca
+     `ruta_pdf`; `GET /pdf` sobre un borrador sirve siempre la vista previa
+     ignorando `ruta_pdf`, lo que neutraliza los siete PDF cacheados con sello.
+     `/enviar` y `/desenviar` invalidan `ruta_pdf` y borran el fichero.
+     **Fix de la carrera del Excel fiscal**: el servicio es multihilo y un doble
+     clic escribía DOS filas de la misma proforma (`exportada_excel` se miraba
+     fuera del `_file_lock()`). Ahora la comprobación y la marca van dentro del
+     lock, y la transición es atómica (`UPDATE … WHERE estado='borrador'` +
+     `rowcount`). Reproducido con test que fuerza el solape: antes 2, ahora 1.
+  4. **Descargar = enviar, y bandeja de pendientes** (`0f576f3`). Ocho de las
+     últimas catorce proformas (5.154,60 €) seguían en borrador y fuera del
+     Excel porque el botón de enviar no se pulsaba nunca. Nueva ruta
+     `POST /proformas/<id>/enviar-y-descargar` como botón principal del
+     borrador. La descarga se dispara desde `?descargar=1` con navegación
+     normal, **no con un iframe oculto** — dentro de un iframe, un fallo de
+     generación dejaba la proforma enviada, sin PDF y sin mensaje. Se bloquea si
+     no hay cliente (la fila del Excel saldría sin agencia ni NIF). Migración
+     idempotente `_migrate_add_pdf_previsualizado_en`, que además sella los
+     borradores que ya tenían PDF con la fecha del fichero (solo esa columna).
+     Bandeja en el listado + contador en el nav. Ayuda reescrita.
+
+  Plan y auditoría previa (un agente Fable revisó el plan contra el código y
+  encontró el fallo del iframe, la carrera del Excel y que
+  `_purgar_cache_pdf()` —que corre también al **guardar Configuración →
+  Empresa**— vacía `ruta_pdf` de todo, que era el criterio frágil de la bandeja).
+  Suite nueva `src/test_envio_y_vista_previa.py` (13 tests). **51 tests.**
+  Las 8 proformas en borrador **no se enviaron**: decisión del usuario, se
+  gestionan desde la bandeja.
 
 - **2026-09-08** — **BIC/SWIFT en el PDF y en la lista de cuentas.** El campo
   `bic` ya existía en el formulario y en la BD (las dos cuentas lo tenían
