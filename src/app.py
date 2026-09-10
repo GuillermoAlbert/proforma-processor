@@ -3,6 +3,7 @@ import json
 import subprocess
 import threading
 from datetime import date
+from io import BytesIO
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 
 from db import (get_db, init_db, siguiente_numero_proforma, peek_numero_proforma,
@@ -10,7 +11,7 @@ from db import (get_db, init_db, siguiente_numero_proforma, peek_numero_proforma
                 get_empresa_config, set_empresa_config, get_setting, set_setting,
                 recalcular_contador_serie, formatear_numero_proforma)
 from admin_helpers import require_auth
-from pdf import generar_pdf, PDF_DIR
+from pdf import generar_pdf, generar_pdf_preview, PDF_DIR
 import excel
 from clientes_lookup import (
     buscar_cliente as _buscar_cliente_vies,
@@ -895,15 +896,50 @@ def proformas_duplicar(id):
     return redirect(url_for('proformas_editar', id=nuevo_id))
 
 
+# Parámetros del listado que conviene conservar al volver a él tras una acción.
+_FILTROS_LISTA = ('estado', 'cliente_id', 'q', 'sort', 'dir', 'page')
+
+
+def _filtros_de(datos):
+    """Extrae de un form/querystring los filtros del listado que haya."""
+    return {k: datos[k] for k in _FILTROS_LISTA if datos.get(k)}
+
+
+def _borrar_pdf_cacheado(ruta_pdf):
+    """Borra el PDF cacheado del NAS, si existe. Nunca lanza."""
+    if ruta_pdf and os.path.exists(ruta_pdf):
+        try:
+            os.remove(ruta_pdf)
+        except OSError:
+            pass
+
+
 @app.route('/proformas/<int:id>/pdf')
 @require_auth
 def proformas_pdf(id):
+    """PDF de la proforma.
+
+    Si está en borrador se devuelve SIEMPRE la vista previa con marca de agua,
+    generada al vuelo e ignorando ruta_pdf: un borrador no puede producir un PDF
+    limpio que acabe en el correo de una agencia. Eso cubre también los PDF
+    antiguos que quedaron cacheados en el NAS con el sello «Borrador» impreso.
+    """
     with get_db() as conn:
         proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
         if proforma is None:
             flash('Proforma no encontrada.', 'error')
             return redirect(url_for('proformas_lista'))
+        estado = proforma['estado']
         ruta_pdf = proforma['ruta_pdf']
+
+    if estado == 'borrador':
+        try:
+            datos, nombre = generar_pdf_preview(id)
+        except Exception as e:
+            flash(f'Error al generar la vista previa: {e}', 'error')
+            return redirect(url_for('proformas_detalle', id=id))
+        return send_file(BytesIO(datos), mimetype='application/pdf',
+                         as_attachment=True, download_name=nombre)
 
     if ruta_pdf and os.path.exists(ruta_pdf):
         return send_file(ruta_pdf, as_attachment=True,
@@ -949,29 +985,71 @@ def proformas_eliminar(id):
     return redirect(url_for('proformas_lista'))
 
 
+def _mensaje_excel(resultado):
+    """Traduce el resultado de excel.registrar_proforma a (categoría, mensaje)."""
+    if resultado == excel.OK:
+        pendientes = excel.drain_pending()  # el Excel está libre: aprovecha y vacía la cola
+        extra = f' (+{pendientes} pendiente{"s" if pendientes != 1 else ""})' if pendientes else ''
+        return ('success', f'Proforma enviada y registrada en el Excel de Hacienda{extra}.')
+    if resultado == excel.YA_REGISTRADA:
+        return ('success', 'Proforma enviada. Ya estaba registrada en el Excel.')
+    if resultado == excel.EN_COLA:
+        return ('success', 'Proforma enviada. El Excel está abierto; se registrará automáticamente al cerrarlo.')
+    return ('error', 'Proforma enviada, pero no se pudo registrar en el Excel.')
+
+
+def _transicion_enviar(id):
+    """borrador → enviada y registro en el Excel de Hacienda.
+
+    Devuelve (categoría, mensaje) para el flash, o None si la proforma no
+    existe. Lógica compartida por /enviar y /enviar-y-descargar.
+
+    El UPDATE lleva la condición `estado = 'borrador'` y se mira el rowcount:
+    el servicio es multihilo, así que un doble clic mandaba dos peticiones a la
+    vez, las dos leían exportada_excel = 0 y acababan escribiendo DOS filas de
+    la misma proforma en el Excel fiscal. Ahora solo la que gana la transición
+    escribe.
+    """
+    with get_db() as conn:
+        proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
+        if proforma is None:
+            return None
+        estado_previo = proforma['estado']
+        ruta_previa = proforma['ruta_pdf']
+        cambiada = conn.execute(
+            "UPDATE proformas SET estado = 'enviada', ruta_pdf = NULL "
+            "WHERE id = ? AND estado = 'borrador'", (id,)
+        ).rowcount > 0
+
+    if not cambiada:
+        if estado_previo != 'enviada':
+            return ('error', f'No se puede enviar una proforma en estado «{estado_previo}». '
+                             'Deshaz el cobro primero.')
+        # Ya estaba enviada: puede ser un doble clic (registrar_proforma
+        # devolverá YA_REGISTRADA) o un reintento legítimo porque el Excel
+        # estaba abierto cuando se envió. Es seguro reintentar.
+        return _mensaje_excel(excel.registrar_proforma(id))
+
+    # El PDF cacheado se generó cuando aún era borrador; fuera, para que el
+    # siguiente se regenere ya como definitivo y no se sirva uno rancio.
+    _borrar_pdf_cacheado(ruta_previa)
+
+    return _mensaje_excel(excel.registrar_proforma(id))
+
+
 @app.route('/proformas/<int:id>/enviar', methods=['POST'])
 @require_auth
 def proformas_enviar(id):
     """borrador → enviada: marca la proforma como enviada y la registra en el Excel."""
-    with get_db() as conn:
-        proforma = conn.execute("SELECT * FROM proformas WHERE id = ?", (id,)).fetchone()
-        if proforma is None:
-            flash('Proforma no encontrada.', 'error')
-            return redirect(url_for('proformas_lista'))
-        if proforma['estado'] == 'borrador':
-            conn.execute("UPDATE proformas SET estado = 'enviada' WHERE id = ?", (id,))
+    resultado = _transicion_enviar(id)
+    if resultado is None:
+        flash('Proforma no encontrada.', 'error')
+        return redirect(url_for('proformas_lista'))
 
-    resultado = excel.registrar_proforma(id)
-    if resultado == excel.OK:
-        pendientes = excel.drain_pending()  # el Excel está libre: aprovecha y vacía la cola
-        extra = f' (+{pendientes} pendiente{"s" if pendientes != 1 else ""})' if pendientes else ''
-        flash(f'Proforma enviada y registrada en el Excel de Hacienda{extra}.', 'success')
-    elif resultado == excel.YA_REGISTRADA:
-        flash('Proforma enviada. Ya estaba registrada en el Excel.', 'success')
-    elif resultado == excel.EN_COLA:
-        flash('Proforma enviada. El Excel está abierto; se registrará automáticamente al cerrarlo.', 'success')
-    else:
-        flash('Proforma enviada, pero no se pudo registrar en el Excel.', 'error')
+    categoria, mensaje = resultado
+    flash(mensaje, categoria)
+    if request.form.get('next') == 'lista':
+        return redirect(url_for('proformas_lista', **_filtros_de(request.form)))
     return redirect(url_for('proformas_detalle', id=id))
 
 
@@ -989,10 +1067,16 @@ def proformas_desenviar(id):
             return redirect(url_for('proformas_detalle', id=id))
 
         numero = proforma['numero_proforma']
+        ruta_previa = proforma['ruta_pdf']
         resultado = excel.eliminar_fila_excel(numero)
         conn.execute(
-            "UPDATE proformas SET estado = 'borrador', exportada_excel = 0 WHERE id = ?", (id,)
+            "UPDATE proformas SET estado = 'borrador', exportada_excel = 0, ruta_pdf = NULL "
+            "WHERE id = ?", (id,)
         )
+
+    # Vuelve a ser borrador: su PDF definitivo ya no vale, y el que se sirva
+    # ahora debe salir con la marca de agua.
+    _borrar_pdf_cacheado(ruta_previa)
 
     if resultado is True:
         flash('Envío deshecho y fila eliminada del Excel de Hacienda. Ya puedes editarla y volver a enviarla.', 'success')

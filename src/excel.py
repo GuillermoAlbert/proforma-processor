@@ -248,16 +248,31 @@ def _intentar_escribir(proforma_id):
         row = _build_row(conn, proforma)
 
     with _file_lock():
+        # Segunda comprobación, ya DENTRO del lock. La de arriba no basta: el
+        # servicio es multihilo, así que dos peticiones a la vez (un doble clic
+        # en «Marcar enviada») pasaban las dos por ella leyendo
+        # exportada_excel = 0 y escribían DOS filas de la misma proforma en el
+        # Excel de Hacienda. El flag se marca también dentro del lock para que
+        # la segunda lo vea en cuanto entre.
+        with get_db() as conn:
+            actual = conn.execute(
+                "SELECT exportada_excel FROM proformas WHERE id = ?", (proforma_id,)
+            ).fetchone()
+        if actual is None:
+            return NO_EXISTE
+        if actual['exportada_excel']:
+            return YA_REGISTRADA
+
         _backup()
         wb, ws = _load_or_create_workbook()
         _write_row(ws, ws.max_row + 1, row)
         if not _save_con_reintentos(wb):
             return _BLOQUEADO
 
-    with get_db() as conn:
-        conn.execute(
-            "UPDATE proformas SET exportada_excel = 1 WHERE id = ?", (proforma_id,)
-        )
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE proformas SET exportada_excel = 1 WHERE id = ?", (proforma_id,)
+            )
     return OK
 
 
