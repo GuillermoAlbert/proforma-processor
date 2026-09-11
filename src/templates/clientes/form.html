@@ -15,7 +15,7 @@
         <div style="display:flex; gap:6px; align-items:center;">
           <input type="text" id="nombre_agencia" name="nombre_agencia" required
                  style="flex:1; min-width:0;"
-                 value="{{ v.nombre_agencia if v else '' }}">
+                 value="{{ (v.nombre_agencia if v else '') or '' }}">
           <button type="button" id="btn-buscar-nombre" class="btn btn-secondary btn-sm"
                   style="flex-shrink:0; white-space:nowrap;" title="Buscar empresa por nombre en einforma">🔍 Buscar</button>
         </div>
@@ -27,7 +27,7 @@
         <label for="nif_cif">NIF / CIF</label>
         <div style="display:flex; gap:6px; align-items:center;">
           <input type="text" id="nif_cif" name="nif_cif" style="flex:1; min-width:0;"
-                 value="{{ v.nif_cif if v else '' }}">
+                 value="{{ (v.nif_cif if v else '') or '' }}">
           <button type="button" id="btn-buscar-cif" class="btn btn-secondary btn-sm"
                   style="flex-shrink:0; white-space:nowrap;" title="Buscar datos de empresa (VIES + einforma)">🔍 Buscar datos</button>
         </div>
@@ -38,37 +38,46 @@
       <div class="form-group">
         <label for="codigo_factusol">Código Factusol</label>
         <input type="text" id="codigo_factusol" name="codigo_factusol"
-               value="{{ v.codigo_factusol if v else '' }}">
+               value="{{ (v.codigo_factusol if v else '') or '' }}">
       </div>
       <div class="form-group full">
         <label for="direccion">Dirección</label>
         <input type="text" id="direccion" name="direccion"
-               value="{{ v.direccion if v else '' }}">
+               value="{{ (v.direccion if v else '') or '' }}">
       </div>
       <div class="form-group">
         <label for="cp">Código postal</label>
         <input type="text" id="cp" name="cp"
-               value="{{ v.cp if v else '' }}">
+               value="{{ (v.cp if v else '') or '' }}">
       </div>
       <div class="form-group">
         <label for="poblacion">Población</label>
         <input type="text" id="poblacion" name="poblacion"
-               value="{{ v.poblacion if v else '' }}">
+               value="{{ (v.poblacion if v else '') or '' }}">
       </div>
       <div class="form-group">
         <label for="provincia">Provincia</label>
         <input type="text" id="provincia" name="provincia"
-               value="{{ v.provincia if v else '' }}">
+               value="{{ (v.provincia if v else '') or '' }}">
       </div>
       <div class="form-group">
         <label for="email">Email</label>
         <input type="email" id="email" name="email"
-               value="{{ v.email if v else '' }}">
+               value="{{ (v.email if v else '') or '' }}">
       </div>
       <div class="form-group">
         <label for="telefono">Teléfono</label>
         <input type="text" id="telefono" name="telefono"
-               value="{{ v.telefono if v else '' }}">
+               value="{{ (v.telefono if v else '') or '' }}">
+      </div>
+      <div class="form-group full">
+        <label for="persona_contacto">Persona de contacto</label>
+        <input type="text" id="persona_contacto" name="persona_contacto"
+               placeholder="Nombre de quien pide las proformas en la agencia"
+               value="{{ (v.persona_contacto if v else '') or '' }}">
+        <span style="font-size:12px; color:var(--stone);">
+          A quién va dirigido el correo al mandarle la proforma. No sale en el PDF.
+        </span>
       </div>
     </div>
     <div class="form-actions">

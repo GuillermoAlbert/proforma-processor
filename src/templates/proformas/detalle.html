@@ -85,6 +85,7 @@
       {% if cliente.direccion %}<div>{{ cliente.direccion }}</div>{% endif %}
       {% if cliente.poblacion %}<div>{{ cliente.cp }} {{ cliente.poblacion }}{% if cliente.provincia %} ({{ cliente.provincia }}){% endif %}</div>{% endif %}
       {% if cliente.email %}<div>{{ cliente.email }}</div>{% endif %}
+      {% if cliente.persona_contacto %}<div>A/A: {{ cliente.persona_contacto }}</div>{% endif %}
     </div>
     {% else %}
     <span style="color:#888;">Sin cliente asignado</span>

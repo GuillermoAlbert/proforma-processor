@@ -69,7 +69,7 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
   `TEMPLATE_DIR`, `ADMIN_USER`/`ADMIN_PASS`, `EXCEL_PATH`, `EXCEL_BACKUP_DIR`
   (rotación 30 días), `EXCEL_PENDING_FILE` (cola si el Excel está abierto),
   `EXCEL_LOCK_FILE`.
-- Verificación: `python3 -m pytest src/` (cuatro suites, 51 tests)
+- Verificación: `python3 -m pytest src/` (cinco suites, 58 tests)
   (suites pytest, aisladas en /tmp) + `test_pdf_gen.py` + smoke HTTP + el flujo manual
   en el panel (ver `/verify`).
 
@@ -89,6 +89,7 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
 | `test_duplicar_y_filtros.py` | Suite pytest del duplicado de proformas, los filtros/buscador del listado y las comprobaciones de duplicados de clientes y guías. BD en `/tmp`. |
 | `test_envio_y_vista_previa.py` | Suite pytest del flujo de envío: vista previa que no cachea, sellado de `pdf_previsualizado_en`, `/enviar-y-descargar`, bandeja de pendientes y **el Excel a prueba de doble clic** (incluido un test que fuerza el solape de dos escrituras). BD y Excel en `/tmp`. |
 | `test_numeracion_agencia.py` | Suite pytest de la numeración cuando la serie depende del cliente o la fecha (`{agencia}`, `{mes_corto}`): alta sin cliente, `peek-numero`, renumerado al editar un borrador y campo `readonly` en el alta. BD en `/tmp`. |
+| `test_persona_contacto.py` | Suite pytest de `clientes.persona_contacto`: alta, edición, migración sobre una BD con el schema antiguo y la ficha del cliente del detalle. BD en `/tmp`. |
 | `INSTALL.md` | Comandos `pct exec 104` de instalación. |
 
 Assets de marca y plantillas: `DOCS_ETL_PROFORMAS/` (brand kit, plantilla

@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     poblacion TEXT,
     provincia TEXT,
     email TEXT,
+    persona_contacto TEXT,
     telefono TEXT,
     codigo_factusol TEXT
 );
@@ -223,6 +224,15 @@ def _migrate_add_pdf_previsualizado_en(conn):
         )
 
 
+def _migrate_add_persona_contacto(conn):
+    """Añade clientes.persona_contacto (TEXT): a quién se dirige el correo en la
+    agencia (la persona que pide y recibe la proforma). Es un dato de agenda:
+    no sale del PDF ni del Excel de Hacienda. Idempotente."""
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(clientes)").fetchall()]
+    if 'persona_contacto' not in cols:
+        conn.execute("ALTER TABLE clientes ADD COLUMN persona_contacto TEXT")
+
+
 def _migrate_estado_confirmada_a_enviada(conn):
     """Modelo de 3 estados (borrador → enviada → cobrada): el antiguo
     'confirmada' pasa a llamarse 'enviada' (misma lógica, registrada en Excel).
@@ -263,6 +273,7 @@ def init_db():
         _migrate_add_pdf_previsualizado_en(conn)
         _migrate_estado_confirmada_a_enviada(conn)
         _migrate_mostrar_direccion_a_modo(conn)
+        _migrate_add_persona_contacto(conn)
 
 
 _EMPRESA_DEFAULTS = {

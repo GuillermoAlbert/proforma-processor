@@ -104,8 +104,9 @@ def clientes_nuevo():
         with get_db() as conn:
             conn.execute(
                 """INSERT INTO clientes
-                   (nombre_agencia, nif_cif, direccion, cp, poblacion, provincia, email, telefono, codigo_factusol)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (nombre_agencia, nif_cif, direccion, cp, poblacion, provincia, email,
+                    persona_contacto, telefono, codigo_factusol)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     request.form.get('nombre_agencia', '').strip(),
                     request.form.get('nif_cif', '').strip(),
@@ -114,6 +115,7 @@ def clientes_nuevo():
                     request.form.get('poblacion', '').strip(),
                     request.form.get('provincia', '').strip(),
                     request.form.get('email', '').strip(),
+                    request.form.get('persona_contacto', '').strip(),
                     request.form.get('telefono', '').strip(),
                     request.form.get('codigo_factusol', '').strip(),
                 )
@@ -134,7 +136,8 @@ def clientes_editar(id):
         if request.method == 'POST':
             conn.execute(
                 """UPDATE clientes SET nombre_agencia=?, nif_cif=?, direccion=?, cp=?,
-                   poblacion=?, provincia=?, email=?, telefono=?, codigo_factusol=?
+                   poblacion=?, provincia=?, email=?, persona_contacto=?, telefono=?,
+                   codigo_factusol=?
                    WHERE id=?""",
                 (
                     request.form.get('nombre_agencia', '').strip(),
@@ -144,6 +147,7 @@ def clientes_editar(id):
                     request.form.get('poblacion', '').strip(),
                     request.form.get('provincia', '').strip(),
                     request.form.get('email', '').strip(),
+                    request.form.get('persona_contacto', '').strip(),
                     request.form.get('telefono', '').strip(),
                     request.form.get('codigo_factusol', '').strip(),
                     id,

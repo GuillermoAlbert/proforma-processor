@@ -21,7 +21,7 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 -m py_com
 pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin && python3 -m pytest src/ -q'
 ```
 
-Cuatro suites, **51 tests**, todas con BD y Excel aislados en `/tmp`. Cazan
+Cinco suites, **58 tests**, todas con BD y Excel aislados en `/tmp`. Cazan
 sobre todo errores de sintaxis Jinja en las plantillas (que tumban el panel) y
 regresiones del flujo de estados y del Excel. Si tocaste plantillas, esto es lo
 primero que tiene que pasar.

@@ -1,13 +1,15 @@
 # Estado del proyecto — proforma-admin
 
-> **Última actualización: 2026-09-10.** Fuente de verdad del estado. Se
+> **Última actualización: 2026-09-11.** Fuente de verdad del estado. Se
 > actualiza **en el mismo commit** de cada pieza: lo terminado pasa a
 > «Historial» (fecha + commit), «Pendiente» refleja lo que queda.
 
 ## Qué funciona hoy
 
 - Catálogo completo (clientes, artículos, guías, cuentas bancarias de cobro) y
-  creación de proformas con líneas dinámicas y totales en vivo.
+  creación de proformas con líneas dinámicas y totales en vivo. La ficha del
+  cliente guarda la **persona de contacto** de la agencia (dato de agenda: se ve
+  al preparar la proforma, no sale en el PDF ni en el Excel).
 - Alta rápida sin salir del formulario de proforma (modales + `/api/*`):
   cliente, artículo y guía. El navegador avisa si se abandona la página con
   cambios sin guardar.
@@ -41,6 +43,17 @@
 
 ## Historial
 
+- **2026-09-11** — **persona de contacto en la ficha del cliente.** Columna
+  `clientes.persona_contacto` (migración idempotente
+  `_migrate_add_persona_contacto`), campo «Persona de contacto» en el formulario
+  de cliente justo debajo del email, y línea «A/A: …» en la ficha del cliente
+  del detalle de la proforma, para saber a quién se dirige el correo al
+  mandarla. Es un dato de agenda: **no toca el PDF ni el Excel de Hacienda**, ni
+  el alta rápida de cliente desde el formulario de proforma (que sigue pidiendo
+  solo lo mínimo). De camino: el formulario de cliente pintaba `value="None"`
+  en los campos NULL (y ese literal se guardaba al pulsar Guardar —
+  `codigo_factusol` lo tiene en 3 clientes reales); ahora renderiza vacío.
+  Suite nueva `src/test_persona_contacto.py` (7 tests). **58 tests.**
 - **2026-09-10** — `c474617`→`0f576f3` **el flujo de envío arreglado, la 26-054
   en una hoja y las fuentes en local.** Cuatro cosas, en este orden:
 
