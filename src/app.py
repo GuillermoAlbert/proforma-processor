@@ -23,6 +23,23 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'proforma-admin-secret-2026')
 
 
+@app.template_filter('fecha_es')
+def fecha_es(valor):
+    """YYYY-MM-DD (y YYYY-MM-DD HH:MM:SS) → DD/MM/YYYY, para la pantalla.
+
+    El ISO se queda donde lo necesita la máquina: `<input type="date">` y
+    `datetime="…"`. Lo que lee la usuaria va en formato español (decisión del
+    2026-09-22). El PDF tiene su propio filtro con el mismo nombre en pdf.py.
+    """
+    if not valor:
+        return ''
+    try:
+        y, m, d = str(valor)[:10].split('-')
+        return f'{d}/{m}/{y}'
+    except ValueError:
+        return str(valor)
+
+
 def pendientes_de_envio(conn):
     """Borradores cuyo PDF ya se ha descargado: probablemente ya están en el
     correo de la agencia y falta marcarlos enviados (y con ello, su fila en el

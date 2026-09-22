@@ -60,11 +60,13 @@
 
   <div class="card" style="padding:18px;">
     <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone); margin-bottom:10px;">Datos de la proforma</div>
+    <div class="table-wrap">
     <table style="font-size:13px; width:100%; border-collapse:collapse;">
-      <tr><td style="padding:4px 0; color:var(--stone); width:120px;">Fecha</td><td style="padding:4px 0; font-weight:500;">{{ proforma.fecha }}</td></tr>
+      <caption class="visualmente-oculto">Datos de la proforma</caption>
+      <tr><td style="padding:4px 0; color:var(--stone); width:120px;">Fecha</td><td style="padding:4px 0; font-weight:500;">{{ proforma.fecha|fecha_es }}</td></tr>
       <tr><td style="padding:4px 0; color:var(--stone);">Trimestre</td><td style="padding:4px 0;">T{{ proforma.trimestre }}</td></tr>
       {% if proforma.fecha_cobro %}
-      <tr><td style="padding:4px 0; color:var(--stone);">Cobrada el</td><td style="padding:4px 0; font-weight:600; color:#065F46;">{{ proforma.fecha_cobro }}</td></tr>
+      <tr><td style="padding:4px 0; color:var(--stone);">Cobrada el</td><td style="padding:4px 0; font-weight:600; color:#065F46;">{{ proforma.fecha_cobro|fecha_es }}</td></tr>
       {% endif %}
       <tr><td style="padding:4px 0; color:var(--stone);">Cuenta de cobro</td><td style="padding:4px 0;">{% if cuenta %}{{ cuenta.nombre }}{% if cuenta.iban %} <span style="color:var(--stone);">({{ cuenta.iban }})</span>{% endif %}{% else %}<span style="color:#888;">Valores por defecto</span>{% endif %}</td></tr>
       {% if proforma.referencia %}
@@ -74,6 +76,7 @@
       <tr><td style="padding:4px 0; color:var(--stone); vertical-align:top;">Comentarios</td><td style="padding:4px 0;">{{ proforma.comentarios }}</td></tr>
       {% endif %}
     </table>
+    </div>
   </div>
 
   <div class="card" style="padding:18px;">
@@ -107,6 +110,7 @@
   </div>
   <div class="table-wrap">
     <table class="data-table">
+      <caption class="visualmente-oculto">Líneas de servicio</caption>
       <thead>
         {% set has_fechas = lineas | selectattr('fecha') | list | length > 0 %}
         <tr>
@@ -123,7 +127,7 @@
         {% for l in lineas %}
         <tr>
           <td style="text-align:center; color:#888; font-size:12px;">{{ loop.index }}</td>
-          {% if has_fechas %}<td style="text-align:center; color:var(--stone);">{{ l.fecha or '' }}</td>{% endif %}
+          {% if has_fechas %}<td style="text-align:center; color:var(--stone);">{{ l.fecha|fecha_es }}</td>{% endif %}
           <td>{{ l.descripcion }}</td>
           <td style="text-align:center;">{{ l.cantidad }}</td>
           <td style="text-align:right; color:var(--stone);">{{ "%.2f"|format(l.precio) }} €</td>
@@ -143,7 +147,9 @@
 <!-- Totales -->
 <div style="display:flex; justify-content:flex-end;">
   <div class="card" style="min-width:260px; overflow:hidden;">
+    <div class="table-wrap">
     <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <caption class="visualmente-oculto">Totales</caption>
       <tr>
         <td style="padding:10px 16px; color:var(--stone); border-bottom:1px solid var(--hairline);">Base imponible</td>
         <td style="padding:10px 16px; text-align:right; font-weight:600; border-bottom:1px solid var(--hairline);">{{ "%.2f"|format(proforma.base) }} €</td>
@@ -176,6 +182,7 @@
         <td style="padding:12px 16px; text-align:right; font-weight:700; color:#E8B946; font-size:16px; font-family:var(--font-head);">{{ "%.2f"|format(proforma.total_suplidos) }} €</td>
       </tr>
     </table>
+    </div>
   </div>
 </div>
 

@@ -2,7 +2,8 @@
    Reúne lo que antes vivía en dos <style> inline (base.html y ayuda.html).
    Reglas de la casa: .claude/skills/ui-lawsofux/SKILL.md
    - Ningún color hex fuera de :root. Ningún recurso externo.
-   - Tope: 16 KB (lo vigila src/test_ui.py). Para subirlo, primero recortar. */
+   - Tope: 20 KB (lo vigila src/test_ui.py). Subió de 16 a 20 el 2026-09-22
+     para las fases 3 y 5; el motivo, en docs/revision-ui.md. */
 
 /* ---------- Fuentes de marca, en local ---------------------------------- */
 /* Variables, pesos 400-600, mismo origen que los del PDF. Nunca volver al
@@ -56,6 +57,11 @@
   --aviso-linea:  #EADFC0;
   --gris-texto:   #374151;
   --gris-fondo:   #E5E7EB;
+  --gris-borde:   #ccc;
+  --gris-medio:   #888;
+  --bloqueado-fondo: #f5f3ef;
+  --bloqueado-texto: #666;
+  --resalte:      #fffbcc;
   --enviada-texto: #1f3a5f;
   --enviada-fondo: #E3E8F0;
   --hairline:   rgba(26,23,20,0.15);
@@ -315,14 +321,21 @@ table.data-table tbody tr:hover { background: var(--sand); }
 }
 
 /* Flash messages */
+/* El <ul> se pinta siempre (aria-live necesita existir antes que el aviso);
+   vacío no puede ocupar sitio o empujaría cada página 20 px hacia abajo. */
 .flash-list { list-style: none; margin-bottom: 20px; }
+.flash-list:empty { margin-bottom: 0; }
 .flash-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 10px 16px;
   border-radius: var(--radius);
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 8px;
 }
+.flash-icono { font-weight: 700; flex-shrink: 0; }
 .flash-success { background: var(--ok-fondo); color: var(--ok); border: 1px solid var(--ok-borde); }
 .flash-error   { background: var(--error-fondo); color: var(--error); border: 1px solid var(--error-borde); }
 .flash-warning { background: var(--aviso-fondo); color: var(--aviso); border: 1px solid var(--aviso-borde); }
@@ -508,13 +521,48 @@ table.data-table tbody tr:hover { background: var(--sand); }
 .b-borrador   { background: var(--gris-fondo); color: var(--gris-texto); }
 .b-enviada    { background: var(--enviada-fondo); color: var(--enviada-texto); }
 .b-cobrada    { background: var(--ok-fondo); color: var(--ok); }
-.b-confirmada { background: var(--ok-fondo); color: var(--ok); }
 .section-title {
   font-family: var(--font-head);
   font-size: 18px;
   color: var(--navy);
   margin: 0 0 16px;
 }
+
+/* ---------- Grupos de campos (Región Común) ----------------------------- */
+/* Solo enmarca y titula lo que ya estaba junto: ningún campo cambia de sitio. */
+.grupo-campos {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--blanco);
+  padding: 8px 20px 20px;
+  margin-bottom: 20px;
+}
+.grupo-campos > legend {
+  padding: 0 8px;
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+}
+/* El último hijo ya trae su propio margen inferior; sumarlo deja un hueco. */
+.grupo-campos > :last-child { margin-bottom: 0; }
+
+/* ---------- Editar proforma: arrastrar líneas y formulario bloqueado ----- */
+.drag-handle { cursor: grab; color: var(--gris-borde); transition: color 0.15s; user-select: none; }
+.drag-handle:hover { color: var(--gris-medio); }
+.linea-row.dragging { opacity: 0.35; background: var(--navy-pale); }
+.form-locked input:not([type="hidden"]),
+.form-locked select,
+.form-locked textarea {
+  background: var(--bloqueado-fondo) !important;
+  color: var(--bloqueado-texto) !important;
+}
+
+/* ---------- Ficha de cliente: búsqueda por NIF en VIES ------------------- */
+.vies-highlight { transition: background-color 0.2s; background-color: var(--resalte) !important; }
+.status-ok    { color: var(--ok); }
+.status-error { color: var(--error); }
+.status-info  { color: var(--stone); }
 
 /* ---------- Accesibilidad ----------------------------------------------- */
 /* Texto que existe para quien usa lector de pantalla y no ocupa sitio. */

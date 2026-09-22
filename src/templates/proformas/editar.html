@@ -6,17 +6,6 @@
 const ARTICULOS = {{ articulos_json | safe }};
 const LOCKED = {{ 'true' if locked else 'false' }};
 </script>
-<style>
-  .drag-handle { cursor: grab; color: #ccc; transition: color 0.15s; user-select: none; }
-  .drag-handle:hover { color: #888; }
-  .linea-row.dragging { opacity: 0.35; background: var(--navy-pale); }
-  .form-locked input:not([type="hidden"]),
-  .form-locked select,
-  .form-locked textarea {
-    background: #f5f3ef !important;
-    color: var(--stone-dark, #666) !important;
-  }
-</style>
 
 <div class="page-header">
   <div style="display:flex; align-items:center; gap:10px;">
@@ -52,6 +41,8 @@ const LOCKED = {{ 'true' if locked else 'false' }};
 
 <form method="post" id="form-proforma" class="{{ 'form-locked' if locked }}"
       onsubmit="{{ 'return false;' if locked }}" data-avisar-cambios>
+<fieldset class="grupo-campos">
+  <legend>Datos de la proforma</legend>
 <div style="margin-bottom:16px; display:flex; align-items:center; gap:16px;">
   <div class="form-group" style="margin:0; flex:0 0 auto;">
     <label for="numero_proforma" style="margin-bottom:4px; display:block;">Número de proforma</label>
@@ -137,6 +128,7 @@ const LOCKED = {{ 'true' if locked else 'false' }};
 </div>
 
 <!-- Tabla de líneas -->
+</fieldset>
 <div class="card" style="margin-bottom:20px;">
   <div style="padding:14px 16px; border-bottom:1px solid var(--hairline); display:flex; justify-content:space-between; align-items:center;">
     <strong style="font-size:14px; color:var(--navy);">Líneas de servicio</strong>
@@ -144,6 +136,7 @@ const LOCKED = {{ 'true' if locked else 'false' }};
   </div>
   <div class="table-wrap">
     <table class="data-table" id="tabla-lineas">
+      <caption class="visualmente-oculto">Líneas de servicio de la proforma</caption>
       <thead>
         <tr>
           <th style="width:24px;"></th>
@@ -165,12 +158,12 @@ const LOCKED = {{ 'true' if locked else 'false' }};
         <tr class="linea-row">
           <td class="drag-handle" title="Arrastrar para reordenar" style="text-align:center; font-size:15px; padding:0 4px; width:24px;">⠿</td>
           <td class="linea-num" style="color:#888; text-align:center; font-size:12px;">{{ loop.index }}</td>
-          <td><input type="date" name="linea_fecha[]" class="inp-fecha"
+          <td><input type="date" name="linea_fecha[]" aria-label="Fecha del servicio de la línea" class="inp-fecha"
                      value="{{ l.fecha or '' }}"
                      style="width:100%; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
           <td>
             <div style="display:flex; gap:3px; align-items:center;">
-              <select class="sel-articulo" style="flex:1; min-width:0; font-size:12px; padding:4px 6px; border:1px solid #ddd; border-radius:4px;">
+              <select class="sel-articulo" aria-label="Artículo del catálogo de la línea" style="flex:1; min-width:0; font-size:12px; padding:4px 6px; border:1px solid #ddd; border-radius:4px;">
                 <option value="">— Catálogo —</option>
                 {% for a in articulos %}
                 <option value="{{ a.id }}"
@@ -185,14 +178,14 @@ const LOCKED = {{ 'true' if locked else 'false' }};
             </div>
             <input type="hidden" name="linea_articulo_id[]" class="inp-art-id" value="{{ l.articulo_id or '' }}">
           </td>
-          <td><input type="text" name="linea_descripcion[]" class="inp-desc" required
+          <td><input type="text" name="linea_descripcion[]" aria-label="Descripción de la línea" class="inp-desc" required
                      value="{{ l.descripcion }}"
                      style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_cantidad[]" class="inp-cant" value="{{ '%g' % l.cantidad }}" min="0" step="0.01"
+          <td><input type="number" name="linea_cantidad[]" aria-label="Cantidad de la línea" class="inp-cant" value="{{ '%g' % l.cantidad }}" min="0" step="0.01"
                      style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_precio[]" class="inp-precio" value="{{ '%g' % l.precio }}" min="0" step="0.01"
+          <td><input type="number" name="linea_precio[]" aria-label="Precio unitario de la línea" class="inp-precio" value="{{ '%g' % l.precio }}" min="0" step="0.01"
                      style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_iva[]" class="inp-iva" value="{{ '%g' % l.porcentaje_iva }}" min="0" step="0.1"
+          <td><input type="number" name="linea_iva[]" aria-label="IVA % de la línea" class="inp-iva" value="{{ '%g' % l.porcentaje_iva }}" min="0" step="0.1"
                      style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
           <td class="inp-importe" style="text-align:right; font-weight:600; font-size:13px; white-space:nowrap;">{{ "%.2f"|format(l.importe) }} €</td>
           <td style="text-align:center;">
@@ -206,11 +199,11 @@ const LOCKED = {{ 'true' if locked else 'false' }};
         <tr class="linea-row-tpl" style="display:none;">
           <td class="drag-handle" title="Arrastrar para reordenar" style="text-align:center; font-size:15px; padding:0 4px; width:24px;">⠿</td>
           <td class="linea-num" style="color:#888; text-align:center; font-size:12px;"></td>
-          <td><input type="date" name="linea_fecha[]" class="inp-fecha"
+          <td><input type="date" name="linea_fecha[]" aria-label="Fecha del servicio de la línea" class="inp-fecha"
                      style="width:100%; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
           <td>
             <div style="display:flex; gap:3px; align-items:center;">
-              <select class="sel-articulo" style="flex:1; min-width:0; font-size:12px; padding:4px 6px; border:1px solid #ddd; border-radius:4px;">
+              <select class="sel-articulo" aria-label="Artículo del catálogo de la línea" style="flex:1; min-width:0; font-size:12px; padding:4px 6px; border:1px solid #ddd; border-radius:4px;">
                 <option value="">— Catálogo —</option>
                 {% for a in articulos %}
                 <option value="{{ a.id }}" data-desc="{{ a.descripcion }}" data-precio="{{ a.precio }}" data-iva="{{ a.porcentaje_iva }}">
@@ -223,13 +216,13 @@ const LOCKED = {{ 'true' if locked else 'false' }};
             </div>
             <input type="hidden" name="linea_articulo_id[]" class="inp-art-id" value="">
           </td>
-          <td><input type="text" name="linea_descripcion[]" class="inp-desc"
+          <td><input type="text" name="linea_descripcion[]" aria-label="Descripción de la línea" class="inp-desc"
                      style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_cantidad[]" class="inp-cant" value="1" min="0" step="0.01"
+          <td><input type="number" name="linea_cantidad[]" aria-label="Cantidad de la línea" class="inp-cant" value="1" min="0" step="0.01"
                      style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_precio[]" class="inp-precio" value="0" min="0" step="0.01"
+          <td><input type="number" name="linea_precio[]" aria-label="Precio unitario de la línea" class="inp-precio" value="0" min="0" step="0.01"
                      style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_iva[]" class="inp-iva" value="21" min="0" step="0.1"
+          <td><input type="number" name="linea_iva[]" aria-label="IVA % de la línea" class="inp-iva" value="21" min="0" step="0.1"
                      style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
           <td class="inp-importe" style="text-align:right; font-weight:600; font-size:13px; white-space:nowrap;">0.00 €</td>
           <td style="text-align:center;">
@@ -243,6 +236,8 @@ const LOCKED = {{ 'true' if locked else 'false' }};
   </div>
 </div>
 
+<fieldset class="grupo-campos">
+  <legend>Comentarios, suplidos y totales</legend>
 <div style="display:grid; grid-template-columns: 1fr 280px; gap:20px; align-items:start;">
 
   <div style="display:flex; flex-direction:column; gap:16px;">
@@ -257,7 +252,9 @@ const LOCKED = {{ 'true' if locked else 'false' }};
         <button type="button" class="btn btn-secondary btn-sm" id="btn-add-suplido">+ Añadir</button>
       </div>
       <div class="card" style="overflow:hidden;">
+        <div class="table-wrap">
         <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <caption class="visualmente-oculto">Suplidos</caption>
           <thead>
             <tr style="background:var(--sand-dark);">
               <th style="text-align:left;  padding:5px 8px; font-size:11px; color:var(--stone); font-weight:600;">Concepto</th>
@@ -271,21 +268,21 @@ const LOCKED = {{ 'true' if locked else 'false' }};
             {% for s in suplidos_items %}
             <tr class="suplido-row">
               <td style="padding:5px 8px;">
-                <input type="text" name="suplido_desc[]" class="inp-sup-desc" value="{{ s.desc }}" placeholder="Concepto"
+                <input type="text" name="suplido_desc[]" aria-label="Concepto del suplido" class="inp-sup-desc" value="{{ s.desc }}" placeholder="Concepto"
                        style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
               </td>
               <td style="padding:5px 4px;">
-                <input type="number" name="suplido_cantidad[]" class="inp-sup-cant" min="0" step="1" placeholder="—"
+                <input type="number" name="suplido_cantidad[]" aria-label="Cantidad del suplido" class="inp-sup-cant" min="0" step="1" placeholder="—"
                        value="{{ '%g'|format(s.cantidad) if s.cantidad else '' }}"
                        style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
               </td>
               <td style="padding:5px 4px;">
-                <input type="number" name="suplido_precio[]" class="inp-sup-precio" min="0" step="0.01" placeholder="—"
+                <input type="number" name="suplido_precio[]" aria-label="Precio unitario del suplido" class="inp-sup-precio" min="0" step="0.01" placeholder="—"
                        value="{{ '%g'|format(s.precio) if s.precio else '' }}"
                        style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
               </td>
               <td style="padding:5px 4px;">
-                <input type="number" name="suplido_importe[]" class="inp-sup-importe"
+                <input type="number" name="suplido_importe[]" aria-label="Importe del suplido" class="inp-sup-importe"
                        value="{{ '%g' % s.importe }}" min="0" step="0.01"
                        style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
               </td>
@@ -297,19 +294,19 @@ const LOCKED = {{ 'true' if locked else 'false' }};
             {% endfor %}
             <tr class="suplido-row-tpl" style="display:none;">
               <td style="padding:5px 8px;">
-                <input type="text" name="suplido_desc[]" class="inp-sup-desc" placeholder="Concepto"
+                <input type="text" name="suplido_desc[]" aria-label="Concepto del suplido" class="inp-sup-desc" placeholder="Concepto"
                        style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
               </td>
               <td style="padding:5px 4px;">
-                <input type="number" name="suplido_cantidad[]" class="inp-sup-cant" min="0" step="1" placeholder="—"
+                <input type="number" name="suplido_cantidad[]" aria-label="Cantidad del suplido" class="inp-sup-cant" min="0" step="1" placeholder="—"
                        style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
               </td>
               <td style="padding:5px 4px;">
-                <input type="number" name="suplido_precio[]" class="inp-sup-precio" min="0" step="0.01" placeholder="—"
+                <input type="number" name="suplido_precio[]" aria-label="Precio unitario del suplido" class="inp-sup-precio" min="0" step="0.01" placeholder="—"
                        style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
               </td>
               <td style="padding:5px 4px;">
-                <input type="number" name="suplido_importe[]" class="inp-sup-importe"
+                <input type="number" name="suplido_importe[]" aria-label="Importe del suplido" class="inp-sup-importe"
                        value="0" min="0" step="0.01"
                        style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
               </td>
@@ -320,6 +317,7 @@ const LOCKED = {{ 'true' if locked else 'false' }};
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
       <p style="font-size:11px; color:var(--stone); margin:6px 2px 0; line-height:1.5;">
         Por unidades (p. ej. entradas): rellena <strong>Cant.</strong> y <strong>P. unit.</strong> y el importe se calcula solo.
@@ -330,7 +328,9 @@ const LOCKED = {{ 'true' if locked else 'false' }};
 
   <!-- Totales -->
   <div class="card" style="padding:0; overflow:hidden;">
+    <div class="table-wrap">
     <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <caption class="visualmente-oculto">Totales de la proforma</caption>
       <tr>
         <td style="padding:10px 14px; color:var(--stone); border-bottom:1px solid var(--hairline);">Base imponible</td>
         <td id="tot-base" style="padding:10px 14px; text-align:right; font-weight:600; border-bottom:1px solid var(--hairline);">0.00 €</td>
@@ -348,6 +348,7 @@ const LOCKED = {{ 'true' if locked else 'false' }};
         <td id="tot-total" style="padding:12px 14px; text-align:right; font-weight:700; color:#E8B946; font-size:16px; font-family:var(--font-head);">0.00 €</td>
       </tr>
     </table>
+    </div>
     <div style="padding:14px;">
       {% if locked %}
         {% if proforma.estado == 'enviada' %}
@@ -366,21 +367,22 @@ const LOCKED = {{ 'true' if locked else 'false' }};
   </div>
 
 </div>
+</fieldset>
 </form>
 
 <!-- ── Modal: Nuevo artículo ─────────────────────────────────────────────── -->
-<div id="modal-articulo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
+<div id="modal-articulo" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-articulo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:10px; padding:24px; width:360px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-      <strong style="font-size:15px; color:var(--navy);">Nuevo artículo</strong>
+      <h2 id="titulo-modal-articulo" style="font-size:15px; color:var(--navy);">Nuevo artículo</h2>
       <button type="button" id="close-modal-articulo" style="background:none; border:none; cursor:pointer; font-size:22px; color:#888; line-height:1; padding:0 4px;">×</button>
     </div>
     <div id="modal-art-error" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:12px; padding:8px 10px; background:#fef2f2; border-radius:4px;"></div>
     <div style="display:flex; flex-direction:column; gap:12px;">
-      <div class="form-group" style="margin:0;"><label>Descripción *</label><input type="text" id="art-descripcion" style="width:100%;"></div>
+      <div class="form-group" style="margin:0;"><label for="art-descripcion">Descripción *</label><input type="text" id="art-descripcion" style="width:100%;"></div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div class="form-group" style="margin:0;"><label>Precio (€)</label><input type="number" id="art-precio" value="0" min="0" step="0.01" style="width:100%;"></div>
-        <div class="form-group" style="margin:0;"><label>IVA %</label><input type="number" id="art-iva" value="21" min="0" step="0.1" style="width:100%;"></div>
+        <div class="form-group" style="margin:0;"><label for="art-precio">Precio (€)</label><input type="number" id="art-precio" value="0" min="0" step="0.01" style="width:100%;"></div>
+        <div class="form-group" style="margin:0;"><label for="art-iva">IVA %</label><input type="number" id="art-iva" value="21" min="0" step="0.1" style="width:100%;"></div>
       </div>
       <button type="button" id="btn-guardar-articulo" class="btn btn-primary" style="width:100%; margin-top:4px;">Crear artículo</button>
     </div>
@@ -388,35 +390,35 @@ const LOCKED = {{ 'true' if locked else 'false' }};
 </div>
 
 <!-- ── Modal: Nuevo cliente ──────────────────────────────────────────────── -->
-<div id="modal-cliente" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
+<div id="modal-cliente" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-cliente" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:10px; padding:24px; width:380px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-      <strong style="font-size:15px; color:var(--navy);">Nuevo cliente</strong>
+      <h2 id="titulo-modal-cliente" style="font-size:15px; color:var(--navy);">Nuevo cliente</h2>
       <button type="button" id="close-modal-cliente" style="background:none; border:none; cursor:pointer; font-size:22px; color:#888; line-height:1; padding:0 4px;">×</button>
     </div>
     <div id="modal-cli-error" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:12px; padding:8px 10px; background:#fef2f2; border-radius:4px;"></div>
     <div style="display:flex; flex-direction:column; gap:12px;">
-      <div class="form-group" style="margin:0;"><label>Nombre / Agencia *</label><input type="text" id="cli-nombre" style="width:100%;"></div>
+      <div class="form-group" style="margin:0;"><label for="cli-nombre">Nombre / Agencia *</label><input type="text" id="cli-nombre" style="width:100%;"></div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div class="form-group" style="margin:0;"><label>NIF/CIF</label><input type="text" id="cli-nif" style="width:100%;"></div>
-        <div class="form-group" style="margin:0;"><label>Teléfono</label><input type="text" id="cli-tel" style="width:100%;"></div>
+        <div class="form-group" style="margin:0;"><label for="cli-nif">NIF/CIF</label><input type="text" id="cli-nif" style="width:100%;"></div>
+        <div class="form-group" style="margin:0;"><label for="cli-tel">Teléfono</label><input type="text" id="cli-tel" style="width:100%;"></div>
       </div>
-      <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="cli-email" style="width:100%;"></div>
+      <div class="form-group" style="margin:0;"><label for="cli-email">Email</label><input type="email" id="cli-email" style="width:100%;"></div>
       <button type="button" id="btn-guardar-cliente" class="btn btn-primary" style="width:100%; margin-top:4px;">Crear cliente</button>
     </div>
   </div>
 </div>
 
 <!-- ── Modal: Nuevo guía ─────────────────────────────────────────────────── -->
-<div id="modal-guia" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
+<div id="modal-guia" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-guia" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:10px; padding:24px; width:360px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-      <strong style="font-size:15px; color:var(--navy);">Nuevo guía</strong>
+      <h2 id="titulo-modal-guia" style="font-size:15px; color:var(--navy);">Nuevo guía</h2>
       <button type="button" id="close-modal-guia" style="background:none; border:none; cursor:pointer; font-size:22px; color:#888; line-height:1; padding:0 4px;">×</button>
     </div>
     <div id="modal-guia-error" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:12px; padding:8px 10px; background:#fef2f2; border-radius:4px;"></div>
     <div style="display:flex; flex-direction:column; gap:12px;">
-      <div class="form-group" style="margin:0;"><label>Nombre *</label><input type="text" id="guia-nombre" style="width:100%;"></div>
+      <div class="form-group" style="margin:0;"><label for="guia-nombre">Nombre *</label><input type="text" id="guia-nombre" style="width:100%;"></div>
       <button type="button" id="btn-guardar-guia" class="btn btn-primary" style="width:100%; margin-top:4px;">Crear guía</button>
     </div>
   </div>

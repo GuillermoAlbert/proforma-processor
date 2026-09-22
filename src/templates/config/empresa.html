@@ -23,31 +23,31 @@
       <div class="full" style="padding:12px 0 2px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">Identificación</div>
 
       <div class="form-group full">
-        <label>Nombre de la empresa</label>
-        <input type="text" name="nombre" value="{{ empresa.nombre }}" placeholder="Guías de Alicante">
+        <label for="nombre">Nombre de la empresa</label>
+        <input id="nombre" type="text" name="nombre" value="{{ empresa.nombre }}" placeholder="Guías de Alicante">
       </div>
 
       <div class="form-group">
-        <label>NIF / CIF</label>
-        <input type="text" name="nif" value="{{ empresa.nif }}" placeholder="B12345678">
+        <label for="nif">NIF / CIF</label>
+        <input id="nif" type="text" name="nif" value="{{ empresa.nif }}" placeholder="B12345678">
       </div>
 
       <div class="form-group">
-        <label>Sitio web</label>
-        <input type="text" name="web" value="{{ empresa.web }}" placeholder="empresa.es">
+        <label for="web">Sitio web</label>
+        <input id="web" type="text" name="web" value="{{ empresa.web }}" placeholder="empresa.es">
       </div>
 
       {# ── Contacto ────────────────────────────────────────────── #}
       <div class="full" style="padding:16px 0 2px; border-top:1px solid var(--hairline); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">Contacto</div>
 
       <div class="form-group">
-        <label>Email</label>
-        <input type="email" name="email" value="{{ empresa.email }}" placeholder="info@empresa.es">
+        <label for="email">Email</label>
+        <input id="email" type="email" name="email" value="{{ empresa.email }}" placeholder="info@empresa.es">
       </div>
 
       <div class="form-group">
-        <label>Teléfono</label>
-        <input type="text" name="telefono" value="{{ empresa.telefono }}" placeholder="+34 661 639 964">
+        <label for="telefono">Teléfono</label>
+        <input id="telefono" type="text" name="telefono" value="{{ empresa.telefono }}" placeholder="+34 661 639 964">
       </div>
 
       {# ── Dirección ───────────────────────────────────────────── #}
@@ -64,29 +64,29 @@
       </div>
 
       <div class="form-group full">
-        <label>Dirección</label>
-        <input type="text" name="direccion" value="{{ empresa.direccion }}" placeholder="Calle Ejemplo, 1">
+        <label for="direccion">Dirección</label>
+        <input id="direccion" type="text" name="direccion" value="{{ empresa.direccion }}" placeholder="Calle Ejemplo, 1">
       </div>
 
       <div class="form-group">
-        <label>C.P. y Población</label>
+        <label for="cp">C.P. y Población</label>
         <div style="display:flex; gap:8px;">
-          <input type="text" name="cp" value="{{ empresa.cp }}" placeholder="03001" style="width:80px; flex-shrink:0;">
-          <input type="text" name="poblacion" value="{{ empresa.poblacion }}" placeholder="Alicante" style="flex:1;">
+          <input type="text" id="cp" name="cp" value="{{ empresa.cp }}" aria-label="Código postal" placeholder="03001" style="width:80px; flex-shrink:0;">
+          <input type="text" id="poblacion" name="poblacion" value="{{ empresa.poblacion }}" aria-label="Población" placeholder="Alicante" style="flex:1;">
         </div>
       </div>
 
       <div class="form-group">
-        <label>Provincia</label>
-        <input type="text" name="provincia" value="{{ empresa.provincia }}" placeholder="Alicante">
+        <label for="provincia">Provincia</label>
+        <input id="provincia" type="text" name="provincia" value="{{ empresa.provincia }}" placeholder="Alicante">
       </div>
 
       {# ── Cobro ───────────────────────────────────────────────── #}
       <div class="full" style="padding:16px 0 2px; border-top:1px solid var(--hairline); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">Cobro</div>
 
       <div class="form-group full">
-        <label>Condiciones de pago</label>
-        <input type="text" name="condiciones_pago" value="{{ empresa.condiciones_pago }}"
+        <label for="condiciones_pago">Condiciones de pago</label>
+        <input id="condiciones_pago" type="text" name="condiciones_pago" value="{{ empresa.condiciones_pago }}"
                placeholder="30 días desde fecha de factura">
       </div>
 
@@ -94,14 +94,14 @@
       <div class="full" style="padding:16px 0 2px; border-top:1px solid var(--hairline); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone);">PDF</div>
 
       <div class="form-group full">
-        <label>Frase del pie y cabecera del PDF</label>
-        <input type="text" name="tagline" value="{{ empresa.tagline }}"
+        <label for="tagline">Frase del pie y cabecera del PDF</label>
+        <input id="tagline" type="text" name="tagline" value="{{ empresa.tagline }}"
                placeholder="Guías oficiales de la Comunidad Valenciana desde 1992">
       </div>
 
       <div class="form-group full">
-        <label>Aviso legal (pie del PDF)</label>
-        <textarea name="aviso_legal" rows="3" style="resize:vertical;">{{ empresa.aviso_legal }}</textarea>
+        <label for="aviso_legal">Aviso legal (pie del PDF)</label>
+        <textarea id="aviso_legal" name="aviso_legal" rows="3" style="resize:vertical;">{{ empresa.aviso_legal }}</textarea>
       </div>
 
     </div>

@@ -12,26 +12,30 @@
 <nav>
   <span class="nav-brand">{{ empresa_config.nombre }}</span>
   <ul class="nav-links">
-    <li><a href="{{ url_for('proformas_lista') }}" {% if request.endpoint and 'proforma' in request.endpoint %}class="active"{% endif %}>Proformas{% if n_pendientes_envio %}<span class="nav-badge" title="{{ n_pendientes_envio }} borrador(es) con el PDF ya descargado, pendientes de marcar enviados">{{ n_pendientes_envio }}</span>{% endif %}</a></li>
-    <li><a href="{{ url_for('clientes_lista') }}" {% if request.endpoint and 'cliente' in request.endpoint %}class="active"{% endif %}>Clientes</a></li>
-    <li><a href="{{ url_for('articulos_lista') }}" {% if request.endpoint and 'articulo' in request.endpoint %}class="active"{% endif %}>Artículos</a></li>
-    <li><a href="{{ url_for('guias_lista') }}" {% if request.endpoint and 'guia' in request.endpoint %}class="active"{% endif %}>Guías</a></li>
-    <li><a href="{{ url_for('cuentas_lista') }}" {% if request.endpoint and 'cuenta' in request.endpoint %}class="active"{% endif %}>Cuentas</a></li>
-    <li><a href="{{ url_for('config_index') }}" {% if request.endpoint and 'config' in request.endpoint %}class="active"{% endif %}>Configuración</a></li>
-    <li><a href="{{ url_for('ayuda') }}" {% if request.endpoint == 'ayuda' %}class="active"{% endif %}>Ayuda</a></li>
+    <li><a href="{{ url_for('proformas_lista') }}" {% if request.endpoint and 'proforma' in request.endpoint %}class="active" aria-current="page"{% endif %}>Proformas{% if n_pendientes_envio %}<span class="nav-badge" title="{{ n_pendientes_envio }} borrador(es) con el PDF ya descargado, pendientes de marcar enviados">{{ n_pendientes_envio }}</span>{% endif %}</a></li>
+    <li><a href="{{ url_for('clientes_lista') }}" {% if request.endpoint and 'cliente' in request.endpoint %}class="active" aria-current="page"{% endif %}>Clientes</a></li>
+    <li><a href="{{ url_for('articulos_lista') }}" {% if request.endpoint and 'articulo' in request.endpoint %}class="active" aria-current="page"{% endif %}>Artículos</a></li>
+    <li><a href="{{ url_for('guias_lista') }}" {% if request.endpoint and 'guia' in request.endpoint %}class="active" aria-current="page"{% endif %}>Guías</a></li>
+    <li><a href="{{ url_for('cuentas_lista') }}" {% if request.endpoint and 'cuenta' in request.endpoint %}class="active" aria-current="page"{% endif %}>Cuentas</a></li>
+    <li><a href="{{ url_for('config_index') }}" {% if request.endpoint and 'config' in request.endpoint %}class="active" aria-current="page"{% endif %}>Configuración</a></li>
+    <li><a href="{{ url_for('ayuda') }}" {% if request.endpoint == 'ayuda' %}class="active" aria-current="page"{% endif %}>Ayuda</a></li>
   </ul>
 </nav>
 
 <div class="container">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <ul class="flash-list">
-        {% for category, message in messages %}
-          <li class="flash-msg flash-{{ category }}">{{ message }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
+  {# El contenedor va SIEMPRE, con o sin avisos: un aria-live que aparece a la
+     vez que su contenido no lo anuncia ningún lector de pantalla. #}
+  {% set iconos = {'success': '✓', 'error': '✕', 'warning': '!'} %}
+  {# Los `{%-` no son cosmética: sin ellos el <ul> queda con saltos de línea
+     dentro, `:empty` no aplica y cada página se baja 20 px. #}
+  <ul class="flash-list" role="status" aria-live="polite">
+    {%- for category, message in get_flashed_messages(with_categories=true) %}
+      <li class="flash-msg flash-{{ category }}">
+        <span class="flash-icono" aria-hidden="true">{{ iconos.get(category, '•') }}</span>
+        <span>{{ message }}</span>
+      </li>
+    {%- endfor -%}
+  </ul>
 
   {% block content %}{% endblock %}
 </div>

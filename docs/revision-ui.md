@@ -204,3 +204,67 @@ píldoras sobre los `<code>` de **Configuración** y **Configuración → Numera
 que siempre habían sido texto plano. Se acotaron a `.pagina-ayuda` (un `<div>`
 que envuelve el contenido de esa página y no se ve). Sin las capturas, esto se
 colaba.
+
+---
+
+## Fase 3 — 2026-09-22 · saneamiento accesible, pantalla por pantalla
+
+`pytest src/` → **67 passed, ningún `xfail`**. Es el criterio de aceptación de la
+spec, cumplido.
+
+Comparadas las 32 capturas de `fase2-es` con las de `fase3`: **20 idénticas** y
+12 cambiadas, todas por algo decidido o por la propia herramienta:
+
+| Qué cambió | Dónde | Por qué |
+|---|---|---|
+| Fechas `2026-09-17` → `17/09/2026` | listado, bandeja, detalle, fechas de línea | decisión del usuario (regla 9) |
+| Dos `<fieldset>` con borde y título | `proformas/nueva` y `editar` | decisión del usuario |
+| Anillo de foco en el campo de fecha | diálogo de cobrar | `autofocus` + `:focus-visible` |
+| `180.0` → `180,0` | `articulo-form` | **no es el panel**: el navegador de las capturas ya corre en español y los `<input type=number>` usan coma decimal. Es lo que ve la usuaria. |
+
+### Lo que se hizo
+
+- **`base.html`**: `aria-current="page"` en la entrada activa del menú (junto a
+  la clase `active`, que es la que da el aspecto y no se toca). Los avisos pasan
+  a un `<ul role="status" aria-live="polite">` que **existe siempre** —un
+  `aria-live` que aparece a la vez que su contenido no lo anuncia nadie— con
+  icono (`✓ ✕ !`, `aria-hidden`) + texto en cada aviso.
+- **`<caption>` visualmente oculto en las 13 tablas** y `.table-wrap` en las 7
+  que no lo tenían (la bandeja «¿las enviaste?», los suplidos y los totales de
+  `nueva`/`editar`, y la ficha y los totales del detalle). A 1280 px no se nota;
+  en móvil dejan de arrastrar la página.
+- **Cada campo con su etiqueta**: `for`/`id` en los tres modales de alta rápida
+  y en los 12 campos de Configuración → Empresa (que no tenían ninguno);
+  `aria-label` con el nombre de su columna en los 9 campos de las líneas y los
+  suplidos —ahí la etiqueta visible es la cabecera de la tabla— y en el
+  renombrado de guía de cada fila. El C.P. y la población comparten `<label>`
+  visible, así que la población lleva además su `aria-label`.
+- **Modales de alta rápida**: el título pasa de `<strong>` a `<h2>` (mismo
+  estilo en línea: a la vista no cambia nada) y el contenedor se anuncia con
+  `role="dialog" aria-modal="true" aria-labelledby`. El foco al abrir ya lo
+  hacía el JS. En el de cobrar, `autofocus` en la fecha.
+- **Los dos `<style>` que quedaban** (`proformas/editar.html` y
+  `clientes/form.html`) al fichero único, con sus colores como tokens. Ojo: los
+  selectores de estado de la ficha de cliente eran por id (`#cif-status.status-ok`)
+  y ahora son de clase, que es exactamente lo que escribe su JS.
+- **Filtro `fecha_es` en `app.py`** (el PDF ya tenía el suyo en `pdf.py`).
+
+### Detalle que costó encontrar
+
+El `<ul>` de avisos vacío bajaba **20 px** cada página: `:empty` no aplica si el
+elemento contiene saltos de línea, y el bucle Jinja los dejaba. Se ve en las
+capturas (13 de 32 crecían exactamente 20 px) y se arregla con `{%-` / `-%}`.
+Sin comparar imágenes, esto pasaba desapercibido.
+
+### El tope del CSS sube de 16 a 20 KB
+
+Lo que entra aquí (iconos de aviso, `.visualmente-oculto`, grupos de campos, los
+dos `<style>` absorbidos) más lo que entra en la Fase 5 no cabe en 16 KB. Antes
+de subirlo se recortó lo que había: `.b-confirmada`, que no la usa ninguna
+plantilla desde que el estado `confirmada` desapareció el 2026-09-10. Queda en
+**18.004 bytes de 20.480**.
+
+### Pendiente para la Fase 5
+
+A 390 px `nueva` y `editar` desbordan ahora **902 px** en vez de 860: el
+`padding` de los `fieldset` suma. Entra en el arreglo del móvil.

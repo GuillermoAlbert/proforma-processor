@@ -21,16 +21,18 @@
     márca{{ 'las' if pendientes|length != 1 else 'la' }} como enviada{{ 's' if pendientes|length != 1 }}:
     hasta entonces no tienen fila en el Excel de Hacienda.
   </p>
+  <div class="table-wrap">
   <table>
+    <caption class="visualmente-oculto">Borradores con el PDF ya descargado, pendientes de marcar como enviados</caption>
     {% for p in pendientes %}
     <tr>
       <td style="width:1%;" class="nowrap">
         <a href="{{ url_for('proformas_detalle', id=p.id) }}" style="font-weight:600; color:var(--navy);">{{ p.numero_proforma }}</a>
       </td>
       <td>{{ p.nombre_agencia or '— sin cliente —' }}</td>
-      <td class="nowrap" style="color:var(--stone);">{{ p.fecha }}</td>
+      <td class="nowrap" style="color:var(--stone);">{{ p.fecha|fecha_es }}</td>
       <td class="nowrap" style="text-align:right; font-weight:600;">{{ "%.2f"|format(p.total_suplidos) }} €</td>
-      <td class="nowrap" style="color:var(--stone); font-size:12px;">PDF descargado el {{ p.pdf_previsualizado_en[:10] }}</td>
+      <td class="nowrap" style="color:var(--stone); font-size:12px;">PDF descargado el {{ p.pdf_previsualizado_en|fecha_es }}</td>
       <td style="width:1%;" class="nowrap">
         <form method="POST" action="{{ url_for('proformas_enviar', id=p.id) }}" style="display:inline;" data-una-vez>
           <input type="hidden" name="next" value="lista">
@@ -41,6 +43,7 @@
     </tr>
     {% endfor %}
   </table>
+  </div>
 </div>
 {% endif %}
 
@@ -78,6 +81,7 @@
 <div class="card">
   <div class="table-wrap">
     <table class="data-table">
+      <caption class="visualmente-oculto">Proformas</caption>
       <thead>
         <tr>
           {{ sort_th('numero', 'Número',  sort, direction, 'proformas_lista', extra=filtros) }}
@@ -93,7 +97,7 @@
         {% for p in proformas %}
         <tr>
           <td class="break" style="min-width:120px;"><a href="{{ url_for('proformas_detalle', id=p.id) }}" style="font-weight:600; color:var(--navy);">{{ p.numero_proforma }}</a></td>
-          <td class="nowrap">{{ p.fecha }}</td>
+          <td class="nowrap">{{ p.fecha|fecha_es }}</td>
           <td>{{ p.nombre_agencia or '—' }}</td>
           <td>{{ p.guia_nombre or '—' }}</td>
           <td class="nowrap" style="text-align:right; font-weight:600;">{{ "%.2f"|format(p.total_suplidos) }} €</td>
