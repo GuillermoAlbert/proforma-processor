@@ -1586,4 +1586,6 @@ app.register_blueprint(bp_api_orq)
 if __name__ == '__main__':
     init_db()
     excel.drain_pending()  # registra en el Excel cualquier proforma que quedara en cola
-    app.run(host='0.0.0.0', port=5114, debug=False)
+    # PORT permite levantar una segunda instancia de pruebas (capturas de UI,
+    # herramientas/servidor_pruebas.sh) sin tocar el servicio real.
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', '5114')), debug=False)
