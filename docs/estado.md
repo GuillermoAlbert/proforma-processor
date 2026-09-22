@@ -1,6 +1,6 @@
 # Estado del proyecto — proforma-admin
 
-> **Última actualización: 2026-09-11.** Fuente de verdad del estado. Se
+> **Última actualización: 2026-09-22.** Fuente de verdad del estado. Se
 > actualiza **en el mismo commit** de cada pieza: lo terminado pasa a
 > «Historial» (fecha + commit), «Pendiente» refleja lo que queda.
 
@@ -29,6 +29,12 @@
   vencidos + `POST /api/proformas/borrador` (única escritura, siempre borrador).
 - Datos de empresa y serie configurables en BD (`get_empresa_config` /
   `get_serie_config`), no hardcodeados.
+- **Interfaz saneada y usable en el móvil** (2026-09-22): un solo CSS
+  (`src/static/estilos.css`) con las fuentes en local, foco visible, avisos con
+  icono, cada campo con su etiqueta, cada tabla con su `<caption>`, fechas en
+  `dd/mm/aaaa` y, por debajo de 720 px, menú plegable y tablas apiladas como
+  fichas. **A 1280 px nada cambió de sitio.** Con su skill (`ui-lawsofux`),
+  su suite (`src/test_ui.py`) y sus herramientas de captura (`herramientas/`).
 
 ## Pendiente
 
@@ -36,12 +42,49 @@
   en `DOCS_ETL_PROFORMAS/` (🧍 Guillermo). El campo `exportada_factusol` ya
   existe en el schema.
 - **Fase 4 · restos**: filtros del listado hechos (estado, cliente y buscador,
-  2026-09-04); queda el filtro por rango de fechas y pulido suelto de UI.
+  2026-09-04); queda el filtro por rango de fechas. El pulido de UI dejó de ser
+  «suelto»: ahora tiene skill, tests y bitácora (`docs/revision-ui.md`).
 - Decisión aparcada (2026-06-12, no reabrir sin preguntar): endpoint de
   escritura `POST /api/proformas/<id>/cobrar` para que CT108 marque cobradas —
   preparado pero **no implementado a propósito**.
 
 ## Historial
+
+- **2026-09-22** — `e744259`→`75fbaf0` **la interfaz, con método.** Implementada
+  la spec `ui-lawsofux` del host en cinco fases, cada una con sus capturas
+  miradas y su commit. El detalle de qué se vio en cada pasada está en
+  **`docs/revision-ui.md`**; aquí, el resumen:
+
+  - **Fase 0** — herramientas: `herramientas/datos_prueba.py` (datos
+    inventados), `servidor_pruebas.sh` (segunda instancia en `:5124` dentro del
+    CT, con BD y Excel en `/tmp`) y `capturas_panel.py` (Chromium **en el
+    host**, 390 y 1280 px, auditoría de desbordes). `app.py` lee `PORT`.
+    Pasada `antes`: **las 16 pantallas desbordaban** a 390 px, siempre por lo
+    mismo — `ul.nav-links` medía 811 px.
+  - **Fase 1** — skill `.claude/skills/ui-lawsofux/SKILL.md` (leyes de UX +
+    reglas de la casa + checklist), `src/test_ui.py` con los 9 tests en
+    `xfail(strict=True)`, y enganche en `CLAUDE.md` y `/verify`.
+  - **Fase 2** — el CSS a **un** fichero (`src/static/estilos.css`) con las
+    fuentes en local: fuera Google Fonts, fuera los dos `<style>` inline, todos
+    los hex como tokens de `:root`. **29 de 32 capturas idénticas** píxel a
+    píxel; las 3 restantes, el anillo de foco nuevo y antialiasing.
+  - **Fase 3** — saneamiento accesible: `aria-current`, avisos con icono +
+    texto en un `role="status"`, `<caption>` en las 13 tablas, etiqueta en todos
+    los campos, `h2` en los modales. Más dos cosas **decididas con el usuario**:
+    fechas en `dd/mm/aaaa` y dos `<fieldset>` con título en `nueva`/`editar`.
+    **67 tests, ningún `xfail`.**
+  - **Fase 5** — el móvil: menú plegable que dice en qué sección estás, tablas
+    apiladas como fichas (`data-etiqueta`), objetivos de 44 px y todo en una
+    columna, **solo** por debajo de 720 px. **Cero «DESBORDA» en las 16
+    pantallas de 390 px y las 16 de 1280 px idénticas.** 68 tests.
+
+  Tres hallazgos que no se sabían y ahora sí (los tres, en `revision-ui.md`):
+  **las plantillas Jinja no se releen en caliente** (`debug=False` ⇒
+  `auto_reload` a `False`; `CLAUDE.md` decía lo contrario), un `<ul>` vacío con
+  saltos de línea dentro **no** es `:empty` y bajaba 20 px cada página, y un
+  `<fieldset>`, un `<select>` y un hijo de grid **no encogen** si no se les dice
+  — eran los que estiraban el móvil a 500 px. Tope del CSS de 16 a 24 KB, con el
+  motivo escrito. Suite nueva `src/test_ui.py` (10 tests). **68 tests.**
 
 - **2026-09-11** — **persona de contacto en la ficha del cliente.** Columna
   `clientes.persona_contacto` (migración idempotente
