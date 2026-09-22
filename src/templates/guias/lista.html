@@ -5,7 +5,7 @@
   <h1>Guías</h1>
 </div>
 
-<div style="display:grid; grid-template-columns: 1fr 340px; gap:24px; align-items:start;">
+<div class="rejilla-guias">
 
   <div class="card">
     <div class="table-wrap">
@@ -20,7 +20,7 @@
         <tbody>
           {% for g in guias %}
           <tr>
-            <td>
+            <td class="principal">
               <form method="post" action="{{ url_for('guias_editar', id=g.id) }}"
                     style="display:flex; gap:8px; align-items:center;">
                 <input type="text" name="nombre" value="{{ g.nombre }}"
@@ -29,7 +29,7 @@
                 <button type="submit" class="btn btn-secondary btn-sm">Guardar</button>
               </form>
             </td>
-            <td class="td-actions">
+            <td class="td-actions" data-etiqueta="">
               <form method="post" action="{{ url_for('guias_eliminar', id=g.id) }}"
                     onsubmit="return confirm('¿Eliminar al guía {{ g.nombre }}?')">
                 <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>

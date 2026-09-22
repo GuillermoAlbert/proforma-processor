@@ -13,7 +13,7 @@ const ARTICULOS = {{ articulos_json | safe }};
 <form method="post" id="form-proforma" data-avisar-cambios>
 <fieldset class="grupo-campos">
   <legend>Datos de la proforma</legend>
-<div style="margin-bottom:16px; display:flex; align-items:center; gap:16px;">
+<div class="fila-numero">
   <div class="form-group" style="margin:0; flex:0 0 auto;">
     <label for="numero_proforma" style="margin-bottom:4px; display:block;">Número de proforma</label>
     <input type="text" id="numero_proforma" name="numero_proforma"
@@ -32,7 +32,7 @@ const ARTICULOS = {{ articulos_json | safe }};
     {% endif %}
   </p>
 </div>
-<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
+<div class="rejilla-datos">
 
   <div class="form-group">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
@@ -117,10 +117,10 @@ const ARTICULOS = {{ articulos_json | safe }};
       </thead>
       <tbody id="lineas-body">
         <tr class="linea-row">
-          <td class="linea-num" style="color:#888; text-align:center; font-size:12px;">1</td>
-          <td><input type="date" name="linea_fecha[]" aria-label="Fecha del servicio de la línea" class="inp-fecha"
+          <td class="linea-num solo-escritorio" style="color:#888; text-align:center; font-size:12px;">1</td>
+          <td data-etiqueta="Fecha"><input type="date" name="linea_fecha[]" aria-label="Fecha del servicio de la línea" class="inp-fecha"
                      style="width:100%; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td>
+          <td data-etiqueta="Artículo">
             <div style="display:flex; gap:3px; align-items:center;">
               <select class="sel-articulo" aria-label="Artículo del catálogo de la línea" style="flex:1; min-width:0; font-size:12px; padding:4px 6px; border:1px solid #ddd; border-radius:4px;">
                 <option value="">— Catálogo —</option>
@@ -135,16 +135,16 @@ const ARTICULOS = {{ articulos_json | safe }};
             </div>
             <input type="hidden" name="linea_articulo_id[]" class="inp-art-id" value="">
           </td>
-          <td><input type="text" name="linea_descripcion[]" aria-label="Descripción de la línea" class="inp-desc" required
+          <td data-etiqueta="Descripción"><input type="text" name="linea_descripcion[]" aria-label="Descripción de la línea" class="inp-desc" required
                      style="width:100%; padding:5px 7px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_cantidad[]" aria-label="Cantidad de la línea" class="inp-cant" value="1" min="0" step="0.01"
+          <td data-etiqueta="Cant."><input type="number" name="linea_cantidad[]" aria-label="Cantidad de la línea" class="inp-cant" value="1" min="0" step="0.01"
                      style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_precio[]" aria-label="Precio unitario de la línea" class="inp-precio" value="0" min="0" step="0.01"
+          <td data-etiqueta="Precio unit."><input type="number" name="linea_precio[]" aria-label="Precio unitario de la línea" class="inp-precio" value="0" min="0" step="0.01"
                      style="width:100%; text-align:right; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td><input type="number" name="linea_iva[]" aria-label="IVA % de la línea" class="inp-iva" value="21" min="0" step="0.1"
+          <td data-etiqueta="IVA %"><input type="number" name="linea_iva[]" aria-label="IVA % de la línea" class="inp-iva" value="21" min="0" step="0.1"
                      style="width:100%; text-align:center; padding:5px 4px; border:1px solid #ddd; border-radius:4px; font-size:13px;"></td>
-          <td class="inp-importe" style="text-align:right; font-weight:600; font-size:13px; white-space:nowrap;">0.00 €</td>
-          <td style="text-align:center;">
+          <td class="inp-importe" data-etiqueta="Importe" style="text-align:right; font-weight:600; font-size:13px; white-space:nowrap;">0.00 €</td>
+          <td data-etiqueta="" style="text-align:center;">
             <button type="button" class="btn-del-line" title="Eliminar"
                     style="background:none; border:none; cursor:pointer; color:#b91c1c; font-size:16px; padding:2px 6px;">✕</button>
           </td>
@@ -156,7 +156,7 @@ const ARTICULOS = {{ articulos_json | safe }};
 
 <fieldset class="grupo-campos">
   <legend>Comentarios, suplidos y totales</legend>
-<div style="display:grid; grid-template-columns: 1fr 280px; gap:20px; align-items:start;">
+<div class="rejilla-cierre">
 
   <div style="display:flex; flex-direction:column; gap:16px;">
     <div class="form-group">
@@ -262,7 +262,7 @@ const ARTICULOS = {{ articulos_json | safe }};
         <label for="art-descripcion">Descripción *</label>
         <input type="text" id="art-descripcion" style="width:100%;">
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="rejilla-par">
         <div class="form-group" style="margin:0;">
           <label for="art-precio">Precio (€)</label>
           <input type="number" id="art-precio" value="0" min="0" step="0.01" style="width:100%;">
@@ -290,7 +290,7 @@ const ARTICULOS = {{ articulos_json | safe }};
         <label for="cli-nombre">Nombre / Agencia *</label>
         <input type="text" id="cli-nombre" style="width:100%;">
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="rejilla-par">
         <div class="form-group" style="margin:0;">
           <label for="cli-nif">NIF/CIF</label>
           <input type="text" id="cli-nif" style="width:100%;">

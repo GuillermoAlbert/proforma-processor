@@ -64,7 +64,24 @@ def inject_empresa():
             ).fetchone()[0]
     except Exception:
         n_pendientes = 0          # nunca romper el render del panel por el contador
-    return {'empresa_config': get_empresa_config(), 'n_pendientes_envio': n_pendientes}
+    return {'empresa_config': get_empresa_config(), 'n_pendientes_envio': n_pendientes,
+            'seccion_actual': _seccion_actual()}
+
+
+# Los mismos trozos de endpoint con los que `base.html` marca la entrada activa
+# del menú, en el mismo orden. Con el menú plegado en un móvil no se ve el
+# `aria-current`, así que el rótulo tiene que decir dónde estás.
+_SECCIONES = (('proforma', 'Proformas'), ('cliente', 'Clientes'), ('articulo', 'Artículos'),
+              ('guia', 'Guías'), ('cuenta', 'Cuentas'), ('config', 'Configuración'),
+              ('ayuda', 'Ayuda'))
+
+
+def _seccion_actual():
+    endpoint = request.endpoint or ''
+    for trozo, nombre in _SECCIONES:
+        if trozo in endpoint:
+            return nombre
+    return 'Proformas'
 
 
 # ── Clientes ────────────────────────────────────────────────────────────────

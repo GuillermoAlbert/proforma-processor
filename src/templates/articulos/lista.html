@@ -24,12 +24,12 @@
       <tbody>
         {% for a in articulos %}
         <tr>
-          <td>{{ a.codigo or '—' }}</td>
-          <td>{{ a.descripcion }}</td>
-          <td style="text-align:right;">{{ "%.2f"|format(a.precio) }} €</td>
-          <td style="text-align:right;">{{ a.porcentaje_iva }}%</td>
-          <td>{{ a.familia or '—' }}</td>
-          <td class="td-actions">
+          <td data-etiqueta="Código">{{ a.codigo or '—' }}</td>
+          <td class="principal">{{ a.descripcion }}</td>
+          <td data-etiqueta="Precio" style="text-align:right;">{{ "%.2f"|format(a.precio) }} €</td>
+          <td data-etiqueta="IVA %" style="text-align:right;">{{ a.porcentaje_iva }}%</td>
+          <td data-etiqueta="Familia">{{ a.familia or '—' }}</td>
+          <td class="td-actions" data-etiqueta="">
             <a href="{{ url_for('articulos_editar', id=a.id) }}" class="btn btn-secondary btn-sm">Editar</a>
           </td>
         </tr>

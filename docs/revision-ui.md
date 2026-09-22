@@ -268,3 +268,89 @@ plantilla desde que el estado `confirmada` desapareció el 2026-09-10. Queda en
 
 A 390 px `nueva` y `editar` desbordan ahora **902 px** en vez de 860: el
 `padding` de los `fieldset` suma. Entra en el arreglo del móvil.
+
+---
+
+## Fase 5 — 2026-09-22 · el móvil de verdad
+
+**El objetivo de la spec, cumplido: cero «DESBORDA» en las 16 pantallas de
+390 px, y las 16 capturas de 1280 px idénticas píxel a píxel a las de la
+Fase 3.** `pytest src/` → **68 passed** (el test 10, nuevo, vigila los
+`data-etiqueta`).
+
+Antes: las 16 pantallas desbordaban, entre 811 y 902 px de ancho. Ahora: 390.
+
+### Lo que se hizo
+
+- **El menú se pliega** por debajo de 720 px en un `<details class="nav-plegable">`
+  cuyo rótulo dice **en qué sección estás** (`Menú · Proformas`): plegado no se
+  ve el `aria-current` y el «dónde estoy» no se puede perder. En escritorio el
+  `<details>` desaparece de la maquetación con `display: contents` y el `<ul>`
+  vuelve a ser hijo directo del `<nav>`: idéntico a antes.
+- **Cada fila de tabla, una ficha** por debajo de 720 px: `data-etiqueta` en
+  cada celda (es lo que se pinta delante del dato), `.principal` en la del
+  número o el nombre, que encabeza la ficha sin rótulo, y `.solo-escritorio`
+  en lo que apilado no aporta (el número de línea, el asa de arrastrar).
+- **Objetivos de pulsación**: `.btn` y `.btn-sm` a 44 px de alto, casillas a
+  20 px, botones de borrar línea a 44×44 — **solo por debajo de 720 px**, como
+  se decidió. A 1280 px no se mueve nada.
+- **Todo en una columna** a 390 px: `.form-grid` y las siete rejillas.
+
+### Las rejillas tuvieron que salir del `style=`
+
+Siete `<div style="display:grid; …">` pasaron a clase (`.rejilla-datos`,
+`.rejilla-cierre`, `.rejilla-dos`, `.rejilla-par`, `.rejilla-numeracion`,
+`.rejilla-guias`, `.rejilla-config`), con **los mismos valores**. No es
+cosmética: una regla de hoja no puede ganarle a un `style=` sin `!important`, y
+sin eso el móvil no podía ponerlas en una columna. Igual con `.fila-numero`,
+`.titulo-con-estado` y `.acciones-cabecera`.
+
+### Tres cosas que no encogen si no se les dice
+
+Las tres estiraban la página a ~500 px y ninguna se ve leyendo el HTML; salieron
+del `--sonda`:
+
+1. Un **`<fieldset>`** vale `min-inline-size: min-content` y no encoge.
+2. Un **`<select>`** se ensancha hasta su opción más larga — aquí, el nombre de
+   la cuenta con el IBAN entero.
+3. Un **hijo de grid o de flex** vale `min-width: auto`: tampoco encoge por
+   debajo de su contenido, y le pasa el ancho al padre.
+
+### Un cambio de 20 px que solo cazó la comparación de imágenes
+
+Al pasar las rejillas a clase, la regla `.grupo-campos > :last-child
+{ margin-bottom: 0 }` (de la Fase 3) **empezó a aplicarse**: antes perdía contra
+el `style=` en línea. El hueco entre «Datos de la proforma» y «Líneas de
+servicio» se comió 20 px. La regla no hacía nada útil en ninguna de las dos
+fases, así que se quitó, y las 16 capturas de escritorio volvieron a ser
+idénticas.
+
+### El tope del CSS, de 20 a 24 KB
+
+El esquema móvil completo son ~4,5 KB. Antes de subirlo se recortó lo que se
+pudo: la regla muerta `.b-confirmada` (Fase 3) y cinco bloques de comentario que
+repetían lo que ya dice este documento (−509 bytes). Queda en **24.152 bytes de
+24.576**. Si hace falta otra subida, el siguiente sitio donde mirar son los
+cuatro `unicode-range` de las fuentes (~1 KB): habría que comprobar antes que
+ningún nombre de agencia usa `latin-ext`.
+
+### JS nuevo: 2 líneas, justificadas
+
+```js
+const menu = document.querySelector('.nav-plegable');
+if (menu && window.matchMedia('(max-width: 720px)').matches) menu.open = false;
+```
+
+El menú nace `open` en el HTML y solo se pliega en pantalla estrecha. La
+alternativa sin JS es `::details-content`, que no llevan todos los navegadores:
+donde falta, el menú se quedaría **plegado en escritorio**. Con estas dos líneas,
+un navegador sin JS enseña el menú entero, que es el fallo bueno.
+
+### Pendiente de decisión del usuario
+
+*(nada abierto)*
+
+Queda anotado, sin decidir nada porque no molesta: en el listado en móvil, los
+enlaces del número de proforma miden 19 px de alto (son texto dentro de la ficha,
+con toda la anchura para pulsar). Y la bandeja «¿las enviaste?» parte el número
+en tres líneas a 390 px.

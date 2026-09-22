@@ -2,14 +2,14 @@
 {% block title %}{{ proforma.numero_proforma }}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div style="display:flex; align-items:center; gap:12px;">
+  <div class="titulo-con-estado">
     <h1>{{ proforma.numero_proforma }}</h1>
     <span class="badge badge-{{ proforma.estado }}">{{ proforma.estado|capitalize }}</span>
     {% if proforma.exportada_excel %}
     <span class="badge badge-confirmada" title="Registrada en el Excel de Hacienda">✓ En Excel</span>
     {% endif %}
   </div>
-  <div style="display:flex; gap:8px;">
+  <div class="acciones-cabecera">
     {% if proforma.estado == 'borrador' %}
     {# El botón principal es el que la usuaria pulsa de verdad: bajarse el PDF
        para mandarlo por correo. Ese clic es el que la marca enviada y la mete
@@ -56,7 +56,7 @@
   </div>
 </div>
 
-<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">
+<div class="rejilla-dos">
 
   <div class="card" style="padding:18px;">
     <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--stone); margin-bottom:10px;">Datos de la proforma</div>
@@ -126,13 +126,13 @@
       <tbody>
         {% for l in lineas %}
         <tr>
-          <td style="text-align:center; color:#888; font-size:12px;">{{ loop.index }}</td>
-          {% if has_fechas %}<td style="text-align:center; color:var(--stone);">{{ l.fecha|fecha_es }}</td>{% endif %}
-          <td>{{ l.descripcion }}</td>
-          <td style="text-align:center;">{{ l.cantidad }}</td>
-          <td style="text-align:right; color:var(--stone);">{{ "%.2f"|format(l.precio) }} €</td>
-          <td style="text-align:center; color:var(--stone);">{{ l.porcentaje_iva }}%</td>
-          <td style="text-align:right; font-weight:600; color:var(--terra);">{{ "%.2f"|format(l.importe) }} €</td>
+          <td class="solo-escritorio" style="text-align:center; color:#888; font-size:12px;">{{ loop.index }}</td>
+          {% if has_fechas %}<td data-etiqueta="Fecha" style="text-align:center; color:var(--stone);">{{ l.fecha|fecha_es }}</td>{% endif %}
+          <td class="principal">{{ l.descripcion }}</td>
+          <td data-etiqueta="Cant." style="text-align:center;">{{ l.cantidad }}</td>
+          <td data-etiqueta="Precio unit." style="text-align:right; color:var(--stone);">{{ "%.2f"|format(l.precio) }} €</td>
+          <td data-etiqueta="IVA %" style="text-align:center; color:var(--stone);">{{ l.porcentaje_iva }}%</td>
+          <td data-etiqueta="Importe" style="text-align:right; font-weight:600; color:var(--terra);">{{ "%.2f"|format(l.importe) }} €</td>
         </tr>
         {% else %}
         <tr>

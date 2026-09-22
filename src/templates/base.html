@@ -11,6 +11,17 @@
 
 <nav>
   <span class="nav-brand">{{ empresa_config.nombre }}</span>
+  {# Con ocho cosas en la cabecera no cabe un menú en línea en un móvil, así
+     que se pliega. El <summary> dice EN QUÉ SECCIÓN ESTÁS: plegado no se ve el
+     aria-current, y el «dónde estoy» no se puede perder. En escritorio el
+     <details> desaparece de la maquetación (display: contents) y queda igual
+     que siempre. Va `open` en el HTML y lo cierra el JS solo en móvil: así un
+     navegador sin JS enseña el menú entero en vez de esconderlo. #}
+  <details class="nav-plegable" open>
+    <summary>
+      <span class="nav-menu-icono" aria-hidden="true">☰</span>
+      <span>Menú · {{ seccion_actual }}</span>
+    </summary>
   <ul class="nav-links">
     <li><a href="{{ url_for('proformas_lista') }}" {% if request.endpoint and 'proforma' in request.endpoint %}class="active" aria-current="page"{% endif %}>Proformas{% if n_pendientes_envio %}<span class="nav-badge" title="{{ n_pendientes_envio }} borrador(es) con el PDF ya descargado, pendientes de marcar enviados">{{ n_pendientes_envio }}</span>{% endif %}</a></li>
     <li><a href="{{ url_for('clientes_lista') }}" {% if request.endpoint and 'cliente' in request.endpoint %}class="active" aria-current="page"{% endif %}>Clientes</a></li>
@@ -20,6 +31,7 @@
     <li><a href="{{ url_for('config_index') }}" {% if request.endpoint and 'config' in request.endpoint %}class="active" aria-current="page"{% endif %}>Configuración</a></li>
     <li><a href="{{ url_for('ayuda') }}" {% if request.endpoint == 'ayuda' %}class="active" aria-current="page"{% endif %}>Ayuda</a></li>
   </ul>
+  </details>
 </nav>
 
 <div class="container">
@@ -41,6 +53,11 @@
 </div>
 
 <script>
+// El menú de la cabecera nace abierto (ver base.html) y solo se pliega en
+// pantalla estrecha: sin JS se ve entero, que es mejor que no verlo.
+const menu = document.querySelector('.nav-plegable');
+if (menu && window.matchMedia('(max-width: 720px)').matches) menu.open = false;
+
 // Bloquea el doble clic en las acciones que escriben en el Excel de Hacienda.
 // El servicio es multihilo: dos peticiones simultáneas llegaban a escribir dos
 // filas de la misma proforma. El servidor ya lo impide (transición atómica +

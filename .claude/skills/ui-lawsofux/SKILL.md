@@ -14,7 +14,7 @@ Cuándo aplicar: cada vez que se cree o modifique una plantilla Jinja2, un formu
   enviar proformas. **No se mueve, renombra ni reagrupa nada que ya use** sin decisión explícita
   del usuario (dueño del proyecto). La Ley de Jakob aquí es «lo que ella ya conoce», no lo que
   conoce Internet.
-- **Un solo fichero CSS: `src/static/estilos.css`, ≤ 20 KB** (lo vigila `src/test_ui.py`; para
+- **Un solo fichero CSS: `src/static/estilos.css`, ≤ 24 KB** (lo vigila `src/test_ui.py`; para
   subir el tope, primero buscar de dónde recortar y anotar el motivo en `docs/revision-ui.md`).
   Tokens en `:root`: la paleta de marca (`--navy` acento y acciones primarias, `--terra` solo
   peligro/error, `--gold` solo aviso, `--sand`/`--ink`/`--stone` fondos y texto), los tres pares

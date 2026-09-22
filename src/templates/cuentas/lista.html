@@ -23,17 +23,17 @@
       <tbody>
         {% for c in cuentas %}
         <tr>
-          <td>
+          <td class="principal">
             {{ c.nombre }}
             {% if c.predeterminada %}
             <span class="badge badge-confirmada" style="margin-left:6px;">★ Predeterminada</span>
             {% endif %}
           </td>
-          <td style="font-variant-numeric:tabular-nums;">{{ c.iban or '—' }}</td>
-          <td>{{ c.bic or '—' }}</td>
-          <td>{{ c.banco or '—' }}</td>
-          <td>{{ c.titular or '—' }}</td>
-          <td class="td-actions">
+          <td data-etiqueta="IBAN" style="font-variant-numeric:tabular-nums;">{{ c.iban or '—' }}</td>
+          <td data-etiqueta="BIC / SWIFT">{{ c.bic or '—' }}</td>
+          <td data-etiqueta="Entidad">{{ c.banco or '—' }}</td>
+          <td data-etiqueta="Titular">{{ c.titular or '—' }}</td>
+          <td class="td-actions" data-etiqueta="">
             <a href="{{ url_for('cuentas_editar', id=c.id) }}" class="btn btn-secondary btn-sm">Editar</a>
             <form method="POST" action="{{ url_for('cuentas_eliminar', id=c.id) }}" style="display:inline;"
                   onsubmit="return confirm('¿Eliminar la cuenta «{{ c.nombre }}»?');">

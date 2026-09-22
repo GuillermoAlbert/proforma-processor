@@ -96,13 +96,13 @@
       <tbody>
         {% for p in proformas %}
         <tr>
-          <td class="break" style="min-width:120px;"><a href="{{ url_for('proformas_detalle', id=p.id) }}" style="font-weight:600; color:var(--navy);">{{ p.numero_proforma }}</a></td>
-          <td class="nowrap">{{ p.fecha|fecha_es }}</td>
-          <td>{{ p.nombre_agencia or '—' }}</td>
-          <td>{{ p.guia_nombre or '—' }}</td>
-          <td class="nowrap" style="text-align:right; font-weight:600;">{{ "%.2f"|format(p.total_suplidos) }} €</td>
-          <td class="nowrap"><span class="badge badge-{{ p.estado }}">{{ p.estado|capitalize }}</span></td>
-          <td>
+          <td class="break principal" style="min-width:120px;"><a href="{{ url_for('proformas_detalle', id=p.id) }}" style="font-weight:600; color:var(--navy);">{{ p.numero_proforma }}</a></td>
+          <td class="nowrap" data-etiqueta="Fecha">{{ p.fecha|fecha_es }}</td>
+          <td data-etiqueta="Cliente">{{ p.nombre_agencia or '—' }}</td>
+          <td data-etiqueta="Guía">{{ p.guia_nombre or '—' }}</td>
+          <td class="nowrap" data-etiqueta="Total" style="text-align:right; font-weight:600;">{{ "%.2f"|format(p.total_suplidos) }} €</td>
+          <td class="nowrap" data-etiqueta="Estado"><span class="badge badge-{{ p.estado }}">{{ p.estado|capitalize }}</span></td>
+          <td data-etiqueta="">
             <div class="td-actions actions-grid">
               <a href="{{ url_for('proformas_pdf', id=p.id) }}" class="btn btn-terra btn-sm">PDF</a>
               <a href="{{ url_for('proformas_editar', id=p.id) }}" class="btn btn-secondary btn-sm">Editar</a>

@@ -24,12 +24,12 @@
       <tbody>
         {% for c in clientes %}
         <tr>
-          <td>{{ c.nombre_agencia }}</td>
-          <td>{{ c.nif_cif or '—' }}</td>
-          <td>{{ c.poblacion or '—' }}{% if c.provincia %} ({{ c.provincia }}){% endif %}</td>
-          <td>{{ c.email or '—' }}</td>
-          <td>{{ c.telefono or '—' }}</td>
-          <td class="td-actions">
+          <td class="principal">{{ c.nombre_agencia }}</td>
+          <td data-etiqueta="NIF/CIF">{{ c.nif_cif or '—' }}</td>
+          <td data-etiqueta="Población">{{ c.poblacion or '—' }}{% if c.provincia %} ({{ c.provincia }}){% endif %}</td>
+          <td data-etiqueta="Email">{{ c.email or '—' }}</td>
+          <td data-etiqueta="Teléfono">{{ c.telefono or '—' }}</td>
+          <td class="td-actions" data-etiqueta="">
             <a href="{{ url_for('clientes_editar', id=c.id) }}" class="btn btn-secondary btn-sm">Editar</a>
           </td>
         </tr>
