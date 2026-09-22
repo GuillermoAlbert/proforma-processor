@@ -75,21 +75,29 @@ escritorio 1280 px), solo esquema claro. **25 con avisos.**
 | Modales `<dialog>` nativos | **sí** | los cuatro; falta `autofocus` |
 | Contraste AA | **por medir** | ojo con `--stone` sobre `--sand` y `--gold` como texto |
 
-### Pendiente de decisión del usuario
+### Lo que se llevó a decisión (y qué respondió el usuario, 2026-09-22)
 
 1. **Fechas en ISO a la vista.** El listado, la bandeja «¿las enviaste?» y el
    detalle pintan `2026-09-17`, no `17/09/2026`. La regla 9 de la skill pide
-   formato español, pero es un **cambio visible** en pantallas que la usuaria
-   mira a diario → no se aplica sin decirlo. (Afecta a `proformas/lista.html`,
-   `detalle.html` y la bandeja de `base.html`/`lista.html`.)
-2. **Objetivos de 44 px.** Subir `.btn-sm` de 23 a 44 px de alto **cambiaría el
-   aspecto** de todas las filas del listado a 1280 px. Propuesta para cuando se
-   decida: dejarlos como están en escritorio y engordarlos solo por debajo de
-   720 px (Fase 5). Los checkboxes de 13×13 sí se pueden subir a 18–20 px sin
-   que nadie lo note, pero también es aspecto: va aquí.
-3. **La tabla de la bandeja «¿las enviaste?»** no tiene `.table-wrap`. Meterla
-   en uno no mueve nada a 1280 px y arregla el desborde en móvil → **esto sí se
-   hará** en la Fase 5, se anota solo para dejar constancia de por qué.
+   formato español, pero es un cambio visible en pantallas de uso diario.
+   → **Decidido: se cambian a `dd/mm/aaaa`.** El ISO se queda solo en
+   `<input type="date">` y en `datetime="…"`. Afecta a `proformas/lista.html`,
+   `proformas/detalle.html` y la bandeja.
+2. **Objetivos de 44 px.** Subir `.btn-sm` de 23 a 44 px de alto cambiaría el
+   aspecto de todas las filas del listado a 1280 px.
+   → **Decidido: solo por debajo de 720 px** (entra en la Fase 5). A 1280 px
+   los botones de fila y los checkboxes se quedan exactamente como están.
+3. **`<fieldset>`/`<legend>` en «Nueva proforma» y «Editar».**
+   → **Decidido: sí, con borde suave y título de grupo visible.** Sin mover ni
+   renombrar ningún campo ni botón: el `fieldset` solo enmarca lo que ya estaba
+   junto.
+4. **La tabla de la bandeja «¿las enviaste?»** no tiene `.table-wrap`. Meterla
+   en uno no mueve nada a 1280 px y arregla el desborde en móvil → se hace en la
+   Fase 5; se anota solo para dejar constancia de por qué.
+
+### Pendiente de decisión del usuario
+
+*(nada abierto ahora mismo)*
 
 ### Herramientas que quedan montadas
 
@@ -105,3 +113,40 @@ escritorio 1280 px), solo esquema claro. **25 con avisos.**
   `/root/.venv-capturas`), nunca contra `:5114`.
 - **Firewall:** el CT 104 no lo tiene activo; `:5124` se alcanza desde el host
   sin añadir ninguna regla. No hubo que tocar `red-ips.md`.
+
+---
+
+## Fase 1 — 2026-09-22 · skill, tests y enganche
+
+Sin tocar una sola plantilla: solo se monta con qué juzgar lo que viene.
+
+- **`.claude/skills/ui-lawsofux/SKILL.md`.** Portada de la del radar: la tabla
+  entera de «Las leyes, aplicadas», los antipatrones (menos los tres de la
+  interrogación `?`, que aquí no existe) y la lista de fuentes. Reescritos el
+  frontmatter, «Contexto del proyecto», «Reglas de la casa» (las 10 de la spec
+  + las 8 del esquema móvil que entra en la Fase 5), «Antes de dar por
+  terminado» y el checklist (25 puntos; fuera el modo oscuro, dentro «nada ha
+  cambiado de sitio»).
+- **`src/test_ui.py`,** 9 tests, todos `xfail(strict=True)` por ahora: hoy
+  fallan los 9 y cada fase irá quitando los suyos. `strict` significa que si
+  uno empieza a pasar por su cuenta, pytest avisa en vez de callarse.
+  Sin dependencias nuevas: un árbol mínimo sobre `html.parser` basta para
+  preguntar «¿este campo tiene `label`?» y «¿esta tabla está en `.table-wrap`?».
+  La BD de las pantallas la siembra `herramientas/datos_prueba.py`, la misma
+  que usan las capturas: un solo sitio que mantener.
+- **`CLAUDE.md`:** regla 6 nueva (invocar la skill antes de tocar plantillas,
+  CSS o JS; nada cambia de sitio sin decisión del dueño), `test_ui.py` en el
+  mapa de `src/` y sección nueva para `herramientas/`.
+- **`/verify`:** paso 2c nuevo entre el smoke de PDFs y el reinicio — skill,
+  capturas `despues` de lo tocado, cero DESBORDA, `test_ui.py` en verde y
+  comparación de la captura de 1280 px con la de `antes`.
+
+`pytest src/` → **58 passed, 9 xfailed**.
+
+### Desviación de la spec (anotada a propósito)
+
+La spec pedía los tests 4 y 5 «parametrizados sobre las 15 rutas», y a la vez
+que el total acabara en **67 tests**. Las dos cosas no caben: parametrizar da
+15 tests por cada uno. Se ha elegido el total de 67 — cada test recorre las
+rutas por dentro y acumula **todos** los fallos en un solo mensaje, que además
+es más útil: una ejecución lista todas las pantallas que fallan, no la primera.

@@ -21,7 +21,7 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 -m py_com
 pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin && python3 -m pytest src/ -q'
 ```
 
-Cinco suites, **58 tests**, todas con BD y Excel aislados en `/tmp`. Cazan
+Seis suites, **58 tests** más `test_ui.py`, todas con BD y Excel aislados en `/tmp`. Cazan
 sobre todo errores de sintaxis Jinja en las plantillas (que tumban el panel) y
 regresiones del flujo de estados y del Excel. Si tocaste plantillas, esto es lo
 primero que tiene que pasar.
@@ -42,6 +42,27 @@ Las fuentes **Lora e Inter tienen que aparecer embebidas**: si no, el
 `@font-face` local se ha roto y las proformas salen en Georgia/Arial sin avisar. Si cambiaste el diseño,
 pide a Guillermo que abra los PDFs (o descárgalos con `pct pull`) antes de dar
 el visual por bueno.
+
+## 2c. Interfaz (si tocaste `src/templates/` o `src/static/estilos.css`)
+
+Invocar la skill **`ui-lawsofux`** y pasar su checklist. Después, mirar el
+panel de verdad — los tests dicen que el HTML es válido, no que se lea:
+
+```bash
+pct exec 104 -- bash -lc '/mnt/empresa/proforma-admin/herramientas/servidor_pruebas.sh arrancar'
+/root/.venv-capturas/bin/python herramientas/capturas_panel.py despues --solo <pantallas tocadas>
+pct exec 104 -- bash -lc '/mnt/empresa/proforma-admin/herramientas/servidor_pruebas.sh parar'
+```
+
+- **Cero «DESBORDA»** en las capturas de 390 px, y **mirarlas** (no basta con
+  que el script no se queje).
+- `pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin && python3 -m pytest src/test_ui.py -q'`
+  en verde.
+- Comparar la captura de 1280 px con la de `antes`: **nada puede haber cambiado
+  de sitio** para la usuaria. Si cambió, va a `docs/revision-ui.md` como
+  pendiente de decisión y se deshace.
+- El servidor de pruebas es `:5124` con datos inventados. **Nunca capturar
+  contra `:5114`**, ni abrir `proformas.db`, el Excel fiscal o los PDF reales.
 
 ## 3. Reinicio y salud del servicio
 

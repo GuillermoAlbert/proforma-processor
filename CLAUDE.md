@@ -47,7 +47,12 @@ referencia, pero **no se toca** (ni su código ni su cron ni su BD).
 5. **Cambios de schema** solo con el patrón del repo: funciones `_migrate_*`
    idempotentes en `src/db.py` que corren en el arranque (mira
    `_migrate_estado_confirmada_a_enviada` o `_migrate_to_multi_guia`).
-6. La escritura desde CT108 (`POST /api/proformas/<id>/cobrar` etc.) está
+6. **Antes de crear o cambiar cualquier plantilla, formulario, CSS o JS
+   inline, invocar la skill `ui-lawsofux` y pasar su checklist. Nada cambia de
+   sitio para la usuaria sin decisión del dueño.** Las capturas se miran con
+   `herramientas/capturas_panel.py`, siempre contra el servidor de pruebas de
+   `:5124`, nunca contra `:5114`.
+7. La escritura desde CT108 (`POST /api/proformas/<id>/cobrar` etc.) está
    **no implementada a propósito** (decisión 2026-06-12) — la única excepción
    ya acordada es `POST /api/proformas/borrador` (siempre crea en estado
    `borrador`, nunca confirma ni toca el Excel). No añadir más escritura por
@@ -69,7 +74,7 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
   `TEMPLATE_DIR`, `ADMIN_USER`/`ADMIN_PASS`, `EXCEL_PATH`, `EXCEL_BACKUP_DIR`
   (rotación 30 días), `EXCEL_PENDING_FILE` (cola si el Excel está abierto),
   `EXCEL_LOCK_FILE`.
-- Verificación: `python3 -m pytest src/` (cinco suites, 58 tests)
+- Verificación: `python3 -m pytest src/` (seis suites, 58 tests + `test_ui.py`)
   (suites pytest, aisladas en /tmp) + `test_pdf_gen.py` + smoke HTTP + el flujo manual
   en el panel (ver `/verify`).
 
@@ -90,7 +95,19 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
 | `test_envio_y_vista_previa.py` | Suite pytest del flujo de envío: vista previa que no cachea, sellado de `pdf_previsualizado_en`, `/enviar-y-descargar`, bandeja de pendientes y **el Excel a prueba de doble clic** (incluido un test que fuerza el solape de dos escrituras). BD y Excel en `/tmp`. |
 | `test_numeracion_agencia.py` | Suite pytest de la numeración cuando la serie depende del cliente o la fecha (`{agencia}`, `{mes_corto}`): alta sin cliente, `peek-numero`, renumerado al editar un borrador y campo `readonly` en el alta. BD en `/tmp`. |
 | `test_persona_contacto.py` | Suite pytest de `clientes.persona_contacto`: alta, edición, migración sobre una BD con el schema antiguo y la ficha del cliente del detalle. BD en `/tmp`. |
+| `test_ui.py` | Suite pytest de la interfaz: el trozo del checklist de `ui-lawsofux` que comprueba una máquina (CSS en un solo fichero y bajo 16 KB, cero recursos externos, colores solo en `:root`, `lang`/`h1`/`aria-live`/`aria-current`, cada campo con su etiqueta, `<caption>` y `.table-wrap` en cada tabla, avisos con icono, foco visible, fuentes locales). BD en `/tmp` sembrada con `herramientas/datos_prueba.py`. |
 | `INSTALL.md` | Comandos `pct exec 104` de instalación. |
+
+## Herramientas de revisión de interfaz (`herramientas/`)
+
+| Archivo | Qué hace |
+|---|---|
+| `datos_prueba.py` | Siembra una BD de mentira (clientes, artículos, guías, cuentas y 6 proformas, una con 12 líneas y un concepto de 140 caracteres). Nombres claramente falsos. Imprime los ids en JSON. |
+| `servidor_pruebas.sh` | `arrancar` / `parar` una segunda instancia en `:5124` **dentro del CT**, con BD, Excel, PDF y colas en `/tmp` y contraseña aleatoria por arranque. `parar` mata por PID (y por puerto), **nunca por patrón**: el servicio real también es `python3 app.py`. |
+| `capturas_panel.py` | Capturas a 390 y 1280 px con Chromium **en el host** (venv `/root/.venv-capturas`), auditoría de desbordes y de objetivos < 24 px. Deja `/tmp/capturas-proformas/<sufijo>/`. Nunca contra `:5114`. |
+
+Skill de interfaz: `.claude/skills/ui-lawsofux/SKILL.md`. Bitácora de las
+pasadas y de lo pendiente de decisión: `docs/revision-ui.md`.
 
 Assets de marca y plantillas: `DOCS_ETL_PROFORMAS/` (brand kit, plantilla
 proforma, plantilla documento, logotipo SVG, doc Factusol pendiente).
