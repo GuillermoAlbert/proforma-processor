@@ -24,10 +24,21 @@ referencia, pero **no se toca** (ni su código ni su cron ni su BD).
 - Las sesiones de Claude Code corren **en el host Proxmox** con cwd en la ruta
   NAS de arriba (`claude` no está instalado en CT104). Por eso los comandos de
   servicio van con `pct exec 104 -- …`.
-- **Editar aquí es editar producción en vivo**: el servicio ejecuta `src/`
-  directamente del NAS, y WeasyPrint relee la plantilla en cada PDF. Un cambio
-  a medias en `src/` puede tumbar el panel → cambios atómicos, commit antes de
-  cambios grandes, y `/verify` SIEMPRE después de tocar `src/`.
+- **Editar aquí es editar producción**: el servicio ejecuta `src/` directamente
+  del NAS. Qué se recoge cuándo (medido el 2026-09-22):
+  - **`.py`**: solo al reiniciar el servicio.
+  - **Plantillas Jinja del panel**: también **solo al reiniciar**. Flask corre
+    con `debug=False`, así que `jinja_env.auto_reload` es `False` y cada
+    plantilla se compila una vez y se queda en caché. (Antes aquí ponía que se
+    releían en cada petición: era falso.)
+  - **`src/static/`** (CSS, fuentes, favicon): se sirve del disco en cada
+    petición, sin reinicio — pero el navegador lo cachea.
+  - **`DOCS_ETL_PROFORMAS/plantilla-proforma.html`**: esa sí, WeasyPrint la
+    relee en cada PDF.
+
+  Consecuencia práctica: un fichero a medio escribir no tumba el panel al
+  instante, pero **sí lo tumba en el siguiente reinicio**. Cambios atómicos,
+  commit antes de cambios grandes, y `/verify` SIEMPRE después de tocar `src/`.
 - Estado vivo del proyecto: **`docs/estado.md`** (mantenerlo al día es parte de
   cada tarea; se actualiza en el mismo commit).
 - Skills: **`/verify`** (tras cada cambio) · **`/cierre-sesion`** (al terminar).

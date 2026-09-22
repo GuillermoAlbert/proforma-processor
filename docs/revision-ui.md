@@ -150,3 +150,57 @@ que el total acabara en **67 tests**. Las dos cosas no caben: parametrizar da
 15 tests por cada uno. Se ha elegido el total de 67 — cada test recorre las
 rutas por dentro y acumula **todos** los fallos en un solo mensaje, que además
 es más útil: una ejecución lista todas las pantallas que fallan, no la primera.
+
+---
+
+## Fase 2 — 2026-09-22 · el CSS a un fichero y las fuentes en local
+
+**Cero cambio de maquetación.** Comparadas las 32 capturas de `antes-es` con las
+de `fase2-es` píxel a píxel: **29 idénticas**. Las 3 que difieren:
+
+| Captura | Diferencia | Qué es |
+|---|---|---|
+| `modal-cobrar` (escritorio y móvil) | anillo azul alrededor del campo de fecha | el `:focus-visible` nuevo, en el campo que el diálogo autoenfoca. **Buscado** (regla 7). |
+| `proforma-nueva-escritorio` | 36 px en una franja de 222×4 | antialiasing de la fuente, ahora local. |
+
+- `src/static/fuentes/` con los cuatro `.woff2` (copia de los del PDF: el mismo
+  fichero en dos sitios a propósito, para que el panel no dependa de
+  `TEMPLATE_DIR`). Fuera el `<link>` a `fonts.googleapis.com`.
+- `src/static/estilos.css`, **16.198 bytes** de 16.384. Los dos `<style>` inline
+  unificados, todos los hex sueltos convertidos en tokens de `:root` con **el
+  mismo valor** (`--ok`, `--error`, `--aviso` y sus fondos y bordes,
+  `--gris-texto`/`--gris-fondo`, `--enviada-*`, `--blanco`, `--peligro`), más
+  `:focus-visible`, `.visualmente-oculto` y `prefers-reduced-motion`.
+- Queda **186 bytes de margen** sobre el tope. Las fases 3 y 5 no caben ahí: al
+  llegar, se recorta lo que se pueda y se sube el tope dejando el motivo escrito
+  (lo permite la regla del propio tope).
+- Tests: fuera el `xfail` de 1, 2, 3, 9 **y también del 8**. La spec lo dejaba
+  para la Fase 3, pero el `:focus-visible` que exige el test 1 arregla de paso
+  el `outline: none` huérfano, y un `xfail(strict=True)` que empieza a pasar es
+  un fallo. `pytest src/` → **63 passed, 4 xfailed**.
+
+### Dos cosas que no se sabían y ahora sí
+
+1. **Las plantillas Jinja NO se releen en caliente.** `debug=False` ⇒
+   `jinja_env.auto_reload = False`: cada plantilla se compila una vez por
+   proceso y se queda en caché. Lo que dicen el `CLAUDE.md` (ya corregido) y el
+   §0 de la spec es falso. Consecuencias: (a) un fichero a medio escribir **no**
+   tumba el panel al instante, pero sí en el siguiente reinicio; (b) **cada fase
+   que toque plantillas necesita un reinicio** para que la usuaria lo vea;
+   (c) `src/static/` sí se sirve del disco en cada petición.
+   Se descubrió porque una comparación con `git stash` salió con las páginas sin
+   estilo: el servidor tenía cacheada la plantilla nueva y el CSS ya no estaba.
+2. **El formato de `<input type="date">` lo pone el navegador, no la página.**
+   Las primeras capturas enseñaban `09/22/2026` y parecía un fallo del panel.
+   No lo arregla ni el `locale` del contexto de Playwright ni `--lang`: manda el
+   **entorno del proceso** de Chromium. `capturas_panel.py` ya lo fija
+   (`LANG=es_ES.UTF-8`) y ahora sale `22/09/2026`, como lo ve la usuaria.
+
+### Corrección que salió de mirar las capturas
+
+Al unificar el CSS, los selectores de elemento que vivían en el `<style>` de
+`ayuda.html` (`code`, `details`, `summary`) se volvieron globales y pintaban
+píldoras sobre los `<code>` de **Configuración** y **Configuración → Numeración**,
+que siempre habían sido texto plano. Se acotaron a `.pagina-ayuda` (un `<div>`
+que envuelve el contenido de esa página y no se ve). Sin las capturas, esto se
+colaba.

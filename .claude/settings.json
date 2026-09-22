@@ -22,7 +22,10 @@
       "Bash(ls *)",
       "Bash(grep *)",
       "Bash(rg *)",
-      "Bash(wc *)"
+      "Bash(wc *)",
+      "Bash(/root/.venv-capturas/bin/python herramientas/capturas_panel.py*)",
+      "Bash(pct exec 104 -- bash -lc '/mnt/empresa/proforma-admin/herramientas/servidor_pruebas.sh*)",
+      "Bash(pct exec 104 -- bash -lc 'cd /mnt/empresa/proforma-admin && python3 -m pytest*)"
     ],
     "deny": [
       "Edit(//opt/factura-processor/**)",

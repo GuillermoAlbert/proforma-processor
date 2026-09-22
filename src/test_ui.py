@@ -172,7 +172,6 @@ def _descendientes(nodo):
 # 1-3, 8, 9: el CSS
 # --------------------------------------------------------------------------- #
 
-@pytest.mark.xfail(strict=True, reason=PENDIENTE + ' (Fase 2)')
 def test_el_css_cabe_en_16_kb_y_no_trae_nada_de_fuera():
     assert CSS.exists(), f'no existe {CSS}'
     tamano = CSS.stat().st_size
@@ -186,7 +185,6 @@ def test_el_css_cabe_en_16_kb_y_no_trae_nada_de_fuera():
     assert 'prefers-reduced-motion' in css, 'faltan las reglas de prefers-reduced-motion'
 
 
-@pytest.mark.xfail(strict=True, reason=PENDIENTE + ' (Fase 2)')
 def test_ninguna_plantilla_carga_recursos_externos():
     culpables = []
     for f in PLANTILLAS:
@@ -200,7 +198,6 @@ def test_ninguna_plantilla_carga_recursos_externos():
         'estas plantillas cargan algo de fuera: ' + '; '.join(culpables))
 
 
-@pytest.mark.xfail(strict=True, reason=PENDIENTE + ' (Fase 2)')
 def test_ningun_color_suelto_fuera_de_root():
     assert CSS.exists(), f'no existe {CSS}'
     css = CSS.read_text()
@@ -211,28 +208,34 @@ def test_ningun_color_suelto_fuera_de_root():
         'todo color va como token en :root; sueltos por el CSS: ' + ', '.join(sorted(set(fuera))))
 
 
-@pytest.mark.xfail(strict=True, reason=PENDIENTE + ' (Fase 3)')
 def test_no_hay_outline_none_sin_sustituto():
+    """Quitar el contorno del foco solo vale si el CSS pone otro en su sitio.
+
+    El sustituto tiene que ser una regla `:focus-visible` con `outline` o
+    `box-shadow`: un `box-shadow` en la misma regla `:focus` no sirve, porque
+    también se pinta al pulsar con el ratón y no cubre lo que no sea un campo.
+    """
     assert CSS.exists(), f'no existe {CSS}'
     css = CSS.read_text()
-    culpables = []
-    for m in re.finditer(r'([^{}]*)\{([^}]*)\}', css):
-        selector, cuerpo = m.group(1).strip(), m.group(2)
-        if not re.search(r'outline\s*:\s*(none|0)\b', cuerpo):
-            continue
-        # Vale si la misma regla pone un sustituto visible, o si el selector es
-        # un :focus que tiene su pareja :focus-visible en otro sitio del CSS.
-        if re.search(r'box-shadow\s*:(?!\s*none)', cuerpo):
-            continue
-        if ':focus-visible' in selector:
-            continue
-        culpables.append(selector)
-    assert not culpables, (
-        'quitar el outline sin poner nada en su sitio deja el panel sin foco visible: '
-        + '; '.join(culpables))
+    reglas = [(m.group(1).strip(), m.group(2)) for m in re.finditer(r'([^{}]*)\{([^}]*)\}', css)]
+    apagan = [sel for sel, cuerpo in reglas if re.search(r'outline\s*:\s*(none|0)\b', cuerpo)]
+    if not apagan:
+        return
+    sustituto = [
+        sel for sel, cuerpo in reglas
+        if ':focus-visible' in sel
+        and (re.search(r'outline\s*:(?!\s*(none|0)\b)', cuerpo)
+             or re.search(r'box-shadow\s*:(?!\s*none)', cuerpo))
+    ]
+    assert sustituto, (
+        'estas reglas apagan el contorno del foco y el CSS no define ningún '
+        ':focus-visible que lo devuelva: ' + '; '.join(apagan))
+    suicidas = [sel for sel, cuerpo in reglas
+                if ':focus-visible' in sel and re.search(r'outline\s*:\s*(none|0)\b', cuerpo)]
+    assert not suicidas, ('un :focus-visible que apaga su propio contorno deja '
+                          'el panel sin foco: ' + '; '.join(suicidas))
 
 
-@pytest.mark.xfail(strict=True, reason=PENDIENTE + ' (Fase 2)')
 def test_las_fuentes_estan_en_local():
     faltan = [f for f in FUENTES if not (SRC / 'static' / 'fuentes' / f).exists()]
     assert not faltan, f'faltan las fuentes locales en src/static/fuentes/: {faltan}'

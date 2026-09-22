@@ -32,9 +32,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+# El formato de <input type="date"> lo pinta el navegador con SU idioma, no con
+# el de la página: sin esto las capturas enseñan 09/22/2026 y parece un fallo
+# del panel. Manda el entorno del proceso de Chromium, no el `locale` del
+# contexto ni el `--lang` de lanzamiento (probado: solo el entorno funciona).
+ENTORNO = {**os.environ, "LANG": "es_ES.UTF-8", "LANGUAGE": "es_ES", "LC_ALL": "es_ES.UTF-8"}
 
 BASE = "http://192.168.18.150:5124"
 USUARIO = "capturas"
@@ -126,9 +133,12 @@ def ruta_modal_cobrar() -> str:
 
 
 def _contexto(navegador, vista: str, ancho: int, alto: int, esquema: str, clave: str):
+    # locale es-ES para el Accept-Language y el JS (el widget de fecha lo
+    # arregla ENTORNO, arriba).
     return navegador.new_context(
         viewport={"width": ancho, "height": alto}, color_scheme=esquema,
         device_scale_factor=1, is_mobile=vista == "movil", has_touch=vista == "movil",
+        locale="es-ES", timezone_id="Europe/Madrid",
         http_credentials={"username": USUARIO, "password": clave})
 
 
@@ -142,7 +152,7 @@ def capturar(sufijo: str, solo: list[str] | None) -> None:
     modal = ruta_modal_cobrar()
     informe: dict[str, dict] = {}
     with sync_playwright() as p:
-        navegador = p.chromium.launch()
+        navegador = p.chromium.launch(args=["--lang=es-ES"], env=ENTORNO)
         for esquema in ESQUEMAS:
             for vista, (ancho, alto) in VISTAS.items():
                 ctx = _contexto(navegador, vista, ancho, alto, esquema, clave)
@@ -190,7 +200,7 @@ def sondar(ruta: str) -> None:
 
     clave = clave_de_pruebas()
     with sync_playwright() as p:
-        navegador = p.chromium.launch()
+        navegador = p.chromium.launch(args=["--lang=es-ES"], env=ENTORNO)
         ctx = _contexto(navegador, "movil", 390, 844, "light", clave)
         pagina = ctx.new_page()
         pagina.goto(BASE + ruta)
