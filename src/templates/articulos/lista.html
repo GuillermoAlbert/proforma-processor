@@ -25,7 +25,7 @@
         {% for a in articulos %}
         <tr>
           <td data-etiqueta="Código">{{ a.codigo or '—' }}</td>
-          <td class="principal">{{ a.descripcion }}</td>
+          <td class="principal">{{ a.descripcion }}{% if not a.activo %} <span class="badge badge-inactivo">Inactivo</span>{% endif %}</td>
           <td data-etiqueta="Precio" style="text-align:right;">{{ "%.2f"|format(a.precio) }} €</td>
           <td data-etiqueta="IVA %" style="text-align:right;">{{ a.porcentaje_iva }}%</td>
           <td data-etiqueta="Familia">{{ a.familia or '—' }}</td>

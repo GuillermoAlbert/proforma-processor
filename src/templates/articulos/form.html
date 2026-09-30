@@ -33,6 +33,14 @@
         <input type="number" id="porcentaje_iva" name="porcentaje_iva" step="0.1" min="0"
                value="{{ articulo.porcentaje_iva if articulo else '21' }}">
       </div>
+      <div class="form-group full">
+        <label for="activo" style="display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:normal; font-weight:500; cursor:pointer;">
+          <input type="checkbox" id="activo" name="activo" value="1" style="width:auto;"
+                 {% if not articulo or articulo.activo %}checked{% endif %}>
+          Activo
+        </label>
+        <small style="color:var(--stone);">Si lo desmarcas, deja de salir al crear proformas; no se borra.</small>
+      </div>
     </div>
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">Guardar</button>

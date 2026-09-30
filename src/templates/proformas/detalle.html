@@ -75,6 +75,9 @@
       {% if proforma.comentarios %}
       <tr><td style="padding:4px 0; color:var(--stone); vertical-align:top;">Comentarios</td><td style="padding:4px 0;">{{ proforma.comentarios }}</td></tr>
       {% endif %}
+      {% if proforma.notas_internas or proforma.origen_ref %}
+      <tr><td style="padding:4px 0; color:var(--stone); vertical-align:top;">Notas internas<br><small>(no salen en el PDF)</small></td><td style="padding:4px 0;">{% if proforma.notas_internas %}<div style="white-space:pre-line;">{{ proforma.notas_internas }}</div>{% endif %}{% if proforma.origen_ref %}<div style="color:var(--stone);">Origen: {{ proforma.origen_ref }}</div>{% endif %}</td></tr>
+      {% endif %}
     </table>
     </div>
   </div>

@@ -22,10 +22,16 @@
           <tr>
             <td class="principal">
               <form method="post" action="{{ url_for('guias_editar', id=g.id) }}"
-                    style="display:flex; gap:8px; align-items:center;">
+                    style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
                 <input type="text" name="nombre" value="{{ g.nombre }}"
                        aria-label="Nombre del guía"
-                       style="flex:1; padding:5px 8px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+                       style="flex:1 1 180px; min-width:0; padding:5px 8px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+                <label for="activo-{{ g.id }}" style="display:flex; align-items:center; gap:6px; text-transform:none; letter-spacing:normal; font-weight:500; cursor:pointer;">
+                  <input type="checkbox" id="activo-{{ g.id }}" name="activo" value="1" style="width:auto;"
+                         {% if g.activo %}checked{% endif %}>
+                  Activo
+                </label>
+                {% if not g.activo %}<span class="badge badge-inactivo">Inactivo</span>{% endif %}
                 <button type="submit" class="btn btn-secondary btn-sm">Guardar</button>
               </form>
             </td>
@@ -52,6 +58,12 @@
       <div class="form-group" style="margin-bottom:12px;">
         <label for="nombre">Nombre</label>
         <input type="text" id="nombre" name="nombre" required placeholder="Nombre del guía">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label for="activo" style="display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:normal; font-weight:500; cursor:pointer;">
+          <input type="checkbox" id="activo" name="activo" value="1" style="width:auto;" checked>
+          Activo
+        </label>
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;">Añadir guía</button>
     </form>

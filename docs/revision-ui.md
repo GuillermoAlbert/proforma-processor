@@ -354,3 +354,28 @@ Queda anotado, sin decidir nada porque no molesta: en el listado en móvil, los
 enlaces del número de proforma miden 19 px de alto (son texto dentro de la ficha,
 con toda la anchura para pulsar). Y la bandeja «¿las enviaste?» parte el número
 en tres líneas a 390 px.
+
+---
+
+## Pasada 2026-09-30: «Activo» en artículos y guías, notas internas en el detalle
+
+Solo se AÑADE; nada de lo que la usuaria ya usa cambia de sitio ni de nombre.
+
+- **Detalle de proforma:** fila «Notas internas (no salen en el PDF)» bajo
+  «Comentarios», solo si hay `notas_internas` u `origen_ref`. Saltos de línea con
+  `white-space: pre-line`, sin `|safe`. «Origen: …» en gris `--stone`.
+- **Artículos** (formulario) y **guías** (edición por fila y alta): casilla
+  «Activo» con `label for/id`, marcada por defecto en alta. El artículo lleva la
+  ayuda «Si lo desmarcas, deja de salir al crear proformas; no se borra.».
+- **Listados:** píldora «Inactivo» (texto, no solo color) junto al nombre, con
+  `.badge .badge-inactivo` (mismo gris que «borrador»; +15 bytes de CSS, que queda
+  en 24.167 de 24.576). Sin colores nuevos.
+- En guías la fila de edición pasa a `flex-wrap` con el nombre en `flex: 1 1 180px`:
+  sin eso, a 390 px el nombre quedaba en «Guía de Pru». A 1280 px la fila cabe
+  en una línea, igual que antes.
+- JS nuevo: ninguno.
+- **Capturas** (datos inventados, `:5124`): detalle, artículos, formulario de
+  artículo y guías, a 390 y 1280 px. 0 «DESBORDA». Los avisos de «pequeños» son los
+  de siempre (`sort-link`, «Eliminar») más la casilla nativa (13 px en escritorio,
+  20 px en móvil); el `label` entero es la zona de pulsación, como en el formulario
+  de cuentas. A 1280 px las diferencias con `antes` son solo lo añadido.

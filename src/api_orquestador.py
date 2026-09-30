@@ -20,7 +20,8 @@ EXCEL_PATH = os.environ.get("EXCEL_PATH", "/mnt/empresa/facturas-emitidas.xlsx")
 @bp.route("/proformas")
 @require_auth
 def api_proformas():
-    """Lista de proformas con nombre del cliente. Filtros: ?estado=X &cliente=X"""
+    """Lista de proformas con nombre del cliente. Filtros: ?estado=X &cliente=X
+    Con ?con_lineas=1 cada fila lleva además `lineas` y `guia_ids`."""
     from db import get_db
     estado = request.args.get("estado")
     cliente = request.args.get("cliente")
@@ -40,7 +41,68 @@ def api_proformas():
     sql += " ORDER BY p.fecha DESC LIMIT 200"
     with get_db() as conn:
         rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
+        if request.args.get("con_lineas") == "1" and rows:
+            _anadir_lineas_y_guias(conn, rows)
     return jsonify(rows)
+
+
+def _anadir_lineas_y_guias(conn, rows):
+    """Añade `lineas` y `guia_ids` a cada proforma, con dos consultas en total."""
+    ids = [r["id"] for r in rows]
+    marcas = ",".join("?" * len(ids))
+    por_id = {i: ([], []) for i in ids}
+    for l in conn.execute(
+        f"""SELECT proforma_id, fecha, articulo_id, descripcion, cantidad, precio,
+                   porcentaje_iva, importe
+            FROM proforma_lineas WHERE proforma_id IN ({marcas}) ORDER BY id""", ids
+    ).fetchall():
+        d = dict(l)
+        por_id[d.pop("proforma_id")][0].append(d)
+    for g in conn.execute(
+        f"""SELECT proforma_id, guia_id FROM proforma_guias
+            WHERE proforma_id IN ({marcas}) ORDER BY guia_id""", ids
+    ).fetchall():
+        por_id[g["proforma_id"]][1].append(int(g["guia_id"]))
+    for r in rows:
+        r["lineas"], r["guia_ids"] = por_id[r["id"]]
+
+
+@bp.route("/articulos")
+@require_auth
+def api_articulos():
+    """Catálogo de artículos (incluye inactivos, con `activo` booleano)."""
+    from db import get_db
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT id, descripcion, precio, porcentaje_iva, IFNULL(activo, 1) AS activo "
+            "FROM articulos ORDER BY descripcion"
+        ).fetchall()
+    return jsonify([{**dict(r), "activo": bool(r["activo"])} for r in rows])
+
+
+@bp.route("/guias")
+@require_auth
+def api_guias():
+    """Guías (solo id, nombre y activo; sin datos personales)."""
+    from db import get_db
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT id, nombre, IFNULL(activo, 1) AS activo FROM guias ORDER BY nombre"
+        ).fetchall()
+    return jsonify([{**dict(r), "activo": bool(r["activo"])} for r in rows])
+
+
+@bp.route("/cuentas")
+@require_auth
+def api_cuentas():
+    """Cuentas para elegir `cuenta_id`. Sin IBAN ni datos bancarios."""
+    from db import get_db
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT id, nombre, IFNULL(predeterminada, 0) AS predeterminada "
+            "FROM cuentas ORDER BY predeterminada DESC, nombre"
+        ).fetchall()
+    return jsonify([{**dict(r), "predeterminada": bool(r["predeterminada"])} for r in rows])
 
 
 @bp.route("/proformas/<int:pid>")

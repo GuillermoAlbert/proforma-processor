@@ -233,6 +233,28 @@ def _migrate_add_persona_contacto(conn):
         conn.execute("ALTER TABLE clientes ADD COLUMN persona_contacto TEXT")
 
 
+def _migrate_add_notas_internas(conn):
+    """Añade proformas.notas_internas y proformas.origen_ref (TEXT, opcionales).
+
+    Son datos internos del orquestador CT108: nunca van al PDF ni al Excel.
+    Idempotente."""
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(proformas)").fetchall()]
+    if 'notas_internas' not in cols:
+        conn.execute("ALTER TABLE proformas ADD COLUMN notas_internas TEXT")
+    if 'origen_ref' not in cols:
+        conn.execute("ALTER TABLE proformas ADD COLUMN origen_ref TEXT")
+
+
+def _migrate_add_activo(conn):
+    """Añade articulos.activo y guias.activo (INTEGER DEFAULT 1): permite retirar
+    un artículo o guía de los desplegables sin borrarlo. Las filas existentes
+    quedan activas. Idempotente."""
+    for tabla in ('articulos', 'guias'):
+        cols = [row[1] for row in conn.execute(f"PRAGMA table_info({tabla})").fetchall()]
+        if 'activo' not in cols:
+            conn.execute(f"ALTER TABLE {tabla} ADD COLUMN activo INTEGER DEFAULT 1")
+
+
 def _migrate_estado_confirmada_a_enviada(conn):
     """Modelo de 3 estados (borrador → enviada → cobrada): el antiguo
     'confirmada' pasa a llamarse 'enviada' (misma lógica, registrada en Excel).
@@ -274,6 +296,8 @@ def init_db():
         _migrate_estado_confirmada_a_enviada(conn)
         _migrate_mostrar_direccion_a_modo(conn)
         _migrate_add_persona_contacto(conn)
+        _migrate_add_notas_internas(conn)
+        _migrate_add_activo(conn)
 
 
 _EMPRESA_DEFAULTS = {

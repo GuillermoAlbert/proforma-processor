@@ -85,7 +85,7 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
   `TEMPLATE_DIR`, `ADMIN_USER`/`ADMIN_PASS`, `EXCEL_PATH`, `EXCEL_BACKUP_DIR`
   (rotación 30 días), `EXCEL_PENDING_FILE` (cola si el Excel está abierto),
   `EXCEL_LOCK_FILE`.
-- Verificación: `python3 -m pytest src/` (seis suites, 58 tests + `test_ui.py`)
+- Verificación: `python3 -m pytest src/` (ocho suites + `test_ui.py`, 117 tests)
   (suites pytest, aisladas en /tmp) + `test_pdf_gen.py` + smoke HTTP + el flujo manual
   en el panel (ver `/verify`).
 
@@ -94,7 +94,7 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
 | Archivo | Qué hace |
 |---|---|
 | `app.py` | Flask monolítico (~1.300 líneas): rutas CRUD (clientes, artículos, guías, cuentas), proformas, estados, PDF, Excel. Registra el blueprint de `api_orquestador`. |
-| `api_orquestador.py` | Blueprint `/api/*` para CT108: lectura (proformas, clientes, cobros vencidos) + `POST /api/proformas/borrador` (única escritura; siempre `borrador`). |
+| `api_orquestador.py` | Blueprint `/api/*` para CT108: lectura (proformas —`?con_lineas=1`—, clientes, cobros vencidos, `articulos`, `guias`, `cuentas` sin IBAN). La única escritura, `POST /api/proformas/borrador` (siempre `borrador`), vive en `app.py`; sus `notas`/`origen_ref` van a `proformas.notas_internas`/`origen_ref`, que **nunca** salen al PDF ni al Excel. |
 | `db.py` | Context manager SQLite WAL + schema DDL + migraciones `_migrate_*` idempotentes + `siguiente_numero_proforma()` + config de empresa/serie (`get_empresa_config`, `get_serie_config` — los datos de empresa viven en BD, ya no hardcodeados). |
 | `pdf.py` | PDF con WeasyPrint + Jinja2 (filtros `fecha_es`, `iban_format`; `numero_corto` PREFIJO-AA-NNNN en cabecera). Plantilla: `DOCS_ETL_PROFORMAS/plantilla-proforma.html`, con las fuentes en `DOCS_ETL_PROFORMAS/fuentes/` (nunca volver al `<link>` remoto). **Sin variable `guia`: los guías nunca van al PDF.** El bloque de pago sale de la cuenta asignada (tabla `cuentas`); fallback a la config de empresa. `_render_ajustado()` reintenta compactando si el PDF se pasa de una hoja (las reglas necesitan `!important`, ver abajo). `generar_pdf_preview()` da la vista previa con marca de agua **en memoria**, sin tocar `ruta_pdf`. |
 | `excel.py` | Registro en `facturas-emitidas.xlsx`: backup + lock + reintentos + cola (patrón del processor). `registrar_proforma()`, `marcar_cobrado_excel()`, `drain_pending()`. |
@@ -106,6 +106,8 @@ pct exec 104 -- bash -c 'cd /mnt/empresa/proforma-admin/src && python3 test_pdf_
 | `test_envio_y_vista_previa.py` | Suite pytest del flujo de envío: vista previa que no cachea, sellado de `pdf_previsualizado_en`, `/enviar-y-descargar`, bandeja de pendientes y **el Excel a prueba de doble clic** (incluido un test que fuerza el solape de dos escrituras). BD y Excel en `/tmp`. |
 | `test_numeracion_agencia.py` | Suite pytest de la numeración cuando la serie depende del cliente o la fecha (`{agencia}`, `{mes_corto}`): alta sin cliente, `peek-numero`, renumerado al editar un borrador y campo `readonly` en el alta. BD en `/tmp`. |
 | `test_persona_contacto.py` | Suite pytest de `clientes.persona_contacto`: alta, edición, migración sobre una BD con el schema antiguo y la ficha del cliente del detalle. BD en `/tmp`. |
+| `test_api_ct108.py` | Suite pytest del API de CT108: payload antiguo compatible, payload completo (líneas, suplidos, guías, cuenta), cada 400 sin crear nada, GET de catálogos y `con_lineas`, migraciones. BD en `/tmp`. |
+| `test_activo_y_notas.py` | Suite pytest de la casilla «Activo» de artículos/guías y del bloque «Notas internas» del detalle (que no llega al PDF). BD en `/tmp`. |
 | `test_ui.py` | Suite pytest de la interfaz: el trozo del checklist de `ui-lawsofux` que comprueba una máquina (CSS en un solo fichero y bajo 16 KB, cero recursos externos, colores solo en `:root`, `lang`/`h1`/`aria-live`/`aria-current`, cada campo con su etiqueta, `<caption>` y `.table-wrap` en cada tabla, avisos con icono, foco visible, fuentes locales). BD en `/tmp` sembrada con `herramientas/datos_prueba.py`. |
 | `INSTALL.md` | Comandos `pct exec 104` de instalación. |
 

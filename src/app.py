@@ -263,13 +263,14 @@ def articulos_nuevo():
     if request.method == 'POST':
         with get_db() as conn:
             conn.execute(
-                "INSERT INTO articulos (codigo, descripcion, precio, porcentaje_iva, familia) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO articulos (codigo, descripcion, precio, porcentaje_iva, familia, activo) VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     request.form.get('codigo', '').strip(),
                     request.form.get('descripcion', '').strip(),
                     float(request.form.get('precio', 0) or 0),
                     float(request.form.get('porcentaje_iva', 21) or 21),
                     request.form.get('familia', '').strip(),
+                    1 if request.form.get('activo') else 0,
                 )
             )
         flash('Artículo creado correctamente.', 'success')
@@ -287,7 +288,7 @@ def articulos_editar(id):
             return redirect(url_for('articulos_lista'))
         if request.method == 'POST':
             conn.execute(
-                """UPDATE articulos SET codigo=?, descripcion=?, precio=?, porcentaje_iva=?, familia=?
+                """UPDATE articulos SET codigo=?, descripcion=?, precio=?, porcentaje_iva=?, familia=?, activo=?
                    WHERE id=?""",
                 (
                     request.form.get('codigo', '').strip(),
@@ -295,6 +296,7 @@ def articulos_editar(id):
                     float(request.form.get('precio', 0) or 0),
                     float(request.form.get('porcentaje_iva', 21) or 21),
                     request.form.get('familia', '').strip(),
+                    1 if request.form.get('activo') else 0,
                     id,
                 )
             )
@@ -321,7 +323,8 @@ def guias_nuevo():
         flash(f'Ya existe un guía llamado «{nombre}».', 'error')
     elif nombre:
         with get_db() as conn:
-            conn.execute("INSERT INTO guias (nombre) VALUES (?)", (nombre,))
+            conn.execute("INSERT INTO guias (nombre, activo) VALUES (?, ?)",
+                         (nombre, 1 if request.form.get('activo') else 0))
         flash('Guía creado.', 'success')
     return redirect(url_for('guias_lista'))
 
@@ -332,7 +335,8 @@ def guias_editar(id):
     nombre = request.form.get('nombre', '').strip()
     if nombre:
         with get_db() as conn:
-            conn.execute("UPDATE guias SET nombre = ? WHERE id = ?", (nombre, id))
+            conn.execute("UPDATE guias SET nombre = ?, activo = ? WHERE id = ?",
+                         (nombre, 1 if request.form.get('activo') else 0, id))
         flash('Guía actualizado.', 'success')
     return redirect(url_for('guias_lista'))
 
@@ -529,13 +533,16 @@ def _insertar_guias(conn, proforma_id, guia_ids):
 
 
 def _crear_proforma(fecha_str, cliente_id, cuenta_id, lineas, suplidos, suplidos_detalle,
-                    comentarios, referencia, numero_form=None, guia_ids=()):
+                    comentarios, referencia, numero_form=None, guia_ids=(),
+                    notas_internas=None, origen_ref=None):
     """Crea una proforma en estado 'borrador' con sus líneas y guías.
 
     Lógica compartida por el formulario /proformas/nueva y el API del orquestador
     (/api/proformas/borrador). Numera con la serie configurada; si `numero_form`
     viene y la serie no usa {agencia}, se respeta el número manual (ValueError si
-    ya está en uso). Devuelve (proforma_id, numero). Nunca confirma ni toca el Excel.
+    ya está en uso). `notas_internas` y `origen_ref` son datos internos (CT108): no
+    salen al PDF ni al Excel. Devuelve (proforma_id, numero). Nunca confirma ni
+    toca el Excel.
     """
     base, iva_total, total, total_suplidos = _calcular_totales(lineas, suplidos)
     try:
@@ -564,11 +571,11 @@ def _crear_proforma(fecha_str, cliente_id, cuenta_id, lineas, suplidos, suplidos
             """INSERT INTO proformas
                (numero_proforma, fecha, cliente_id, cuenta_id, estado, base, iva_total,
                 suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre,
-                referencia, numero_secuencial)
-               VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                referencia, numero_secuencial, notas_internas, origen_ref)
+               VALUES (?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (numero, fecha_str, cliente_id, cuenta_id, base, iva_total,
              suplidos, suplidos_detalle, total, total_suplidos, comentarios, trimestre,
-             referencia, n_secuencial)
+             referencia, n_secuencial, notas_internas, origen_ref)
         )
         proforma_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         _insertar_guias(conn, proforma_id, guia_ids)
@@ -622,12 +629,25 @@ def _renumerar_borrador(proforma, fecha_str, cliente_id):
     return None if ocupado else numero
 
 
-def _form_context(conn):
-    """Carga las listas necesarias para los formularios de proforma."""
+def _form_context(conn, proforma_id=None):
+    """Carga las listas necesarias para los formularios de proforma.
+
+    Guías y artículos: solo los activos, más los inactivos que ya usa la
+    proforma que se edita (`proforma_id`), para que no se pierdan al guardar."""
+    pid = proforma_id if proforma_id is not None else -1
     return {
         'clientes':  conn.execute("SELECT * FROM clientes ORDER BY nombre_agencia").fetchall(),
-        'guias':     conn.execute("SELECT * FROM guias ORDER BY nombre").fetchall(),
-        'articulos': conn.execute("SELECT * FROM articulos ORDER BY descripcion").fetchall(),
+        'guias':     conn.execute(
+            """SELECT * FROM guias
+               WHERE IFNULL(activo, 1) = 1
+                  OR id IN (SELECT guia_id FROM proforma_guias WHERE proforma_id = ?)
+               ORDER BY nombre""", (pid,)).fetchall(),
+        'articulos': conn.execute(
+            """SELECT * FROM articulos
+               WHERE IFNULL(activo, 1) = 1
+                  OR id IN (SELECT articulo_id FROM proforma_lineas
+                            WHERE proforma_id = ? AND articulo_id IS NOT NULL)
+               ORDER BY descripcion""", (pid,)).fetchall(),
         'cuentas':   conn.execute("SELECT * FROM cuentas ORDER BY predeterminada DESC, nombre").fetchall(),
     }
 
@@ -882,7 +902,7 @@ def proformas_editar(id):
         return redirect(url_for('proformas_lista'))
 
     with get_db() as conn:
-        ctx = _form_context(conn)
+        ctx = _form_context(conn, id)
         lineas = conn.execute(
             "SELECT * FROM proforma_lineas WHERE proforma_id=? ORDER BY id", (id,)
         ).fetchall()
@@ -1336,6 +1356,128 @@ def api_guias_nuevo():
     return jsonify({'id': guia_id, 'nombre': nombre})
 
 
+class _ErrorApi(Exception):
+    """Error de validación del API del orquestador: siempre se devuelve como 400."""
+
+
+def _api_num(valor, campo):
+    """Convierte a float un valor del JSON (rechaza texto, booleanos, NaN e inf)."""
+    if isinstance(valor, bool):
+        raise _ErrorApi(f'{campo} debe ser numérico.')
+    try:
+        n = float(valor)
+    except (TypeError, ValueError):
+        raise _ErrorApi(f'{campo} debe ser numérico.')
+    if n != n or n in (float('inf'), float('-inf')):
+        raise _ErrorApi(f'{campo} debe ser numérico.')
+    return n
+
+
+def _api_entero(valor, campo):
+    """Convierte a int un id del JSON (acepta 5 y "5"; rechaza 5.5 y booleanos)."""
+    if isinstance(valor, bool):
+        raise _ErrorApi(f'{campo} debe ser un número entero.')
+    try:
+        n = _api_num(valor, campo)
+    except _ErrorApi:
+        raise _ErrorApi(f'{campo} debe ser un número entero.')
+    if n != int(n):
+        raise _ErrorApi(f'{campo} debe ser un número entero.')
+    return int(n)
+
+
+def _api_lista(data, clave):
+    """Lista opcional del JSON: [] si no viene; _ErrorApi si no es una lista."""
+    valor = data.get(clave)
+    if valor is None:
+        return []
+    if not isinstance(valor, list):
+        raise _ErrorApi(f'{clave} debe ser una lista.')
+    return valor
+
+
+def _api_texto(valor):
+    return str(valor).strip() if valor is not None else ''
+
+
+def _api_lineas(items, fecha_servicio):
+    """Valida las líneas del JSON y las deja como las de _parse_lineas."""
+    lineas = []
+    for i, it in enumerate(items, 1):
+        if not isinstance(it, dict):
+            raise _ErrorApi(f'La línea {i} debe ser un objeto.')
+        desc = _api_texto(it.get('descripcion'))
+        if not desc:
+            raise _ErrorApi(f'La línea {i} no tiene descripción.')
+        if it.get('precio') is None:
+            raise _ErrorApi(f'La línea {i} no tiene precio.')
+        precio = _api_num(it.get('precio'), f'El precio de la línea {i}')
+        cantidad = 1.0 if it.get('cantidad') is None else _api_num(
+            it.get('cantidad'), f'La cantidad de la línea {i}')
+        iva = 21.0 if it.get('iva') is None else _api_num(
+            it.get('iva'), f'El iva de la línea {i}')
+        art_id = None
+        if it.get('articulo_id') is not None:
+            art_id = _api_entero(it.get('articulo_id'), f'El articulo_id de la línea {i}')
+        fecha = _api_texto(it.get('fecha')) or fecha_servicio
+        try:
+            date.fromisoformat(fecha)
+        except ValueError:
+            raise _ErrorApi(f'La fecha de la línea {i} debe tener formato YYYY-MM-DD.')
+        lineas.append({
+            'descripcion': desc, 'cantidad': cantidad, 'precio': precio,
+            'porcentaje_iva': iva, 'importe': cantidad * precio * (1 + iva / 100),
+            'articulo_id': art_id, 'fecha': fecha,
+        })
+    return lineas
+
+
+def _api_suplidos(items):
+    """Valida los suplidos del JSON. Devuelve (total, json_str_o_None), con el
+    mismo JSON que produce _parse_suplidos."""
+    out, total = [], 0.0
+    for i, it in enumerate(items, 1):
+        if not isinstance(it, dict):
+            raise _ErrorApi(f'El suplido {i} debe ser un objeto.')
+        desc = _api_texto(it.get('descripcion'))
+        precio = 0.0 if it.get('precio') is None else _api_num(
+            it.get('precio'), f'El precio del suplido {i}')
+        if precio > 0:
+            cant = 1.0 if it.get('cantidad') is None else _api_num(
+                it.get('cantidad'), f'La cantidad del suplido {i}')
+            imp = round(cant * precio, 2)
+        else:
+            cant = None
+            imp = 0.0 if it.get('importe') is None else round(
+                _api_num(it.get('importe'), f'El importe del suplido {i}'), 2)
+        if not (desc or imp):
+            continue
+        item = {'desc': desc, 'importe': imp}
+        if precio > 0:
+            item['cantidad'] = cant
+            item['precio'] = round(precio, 2)
+        out.append(item)
+        total += imp
+    return round(total, 2), (json.dumps(out, ensure_ascii=False) if out else None)
+
+
+def _api_ids_inexistentes(conn, tabla, ids):
+    """Ids de `ids` que no existen en `tabla` (sin repetir, en orden)."""
+    if not ids:
+        return []
+    marcas = ','.join('?' * len(ids))
+    existen = {r['id'] for r in conn.execute(
+        f"SELECT id FROM {tabla} WHERE id IN ({marcas})", ids).fetchall()}
+    return [i for i in ids if i not in existen]
+
+
+def _api_msg_inexistentes(faltan, singular, plural):
+    lista = ', '.join(str(i) for i in faltan)
+    if len(faltan) == 1:
+        return f'No existe el {singular} {lista}.'
+    return f'No existen los {plural} {lista}.'
+
+
 @app.route('/api/proformas/borrador', methods=['POST'])
 @require_auth
 def api_proformas_borrador():
@@ -1344,92 +1486,144 @@ def api_proformas_borrador():
     Pensado para que el asistente operativo cree proformas automáticamente a
     partir de una guía/servicio detectado, SIN pedir confirmación al usuario:
     el resultado queda siempre en estado 'borrador' (nunca se envía ni se
-    toca el Excel) y se puede revisar/editar después desde el panel.
+    toca el Excel ni se genera PDF) y se puede revisar/editar después desde el panel.
 
-    Body JSON esperado:
+    Body JSON (todo opcional salvo fecha_servicio y, si no hay `lineas`, concepto):
       {
-        "cliente_id": int,                 # opcional
-        "cliente": {                       # opcional, alternativa a cliente_id
+        "cliente_id": int,                 # alternativa a "cliente"
+        "cliente": {                       # se reutiliza por nombre o se crea
           "nombre_agencia": str, "nif_cif": str, "email": str, "telefono": str
         },
-        "fecha_servicio": "YYYY-MM-DD",
-        "concepto": str,
-        "importe": number,                 # opcional
-        "notas": str,                       # opcional
-        "origen_ref": str                   # opcional, referencia del origen en CT108
+        "fecha_servicio": "YYYY-MM-DD",    # obligatorio
+        "concepto": str,                   # obligatorio salvo que venga `lineas`
+        "importe": number,                 # base sin IVA de la línea única (IVA 21 %)
+        "referencia": str,                 # referencia visible de la proforma
+        "comentarios": str,                # visibles en el PDF y el Excel
+        "notas": str,                      # NOTAS INTERNAS: no salen al PDF ni al Excel
+        "origen_ref": str,                 # referencia del origen en CT108 (interna)
+        "guia_ids": [int],                 # guías asignados (solo Excel)
+        "cuenta_id": int,                  # por defecto, la cuenta predeterminada
+        "lineas": [{                       # si viene no vacía, se ignoran concepto e importe
+          "fecha": "YYYY-MM-DD",           # por defecto fecha_servicio
+          "articulo_id": int|null,
+          "descripcion": str,              # obligatoria
+          "cantidad": number,              # por defecto 1
+          "precio": number,                # obligatorio, sin IVA
+          "iva": number                    # por defecto 21
+        }],
+        "suplidos": [                      # dos formas:
+          {"descripcion": str, "cantidad": number, "precio": number},   # importe = cantidad x precio
+          {"descripcion": str, "importe": number}                       # importe plano
+        ]
       }
+
+    Respuesta: 201 {id, numero_proforma, url}. Cualquier error de validación
+    devuelve 400 {"error": "<mensaje>"} y no crea nada (ni siquiera el cliente).
     """
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return jsonify({'error': 'El cuerpo debe ser un JSON con un objeto.'}), 400
-
-    fecha_servicio = str(data.get('fecha_servicio') or '').strip()
-    concepto = str(data.get('concepto') or '').strip()
-    if not fecha_servicio or not concepto:
-        return jsonify({'error': 'fecha_servicio y concepto son obligatorios.'}), 400
     try:
-        date.fromisoformat(fecha_servicio)
-    except ValueError:
-        return jsonify({'error': 'fecha_servicio debe tener formato YYYY-MM-DD.'}), 400
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            raise _ErrorApi('El cuerpo debe ser un JSON con un objeto.')
 
-    importe_raw = data.get('importe')
-    importe = 0.0
-    if importe_raw is not None:
+        fecha_servicio = _api_texto(data.get('fecha_servicio'))
+        if not fecha_servicio:
+            raise _ErrorApi('fecha_servicio y concepto son obligatorios.')
         try:
-            importe = float(importe_raw)
-        except (TypeError, ValueError):
-            return jsonify({'error': 'importe debe ser numérico.'}), 400
+            date.fromisoformat(fecha_servicio)
+        except ValueError:
+            raise _ErrorApi('fecha_servicio debe tener formato YYYY-MM-DD.')
 
-    cliente_id = data.get('cliente_id') or None
-    cliente_data = data.get('cliente') or {}
+        items_lineas = _api_lista(data, 'lineas')
+        if items_lineas:
+            lineas = _api_lineas(items_lineas, fecha_servicio)
+        else:
+            concepto = _api_texto(data.get('concepto'))
+            if not concepto:
+                raise _ErrorApi('fecha_servicio y concepto son obligatorios.')
+            importe = 0.0
+            if data.get('importe') is not None:
+                importe = _api_num(data.get('importe'), 'importe')
+            lineas = [{
+                'descripcion': concepto, 'cantidad': 1.0, 'precio': importe,
+                'porcentaje_iva': 21.0, 'importe': importe * 1.21,
+                'articulo_id': None, 'fecha': fecha_servicio,
+            }]
 
-    with get_db() as conn:
-        if cliente_id:
-            row = conn.execute("SELECT id FROM clientes WHERE id=?", (cliente_id,)).fetchone()
-            if row is None:
-                return jsonify({'error': f'No existe el cliente {cliente_id}.'}), 404
-        elif isinstance(cliente_data, dict) and cliente_data.get('nombre_agencia'):
-            nombre = str(cliente_data.get('nombre_agencia')).strip()
-            row = conn.execute(
-                "SELECT id FROM clientes WHERE nombre_agencia = ? COLLATE NOCASE", (nombre,)
-            ).fetchone()
-            if row:
-                cliente_id = row['id']
+        suplidos, suplidos_detalle = _api_suplidos(_api_lista(data, 'suplidos'))
+
+        guia_ids = []
+        for g in _api_lista(data, 'guia_ids'):
+            gid = _api_entero(g, 'guia_ids')
+            if gid not in guia_ids:
+                guia_ids.append(gid)
+
+        cuenta_raw = data.get('cuenta_id')
+        cuenta_pedida = None if cuenta_raw in (None, '') else _api_entero(cuenta_raw, 'cuenta_id')
+        cliente_raw = data.get('cliente_id')
+        cliente_pedido = None if cliente_raw in (None, '', 0) else _api_entero(cliente_raw, 'cliente_id')
+        cliente_data = data.get('cliente') or {}
+        if not isinstance(cliente_data, dict):
+            raise _ErrorApi('cliente debe ser un objeto.')
+
+        # Todo validado contra la BD antes de insertar nada.
+        with get_db() as conn:
+            art_ids = []
+            for l in lineas:
+                if l['articulo_id'] is not None and l['articulo_id'] not in art_ids:
+                    art_ids.append(l['articulo_id'])
+            faltan = _api_ids_inexistentes(conn, 'articulos', art_ids)
+            if faltan:
+                raise _ErrorApi(_api_msg_inexistentes(faltan, 'artículo', 'artículos'))
+            faltan = _api_ids_inexistentes(conn, 'guias', guia_ids)
+            if faltan:
+                raise _ErrorApi(_api_msg_inexistentes(faltan, 'guía', 'guías'))
+
+            if cuenta_pedida is not None:
+                if conn.execute("SELECT 1 FROM cuentas WHERE id=?", (cuenta_pedida,)).fetchone() is None:
+                    raise _ErrorApi(f'No existe la cuenta {cuenta_pedida}.')
+                cuenta_id = cuenta_pedida
             else:
-                nif_cif = str(cliente_data.get('nif_cif') or '').strip()
-                email = str(cliente_data.get('email') or '').strip()
-                telefono = str(cliente_data.get('telefono') or '').strip()
+                cuenta_row = conn.execute(
+                    "SELECT id FROM cuentas ORDER BY predeterminada DESC, nombre LIMIT 1"
+                ).fetchone()
+                cuenta_id = cuenta_row['id'] if cuenta_row else None
+
+            cliente_id = None
+            cliente_nuevo = None       # se inserta al final, ya con todo validado
+            if cliente_pedido is not None:
+                if conn.execute("SELECT 1 FROM clientes WHERE id=?", (cliente_pedido,)).fetchone() is None:
+                    raise _ErrorApi(f'No existe el cliente {cliente_pedido}.')
+                cliente_id = cliente_pedido
+            elif cliente_data.get('nombre_agencia'):
+                nombre = _api_texto(cliente_data.get('nombre_agencia'))
+                row = conn.execute(
+                    "SELECT id FROM clientes WHERE nombre_agencia = ? COLLATE NOCASE", (nombre,)
+                ).fetchone()
+                if row:
+                    cliente_id = row['id']
+                else:
+                    cliente_nuevo = (nombre, _api_texto(cliente_data.get('nif_cif')),
+                                     _api_texto(cliente_data.get('email')),
+                                     _api_texto(cliente_data.get('telefono')))
+
+        if cliente_nuevo:
+            with get_db() as conn:
                 conn.execute(
                     "INSERT INTO clientes (nombre_agencia, nif_cif, email, telefono) VALUES (?, ?, ?, ?)",
-                    (nombre, nif_cif, email, telefono)
+                    cliente_nuevo
                 )
                 cliente_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-
-        cuenta_row = conn.execute(
-            "SELECT id FROM cuentas ORDER BY predeterminada DESC, nombre LIMIT 1"
-        ).fetchone()
-        cuenta_id = cuenta_row['id'] if cuenta_row else None
-
-    lineas = [{
-        'descripcion': concepto,
-        'cantidad': 1.0,
-        'precio': importe,
-        'porcentaje_iva': 21.0,
-        'importe': importe * 1.21,
-        'articulo_id': None,
-        'fecha': fecha_servicio,
-    }]
-
-    comentarios = str(data.get('notas') or '').strip()
-    origen_ref = data.get('origen_ref')
-    if origen_ref:
-        tag = f'[origen CT108: {origen_ref}]'
-        comentarios = f'{comentarios}\n{tag}' if comentarios else tag
+    except _ErrorApi as e:
+        return jsonify({'error': str(e)}), 400
 
     proforma_id, numero = _crear_proforma(
         fecha_servicio, cliente_id, cuenta_id, lineas,
-        suplidos=0.0, suplidos_detalle=None,
-        comentarios=comentarios, referencia=None,
+        suplidos=suplidos, suplidos_detalle=suplidos_detalle,
+        comentarios=_api_texto(data.get('comentarios')),
+        referencia=_api_texto(data.get('referencia')) or None,
+        guia_ids=guia_ids,
+        notas_internas=_api_texto(data.get('notas')) or None,
+        origen_ref=_api_texto(data.get('origen_ref')) or None,
     )
 
     return jsonify({

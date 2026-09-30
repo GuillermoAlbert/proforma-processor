@@ -398,7 +398,7 @@ table.data-table tbody tr:hover { background: var(--sand); }
   font-weight: 600;
   letter-spacing: 0.04em;
 }
-.badge-borrador   { background: var(--gris-fondo); color: var(--gris-texto); }
+.badge-borrador, .badge-inactivo { background: var(--gris-fondo); color: var(--gris-texto); }
 .badge-enviada    { background: var(--navy-pale); color: var(--navy); }
 .badge-cobrada    { background: var(--ok-fondo); color: var(--ok); }
 .badge-confirmada { background: var(--ok-fondo); color: var(--ok); }

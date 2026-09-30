@@ -1,6 +1,6 @@
 # Estado del proyecto — proforma-admin
 
-> **Última actualización: 2026-09-22.** Fuente de verdad del estado. Se
+> **Última actualización: 2026-09-30.** Fuente de verdad del estado. Se
 > actualiza **en el mismo commit** de cada pieza: lo terminado pasa a
 > «Historial» (fecha + commit), «Pendiente» refleja lo que queda.
 
@@ -25,8 +25,16 @@
 - Flujo de 3 estados `borrador → enviada → cobrada` con deshacer simétrico;
   registro automático en el Excel de Hacienda al enviar y fecha de cobro en la
   col `Cobrado` al cobrar (backup + lock + reintentos + cola).
-- API para CT108 (`api_orquestador.py`): lectura de proformas/clientes/cobros
-  vencidos + `POST /api/proformas/borrador` (única escritura, siempre borrador).
+- API para CT108 (`api_orquestador.py`): lectura de proformas (`?con_lineas=1`
+  añade `lineas` y `guia_ids`), clientes, cobros vencidos y los catálogos
+  `GET /api/articulos`, `/api/guias` y `/api/cuentas` (sin IBAN) +
+  `POST /api/proformas/borrador` (única escritura, siempre borrador): líneas,
+  suplidos, guías, cuenta, referencia y comentarios; todo error es 400.
+- **Notas internas** (`proformas.notas_internas`, `origen_ref`): lo que CT108
+  manda como `notas`/`origen_ref` se ve en el detalle como «Notas internas» y
+  **nunca** sale en el PDF ni en el Excel (antes se mezclaba en Comentarios).
+- Artículos y guías con casilla **«Activo»**: los inactivos no salen al crear
+  proformas (sí al editar una que ya los usa) y llevan la etiqueta «Inactivo».
 - Datos de empresa y serie configurables en BD (`get_empresa_config` /
   `get_serie_config`), no hardcodeados.
 - **Interfaz saneada y usable en el móvil** (2026-09-22): un solo CSS
@@ -50,6 +58,13 @@
 
 ## Historial
 
+- **2026-09-30** — **API ampliada para CT108 + notas internas + «Activo».**
+  Contrato pedido por CT108 (ver `api_proformas_borrador` y
+  `api_orquestador.py`). Migraciones `_migrate_add_notas_internas` y
+  `_migrate_add_activo`. Suites nuevas `test_api_ct108.py` (39) y
+  `test_activo_y_notas.py` (10): 117 tests. Capturas en `docs/revision-ui.md`.
+  Las proformas ya creadas con «[origen CT108: …]» en Comentarios las limpia
+  CT108 a mano (decisión suya).
 - **2026-09-22** — `e744259`→`75fbaf0` **la interfaz, con método.** Implementada
   la spec `ui-lawsofux` del host en cinco fases, cada una con sus capturas
   miradas y su commit. El detalle de qué se vio en cada pasada está en
